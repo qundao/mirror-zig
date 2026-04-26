@@ -5382,6 +5382,7 @@ fn containerDecl(
     switch (tree.tokenTag(container_decl.ast.main_token)) {
         .keyword_struct => {
             const layout: std.lang.Type.ContainerLayout = if (container_decl.layout_token) |t| switch (tree.tokenTag(t)) {
+                .keyword_bitpack => .@"packed",
                 .keyword_packed => .@"packed",
                 .keyword_extern => .@"extern",
                 else => unreachable,
@@ -5392,6 +5393,7 @@ fn containerDecl(
         },
         .keyword_union => {
             const layout: std.lang.Type.ContainerLayout = if (container_decl.layout_token) |t| switch (tree.tokenTag(t)) {
+                .keyword_bitpack => .@"packed",
                 .keyword_packed => .@"packed",
                 .keyword_extern => .@"extern",
                 else => unreachable,

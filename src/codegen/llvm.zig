@@ -3094,7 +3094,7 @@ pub const Object = struct {
                 .opt,
                 .aggregate,
                 .un,
-                .bitpack,
+                .@"bitpack",
                 // memoization, not types
                 .memoized_call,
                 => unreachable,
@@ -3422,7 +3422,7 @@ pub const Object = struct {
                     vals[0..llvm_ty_fields.len],
                 );
             },
-            .bitpack => |bitpack| return o.lowerValue(bitpack.backing_int_val, repr),
+            .@"bitpack" => |@"bitpack"| return o.lowerValue(@"bitpack".backing_int_val, repr),
             .aggregate => |aggregate| switch (ip.indexToKey(ty.toIntern())) {
                 .array_type => |array_type| switch (aggregate.storage) {
                     .bytes => |bytes| try o.builder.stringConst(try o.builder.string(

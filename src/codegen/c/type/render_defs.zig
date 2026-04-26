@@ -151,7 +151,7 @@ pub fn defineIncomplete(ty: Type, w: *Writer, pt: Zcu.PerThread) Writer.Error!vo
         .@"enum" => .{ .@"enum" = ty },
         .@"struct", .@"union" => switch (ty.containerLayout(zcu)) {
             .auto, .@"extern" => return,
-            .@"packed" => .{ .bitpack = ty },
+            .@"packed" => .{ .@"bitpack" = ty },
         },
         else => return,
     };
@@ -350,7 +350,7 @@ fn defineBitpack(
     pt: Zcu.PerThread,
 ) (Allocator.Error || Writer.Error)!?CType {
     const zcu = pt.zcu;
-    const name_cty: CType = .{ .bitpack = ty };
+    const name_cty: CType = .{ .@"bitpack" = ty };
     const cty: CType = try .lower(ty.backingIntType(zcu), deps, arena, zcu);
     try w.print("typedef {f}{f}{f};", .{
         cty.fmtDeclaratorPrefix(zcu),

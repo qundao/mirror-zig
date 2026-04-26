@@ -1580,8 +1580,8 @@ fn constant(cg: *CodeGen, ty: Type, val: Value, repr: Repr) Error!Id {
             };
             return cg.constantBytes(ty, bytes);
         },
-        .bitpack => |bitpack| {
-            const int_val: Value = .fromInterned(bitpack.backing_int_val);
+        .@"bitpack" => |@"bitpack"| {
+            const int_val: Value = .fromInterned(@"bitpack".backing_int_val);
             break :cache try cg.constant(int_val.typeOf(zcu), int_val, repr);
         },
 

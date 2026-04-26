@@ -177,7 +177,7 @@ const UnpackValueBytes = struct {
             .opt,
             => try unpack.primitive(val),
 
-            .bitpack => |bitpack| try unpack.primitive(.fromInterned(bitpack.backing_int_val)),
+            .@"bitpack" => |@"bitpack"| try unpack.primitive(.fromInterned(@"bitpack".backing_int_val)),
 
             .aggregate => switch (ty.zigTypeTag(zcu)) {
                 .vector => unreachable, // ill-defined layout

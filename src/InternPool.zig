@@ -2015,7 +2015,7 @@ pub const Key = union(enum) {
     /// An instance of a union.
     un: Union,
     /// An instance of a `packed struct` or `packed union`.
-    bitpack: Bitpack,
+    @"bitpack": Bitpack,
 
     /// A comptime function call with a memoized result.
     memoized_call: Key.MemoizedCall,
@@ -2832,7 +2832,7 @@ pub const Key = union(enum) {
                 asBytes(&e.is_const) ++ asBytes(&e.alignment) ++ asBytes(&e.@"addrspace") ++
                 asBytes(&e.zir_index) ++ &[1]u8{@backingInt(e.source)}),
 
-            .bitpack => |bitpack| Hash.hash(seed, asBytes(&bitpack.ty) ++ asBytes(&bitpack.backing_int_val)),
+            .@"bitpack" => |@"bitpack"| Hash.hash(seed, asBytes(&@"bitpack".ty) ++ asBytes(&@"bitpack".backing_int_val)),
         };
     }
 
@@ -2910,8 +2910,8 @@ pub const Key = union(enum) {
                 const b_info = b.enum_tag;
                 return std.meta.eql(a_info, b_info);
             },
-            .bitpack => |a_info| {
-                const b_info = b.bitpack;
+            .@"bitpack" => |a_info| {
+                const b_info = b.@"bitpack";
                 return a_info.ty == b_info.ty and a_info.backing_int_val == b_info.backing_int_val;
             },
 
@@ -3182,7 +3182,7 @@ pub const Key = union(enum) {
             .enum_tag,
             .aggregate,
             .un,
-            .bitpack,
+            .@"bitpack",
             => |x| x.ty,
 
             .enum_literal => .enum_literal_type,
@@ -4324,7 +4324,7 @@ pub const Index = enum(u32) {
             trailing: struct { element_values: []Index },
         },
         repeated: struct { data: *Repeated },
-        bitpack: struct { data: *Key.Bitpack },
+        @"bitpack": struct { data: *Key.Bitpack },
 
         memoized_call: struct {
             const @"data.args_len" = opaque {};
@@ -5065,7 +5065,7 @@ pub const Tag = enum(u8) {
     repeated,
     /// An instance of a `packed struct` or `packed union`.
     /// data is extra index to `Key.Bitpack`.
-    bitpack,
+    @"bitpack",
 
     /// A memoized comptime function call result.
     /// data is extra index to `MemoizedCall`
@@ -5406,7 +5406,7 @@ pub const Tag = enum(u8) {
             .config = .{ .@"trailing.elements.len" = .@"@syntheticField(@syntheticField(payload.ty, \"unwrapped\"), \"payload\").fields_len" },
         },
         .repeated = .{ .summary = .@"@as({.payload.ty%summary}, @splat({.payload.elem_val%summary}))", .payload = Repeated },
-        .bitpack = .{ .summary = .@"@as({.payload.ty%summary}, {})", .payload = Key.Bitpack },
+        .@"bitpack" = .{ .summary = .@"@as({.payload.ty%summary}, {})", .payload = Key.Bitpack },
 
         .memoized_call = .{
             .summary = .@"@memoize({.payload.func%summary})",
@@ -6924,7 +6924,7 @@ pub fn indexToKey(ip: *const InternPool, index: Index) Key {
         },
         .enum_literal => .{ .enum_literal = @fromBackingInt(@intCast(data)) },
         .enum_tag => .{ .enum_tag = extraData(unwrapped_index.getExtra(ip), Tag.EnumTag, data) },
-        .bitpack => .{ .bitpack = extraData(unwrapped_index.getExtra(ip), Key.Bitpack, data) },
+        .@"bitpack" => .{ .@"bitpack" = extraData(unwrapped_index.getExtra(ip), Key.Bitpack, data) },
 
         .memoized_call => {
             const extra_list = unwrapped_index.getExtra(ip);
@@ -7990,16 +7990,16 @@ pub fn get(ip: *InternPool, gpa: Allocator, io: Io, tid: Zcu.PerThread.Id, key: 
             extra.appendSliceAssumeCapacity(.{@ptrCast(aggregate.storage.elems)});
             if (sentinel != .none) extra.appendAssumeCapacity(.{@backingInt(sentinel)});
         },
-        .bitpack => |bitpack| {
-            switch (ip.zigTypeTag(bitpack.ty)) {
-                .@"struct" => assert(ip.typeOf(bitpack.backing_int_val) == ip.loadStructType(bitpack.ty).packed_backing_int_type),
-                .@"union" => assert(ip.typeOf(bitpack.backing_int_val) == ip.loadUnionType(bitpack.ty).packed_backing_int_type),
+        .@"bitpack" => |@"bitpack"| {
+            switch (ip.zigTypeTag(@"bitpack".ty)) {
+                .@"struct" => assert(ip.typeOf(@"bitpack".backing_int_val) == ip.loadStructType(@"bitpack".ty).packed_backing_int_type),
+                .@"union" => assert(ip.typeOf(@"bitpack".backing_int_val) == ip.loadUnionType(@"bitpack".ty).packed_backing_int_type),
                 else => unreachable,
             }
-            assert(!ip.isUndef(bitpack.backing_int_val));
+            assert(!ip.isUndef(@"bitpack".backing_int_val));
             items.appendAssumeCapacity(.{
-                .tag = .bitpack,
-                .data = try addExtra(extra, bitpack),
+                .tag = .@"bitpack",
+                .data = try addExtra(extra, @"bitpack"),
             });
         },
 
@@ -10962,7 +10962,7 @@ fn dumpStatsFallible(ip: *const InternPool, arena: Allocator, w: *Io.Writer) (Al
                 .func_coerced => @sizeOf(Tag.FuncCoerced),
                 .only_possible_value => 0,
                 .union_value => @sizeOf(Key.Union),
-                .bitpack => 2 * @sizeOf(u32),
+                .@"bitpack" => 2 * @sizeOf(u32),
 
                 .memoized_call => b: {
                     const info = extraData(extra_list, MemoizedCall, data);
@@ -11076,7 +11076,7 @@ fn dumpAllFallible(ip: *const InternPool, w: *Io.Writer) Io.Writer.Error!void {
                 .func_instance,
                 .func_coerced,
                 .union_value,
-                .bitpack,
+                .@"bitpack",
                 .memoized_call,
                 => try w.print("{d}", .{data}),
 
@@ -11794,7 +11794,7 @@ pub fn typeOf(ip: *const InternPool, index: Index) Index {
                 .bytes,
                 .aggregate,
                 .repeated,
-                .bitpack,
+                .@"bitpack",
                 => |t| {
                     const extra_list = unwrapped_index.getExtra(ip);
                     return @fromBackingInt(@intCast(extra_list.view().items(.@"0")[item.data + std.meta.fieldIndex(t.Payload(), "ty").?]));
@@ -12169,7 +12169,7 @@ pub fn zigTypeTag(ip: *const InternPool, index: Index) std.lang.TypeId {
             .bytes,
             .aggregate,
             .repeated,
-            .bitpack,
+            .@"bitpack",
             // memoization, not types
             .memoized_call,
             => unreachable,

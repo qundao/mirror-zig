@@ -2315,7 +2315,7 @@ pub fn updateComptimeGlobal(
         .opt,
         .aggregate,
         .un,
-        .bitpack,
+        .@"bitpack",
         => try dwarf.genComptimeGlobal(pt, global, &decl),
         .struct_type => {
             const loaded_struct = ip.loadStructType(nav_val.toIntern());
@@ -3429,11 +3429,11 @@ fn updateConstInner(
                 Value.fromInterned(@"const").toBigInt(&big_int_space, zcu),
             );
         },
-        .bitpack => |bitpack| {
+        .@"bitpack" => |@"bitpack"| {
             var big_int_space: Value.BigIntSpace = undefined;
-            const backing_int_val: Value = .fromInterned(bitpack.backing_int_val);
+            const backing_int_val: Value = .fromInterned(@"bitpack".backing_int_val);
             try dwarf.abbrevCode(di_nw, .comptime_value);
-            try dwarf.refType(pt, di_nw, .fromInterned(bitpack.ty));
+            try dwarf.refType(pt, di_nw, .fromInterned(@"bitpack".ty));
             try dwarf.bigIntConstValue(
                 di_w,
                 backing_int_val.typeOf(zcu),

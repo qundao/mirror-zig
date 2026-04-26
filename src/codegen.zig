@@ -657,7 +657,7 @@ pub fn generateSymbol(
             const padding: usize = @intCast(union_begin + layout.abi_size - w.end);
             if (padding > 0) try w.splatByteAll(0, padding);
         },
-        .bitpack => |bitpack| try generateSymbol(bin_file, pt, .fromInterned(bitpack.backing_int_val), w, reloc_parent),
+        .@"bitpack" => |@"bitpack"| try generateSymbol(bin_file, pt, .fromInterned(@"bitpack".backing_int_val), w, reloc_parent),
         .memoized_call => unreachable,
     }
 }
@@ -953,8 +953,8 @@ pub fn lowerValue(pt: Zcu.PerThread, val: Value, target: *const std.Target) Allo
             );
         },
         .@"struct", .@"union" => if (ty.containerLayout(zcu) == .@"packed") {
-            const bitpack = ip.indexToKey(val.toIntern()).bitpack;
-            return lowerValue(pt, .fromInterned(bitpack.backing_int_val), target);
+            const @"bitpack" = ip.indexToKey(val.toIntern()).@"bitpack";
+            return lowerValue(pt, .fromInterned(@"bitpack".backing_int_val), target);
         },
         .error_set => {
             const err_name = ip.indexToKey(val.toIntern()).err.name;
@@ -1223,7 +1223,7 @@ pub fn flattenType(items_buf: []FlattenedItem, ty: Type, zcu: *Zcu, opts: struct
         .opt,
         .aggregate,
         .un,
-        .bitpack,
+        .@"bitpack",
         // memoization, not types
         .memoized_call,
         => unreachable,

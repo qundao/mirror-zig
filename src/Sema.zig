@@ -12649,7 +12649,7 @@ fn validateSwitchItemOrRange(
             break :maybe_prev_src null;
         },
         .@"union", .@"struct" => {
-            const backing_int_val = ip.indexToKey(item_val.toIntern()).bitpack.backing_int_val;
+            const backing_int_val = ip.indexToKey(item_val.toIntern()).@"bitpack".backing_int_val;
             break :maybe_prev_src if (seen.ranges.addAssumeCapacity(.{
                 .first = .fromInterned(backing_int_val),
                 .last = .fromInterned(backing_int_val),

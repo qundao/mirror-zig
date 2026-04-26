@@ -5206,7 +5206,7 @@ fn lowerConstant(cg: *CodeGen, val: Value) InnerError!WValue {
             else => unreachable,
         },
         .un => unreachable, // packed unions use `bitpack`
-        .bitpack => |bitpack| return cg.lowerConstant(.fromInterned(bitpack.backing_int_val)),
+        .@"bitpack" => |@"bitpack"| return cg.lowerConstant(.fromInterned(@"bitpack".backing_int_val)),
         .memoized_call => unreachable,
     }
 }

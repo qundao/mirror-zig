@@ -2498,6 +2498,7 @@ fn parsePrimaryTypeExpr(p: *Parse) !?Node.Index {
         .keyword_if => return try p.expectIf(expectTypeExpr),
         .keyword_switch => return try p.expectSwitchExpr(false),
 
+        .keyword_bitpack,
         .keyword_extern,
         .keyword_packed,
         => {

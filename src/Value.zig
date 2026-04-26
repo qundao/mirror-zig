@@ -150,7 +150,7 @@ pub fn toType(self: Value) Type {
 pub fn backingInt(val: Value, zcu: *const Zcu) Value {
     return switch (zcu.intern_pool.indexToKey(val.toIntern())) {
         .enum_tag => |enum_tag| .fromInterned(enum_tag.int),
-        .bitpack => |bitpack| .fromInterned(bitpack.backing_int_val),
+        .@"bitpack" => |@"bitpack"| .fromInterned(@"bitpack".backing_int_val),
         else => unreachable,
     };
 }
@@ -163,7 +163,7 @@ pub fn toBigInt(val: Value, space: *BigIntSpace, zcu: *const Zcu) BigIntConst {
     const ip = &zcu.intern_pool;
     const int_key = switch (ip.indexToKey(val.toIntern())) {
         .enum_tag => |enum_tag| ip.indexToKey(enum_tag.int).int,
-        .bitpack => |bitpack| ip.indexToKey(bitpack.backing_int_val).int,
+        .@"bitpack" => |@"bitpack"| ip.indexToKey(@"bitpack".backing_int_val).int,
         .int => |int| int,
         else => unreachable,
     };
@@ -215,7 +215,7 @@ pub fn getUnsignedInt(val: Value, zcu: *const Zcu) ?u64 {
                 else => |payload| Value.fromInterned(payload).getUnsignedInt(zcu),
             },
             .enum_tag => |enum_tag| Value.fromInterned(enum_tag.int).getUnsignedInt(zcu),
-            .bitpack => |bitpack| Value.fromInterned(bitpack.backing_int_val).getUnsignedInt(zcu),
+            .@"bitpack" => |@"bitpack"| Value.fromInterned(@"bitpack".backing_int_val).getUnsignedInt(zcu),
             .err => |err| zcu.intern_pool.getErrorValueIfExists(err.name).?,
             else => null,
         },
@@ -350,7 +350,7 @@ pub fn writeToMemory(val: Value, zcu: *const Zcu, buffer: []u8) error{
                     @memset(buffer[last_off..struct_size], 0xAA);
                 },
                 .@"packed" => {
-                    const int_index = ip.indexToKey(val.toIntern()).bitpack.backing_int_val;
+                    const int_index = ip.indexToKey(val.toIntern()).@"bitpack".backing_int_val;
                     return Value.fromInterned(int_index).writeToMemory(zcu, buffer);
                 },
             }
@@ -365,7 +365,7 @@ pub fn writeToMemory(val: Value, zcu: *const Zcu, buffer: []u8) error{
                 return writeToMemory(payload_val, zcu, buffer);
             },
             .@"packed" => {
-                const int_val: Value = .fromInterned(ip.indexToKey(val.toIntern()).bitpack.backing_int_val);
+                const int_val: Value = .fromInterned(ip.indexToKey(val.toIntern()).@"bitpack".backing_int_val);
                 return writeToMemory(int_val, zcu, buffer);
             },
         },
@@ -441,7 +441,7 @@ pub fn writeToPackedMemory(
         },
         .@"struct", .@"union" => {
             assert(ty.containerLayout(zcu) == .@"packed");
-            const int_val: Value = .fromInterned(ip.indexToKey(val.toIntern()).bitpack.backing_int_val);
+            const int_val: Value = .fromInterned(ip.indexToKey(val.toIntern()).@"bitpack".backing_int_val);
             int_val.writeToPackedMemory(zcu, buffer, bit_offset);
         },
         .array, .vector => {
@@ -871,10 +871,10 @@ pub fn fieldValue(val: Value, pt: Zcu.PerThread, index: usize) !Value {
             }
             return .fromInterned(un.val);
         },
-        .bitpack => |bitpack| {
-            const ty: Type = .fromInterned(bitpack.ty);
+        .@"bitpack" => |@"bitpack"| {
+            const ty: Type = .fromInterned(@"bitpack".ty);
             assert(ty.containerLayout(zcu) == .@"packed");
-            const int_val: Value = .fromInterned(bitpack.backing_int_val);
+            const int_val: Value = .fromInterned(@"bitpack".backing_int_val);
             assert(!int_val.isUndef(zcu));
             const field_ty = ty.fieldType(index, zcu);
             const field_bit_offset: u16 = switch (ty.zigTypeTag(zcu)) {

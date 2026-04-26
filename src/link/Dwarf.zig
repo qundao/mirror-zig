@@ -3126,7 +3126,7 @@ fn updateComptimeNavInner(dwarf: *Dwarf, pt: Zcu.PerThread, nav_index: InternPoo
         .opt,
         .aggregate,
         .un,
-        .bitpack,
+        .@"bitpack",
         => if (nav.resolved.?.@"const") .@"const" else .@"var",
 
         .@"extern" => unreachable,
@@ -4292,10 +4292,10 @@ fn updateConstInner(dwarf: *Dwarf, pt: Zcu.PerThread, debug_const_index: link.Co
             try wip_nav.refType(.fromInterned(int.ty));
             try wip_nav.bigIntConstValue(.fromInterned(int.ty), Value.fromInterned(value_index).toBigInt(&big_int_space, zcu));
         },
-        .bitpack => |bitpack| {
-            const backing_int_val: Value = .fromInterned(bitpack.backing_int_val);
+        .@"bitpack" => |@"bitpack"| {
+            const backing_int_val: Value = .fromInterned(@"bitpack".backing_int_val);
             try wip_nav.abbrevCode(.comptime_value);
-            try wip_nav.refType(.fromInterned(bitpack.ty));
+            try wip_nav.refType(.fromInterned(@"bitpack".ty));
             try wip_nav.bigIntConstValue(backing_int_val.typeOf(zcu), backing_int_val.toBigInt(&big_int_space, zcu));
         },
         .err => |err| {

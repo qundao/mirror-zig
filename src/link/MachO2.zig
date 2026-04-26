@@ -1960,8 +1960,8 @@ fn targetLoad(macho: *const MachO, ptr: anytype) @typeInfo(@TypeOf(ptr)).pointer
         else => @compileError(@typeName(Child)),
         .int => std.mem.toNative(Child, ptr.*, macho.targetEndian()),
         .@"enum" => |@"enum"| @fromBackingInt(macho.targetLoad(@as(*align(alignment) const @"enum".tag_type, @ptrCast(ptr)))),
-        inline .@"struct", .@"union" => |bitpack| @bitCast(
-            macho.targetLoad(@as(*align(alignment) const bitpack.backing_integer.?, @ptrCast(ptr))),
+        inline .@"struct", .@"union" => |@"bitpack"| @bitCast(
+            macho.targetLoad(@as(*align(alignment) const @"bitpack".backing_integer.?, @ptrCast(ptr))),
         ),
     };
 }
@@ -1976,8 +1976,8 @@ fn targetStore(macho: *const MachO, ptr: anytype, val: @typeInfo(@TypeOf(ptr)).p
             @as(*align(alignment) @"enum".tag_type, @ptrCast(ptr)),
             @backingInt(val),
         ),
-        inline .@"struct", .@"union" => |bitpack| macho.targetStore(
-            @as(*align(alignment) bitpack.backing_integer.?, @ptrCast(ptr)),
+        inline .@"struct", .@"union" => |@"bitpack"| macho.targetStore(
+            @as(*align(alignment) @"bitpack".backing_integer.?, @ptrCast(ptr)),
             @bitCast(val),
         ),
     };

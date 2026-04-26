@@ -262,6 +262,7 @@ const Def = enum {
     defKEYWORD_anyframe,
     defKEYWORD_anytype,
     defKEYWORD_asm,
+    defKEYWORD_bitpack,
     defKEYWORD_break,
     defKEYWORD_callconv,
     defKEYWORD_catch,
@@ -306,7 +307,7 @@ const Def = enum {
 const Parser = struct {
     source: []const u8,
     i: usize,
-    depths: [288]u8,
+    depths: [289]u8,
     pub fn parseRoot(p: *Parser) Error!bool {
         const def_index = @backingInt(Def.defRoot);
         if (p.depths[def_index] > max_depth) return error.MaxDepth;
@@ -1837,6 +1838,8 @@ const Parser = struct {
             const pos_0 = p.i;
             if ((blk_3: {
                 const pos_3 = p.i;
+                if (try p.parseKEYWORD_bitpack()) break :blk_3 true;
+                p.i = pos_3;
                 if (try p.parseKEYWORD_extern()) break :blk_3 true;
                 p.i = pos_3;
                 if (try p.parseKEYWORD_packed()) break :blk_3 true;
@@ -6155,6 +6158,24 @@ const Parser = struct {
             break :blk_0 false;
         };
     }
+    pub fn parseKEYWORD_bitpack(p: *Parser) Error!bool {
+        const def_index = @backingInt(Def.defKEYWORD_bitpack);
+        if (p.depths[def_index] > max_depth) return error.MaxDepth;
+        p.depths[def_index] += 1;
+        defer p.depths[def_index] -= 1;
+        return blk_0: {
+            const pos_0 = p.i;
+            if (try p.parseskip() and blk_1: {
+                if (std.mem.startsWith(u8, p.source[p.i..], "bitpack")) {
+                    p.i += 7;
+                    break :blk_1 true;
+                }
+                break :blk_1 false;
+            } and try p.parseend_of_word()) break :blk_0 true;
+            p.i = pos_0;
+            break :blk_0 false;
+        };
+    }
     pub fn parseKEYWORD_break(p: *Parser) Error!bool {
         const def_index = @backingInt(Def.defKEYWORD_break);
         if (p.depths[def_index] > max_depth) return error.MaxDepth;
@@ -6877,6 +6898,8 @@ const Parser = struct {
             if (try p.parseKEYWORD_anytype()) break :blk_0 true;
             p.i = pos_0;
             if (try p.parseKEYWORD_asm()) break :blk_0 true;
+            p.i = pos_0;
+            if (try p.parseKEYWORD_bitpack()) break :blk_0 true;
             p.i = pos_0;
             if (try p.parseKEYWORD_break()) break :blk_0 true;
             p.i = pos_0;
