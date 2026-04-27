@@ -585,7 +585,7 @@ test "@fieldParentPtr extern struct last zero-bit field" {
     }
 }
 
-test "@fieldParentPtr unaligned packed struct" {
+test "@fieldParentPtr unaligned bitpack struct" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -723,7 +723,7 @@ test "@fieldParentPtr unaligned packed struct" {
     }
 }
 
-test "@fieldParentPtr aligned packed struct" {
+test "@fieldParentPtr aligned bitpack struct" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -861,7 +861,7 @@ test "@fieldParentPtr aligned packed struct" {
     }
 }
 
-test "@fieldParentPtr nested packed struct" {
+test "@fieldParentPtr nested bitpack struct" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -1024,7 +1024,7 @@ test "@fieldParentPtr nested packed struct" {
     }
 }
 
-test "@fieldParentPtr packed struct first zero-bit field" {
+test "@fieldParentPtr bitpack struct first zero-bit field" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -1130,7 +1130,7 @@ test "@fieldParentPtr packed struct first zero-bit field" {
     }
 }
 
-test "@fieldParentPtr packed struct middle zero-bit field" {
+test "@fieldParentPtr bitpack struct middle zero-bit field" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -1236,7 +1236,7 @@ test "@fieldParentPtr packed struct middle zero-bit field" {
     }
 }
 
-test "@fieldParentPtr packed struct last zero-bit field" {
+test "@fieldParentPtr bitpack struct last zero-bit field" {
     if (builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
@@ -1751,7 +1751,7 @@ test "@fieldParentPtr extern union" {
     }
 }
 
-test "@fieldParentPtr packed union" {
+test "@fieldParentPtr bitpack union" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;

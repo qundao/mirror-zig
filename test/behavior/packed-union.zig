@@ -4,18 +4,18 @@ const assert = std.debug.assert;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 
-test "flags in packed union" {
+test "flags in bitpack union" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest; // TODO
 
-    try testFlagsInPackedUnion();
-    try comptime testFlagsInPackedUnion();
+    try testFlagsInBitpackUnion();
+    try comptime testFlagsInBitpackUnion();
 }
 
-fn testFlagsInPackedUnion() !void {
+fn testFlagsInBitpackUnion() !void {
     const FlagBits = bitpack struct(u8) {
         enable_1: bool = false,
         enable_2: bool = false,
@@ -47,18 +47,18 @@ fn testFlagsInPackedUnion() !void {
     try expectEqual(false, test_bits.other_flags.flags.enable_1);
 }
 
-test "flags in packed union at offset" {
+test "flags in bitpack union at offset" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest; // TODO
 
-    try testFlagsInPackedUnionAtOffset();
-    try comptime testFlagsInPackedUnionAtOffset();
+    try testFlagsInBitpackUnionAtOffset();
+    try comptime testFlagsInBitpackUnionAtOffset();
 }
 
-fn testFlagsInPackedUnionAtOffset() !void {
+fn testFlagsInBitpackUnionAtOffset() !void {
     const FlagBits = bitpack union {
         base_flags: bitpack struct(u12) {
             a: bitpack union {
@@ -104,16 +104,16 @@ fn testFlagsInPackedUnionAtOffset() !void {
 }
 
 // Originally reported at https://github.com/ziglang/zig/issues/16581
-test "packed union in packed struct" {
+test "bitpack union in bitpack struct" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    try testPackedUnionInPackedStruct();
-    try comptime testPackedUnionInPackedStruct();
+    try testBitpackUnionInBitpackStruct();
+    try comptime testBitpackUnionInBitpackStruct();
 }
 
-fn testPackedUnionInPackedStruct() !void {
+fn testBitpackUnionInBitpackStruct() !void {
     const ReadRequest = bitpack struct { key: i32 };
     const RequestType = enum(u1) {
         read,
@@ -139,7 +139,7 @@ fn testPackedUnionInPackedStruct() !void {
     try std.testing.expectEqual(RequestType.read, Request.init(.{ .key = 3 }).active_type);
 }
 
-test "packed union initialized with a runtime value" {
+test "bitpack union initialized with a runtime value" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
@@ -179,7 +179,7 @@ test "assigning to non-active field at comptime" {
     }
 }
 
-test "packed union with explicit backing integer" {
+test "bitpack union with explicit backing integer" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
@@ -200,7 +200,7 @@ test "packed union with explicit backing integer" {
     try comptime U.check(.{ .raw = -2 });
 }
 
-test "packed union equality" {
+test "bitpack union equality" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const Foo = bitpack union {
@@ -222,7 +222,7 @@ test "packed union equality" {
     comptime try S.doTest(x, y);
 }
 
-test "initialize packed union field to undefined at comptime" {
+test "initialize bitpack union field to undefined at comptime" {
     const U = bitpack union(u8) { x: u8 };
     const val: U = .{ .x = undefined };
     _ = val;

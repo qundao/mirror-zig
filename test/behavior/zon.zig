@@ -572,14 +572,14 @@ test "build.zig.zon" {
     try expectEqual(.{ "build.zig", "build.zig.zon", "src" }, build.paths);
 }
 
-test "packed" {
+test "bitpack" {
     {
         const U = bitpack union {
             x: f32,
             y: u32,
         };
 
-        const u: U = @import("zon/packed_union.zon");
+        const u: U = @import("zon/bitpack_union.zon");
 
         try expectEqual(0.5, u.x);
         try expectEqual(@as(u32, @bitCast(@as(f32, 0.5))), u.y);
@@ -591,7 +591,7 @@ test "packed" {
             z: i7,
         };
 
-        const s: S = @import("zon/packed_struct.zon");
+        const s: S = @import("zon/bitpack_struct.zon");
 
         try expectEqual(2, s.x);
         try expectEqual(0.5, s.y);

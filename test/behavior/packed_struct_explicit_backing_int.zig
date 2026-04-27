@@ -4,7 +4,7 @@ const assert = std.debug.assert;
 const expectEqual = std.testing.expectEqual;
 const native_endian = builtin.cpu.arch.endian();
 
-test "packed struct explicit backing integer" {
+test "bitpack struct explicit backing integer" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO

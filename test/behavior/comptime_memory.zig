@@ -381,7 +381,7 @@ test "accessing reinterpreted memory of parent object" {
     }
 }
 
-test "bitcast packed union to integer" {
+test "bitcast bitpack union to integer" {
     const U = bitpack union {
         x: i2,
         y: u2,
@@ -537,7 +537,7 @@ test "comptime store of extern struct with void field into array" {
     }
 }
 
-test "comptime store of packed struct with void field" {
+test "comptime store of bitpack struct with void field" {
     comptime {
         var x: bitpack struct { a: u8, b: void } = undefined;
         x = .{ .a = 123, .b = {} };
@@ -545,7 +545,7 @@ test "comptime store of packed struct with void field" {
     }
 }
 
-test "comptime store of packed struct with void field into array" {
+test "comptime store of bitpack struct with void field into array" {
     comptime {
         var x: [3]bitpack struct { a: u8, b: void } = undefined;
         x[1] = .{ .a = 123, .b = {} };
@@ -584,7 +584,7 @@ test "comptime store to extern struct reinterpreted as byte array" {
     comptime std.debug.assert(val.x == 0);
 }
 
-test "reinterpret sentinel-terminated array as packed struct" {
+test "reinterpret sentinel-terminated array as bitpack struct" {
     const S = bitpack struct(u16) { lo: u8, hi: u8 };
     const data: [2:0]u8 = .{ 0x12, 0x34 };
     const ptr: *align(1) const S = @ptrCast(&data);

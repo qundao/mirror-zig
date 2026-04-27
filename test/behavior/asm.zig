@@ -174,7 +174,7 @@ test "asm modifiers (AArch64)" {
     try expectEqual(2 * x, double);
 }
 
-test "packed output types (x86_64)" {
+test "bitpack output types (x86_64)" {
     if (builtin.target.cpu.arch != .x86_64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_c and builtin.os.tag == .windows) return error.SkipZigTest; // MSVC doesn't support inline assembly
 

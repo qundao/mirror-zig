@@ -281,7 +281,7 @@ test "@ptrCast undefined value at comptime" {
     }
 }
 
-test "comptime @ptrCast with packed struct leaves value unmodified" {
+test "comptime @ptrCast with bitpack struct leaves value unmodified" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
 
     const S = bitpack struct { three: u3 };

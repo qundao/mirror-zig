@@ -510,7 +510,7 @@ test "switch loop for error handling" {
     try comptime S.doTheTest();
 }
 
-test "switch loop with packed structs" {
+test "switch loop with bitpack structs" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const P = bitpack struct {
@@ -529,7 +529,7 @@ test "switch loop with packed structs" {
     try comptime P.doTheTest(.{ .a = 5, .b = 0 });
 }
 
-test "switch loop with packed unions" {
+test "switch loop with bitpack unions" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const P = bitpack union {
@@ -548,7 +548,7 @@ test "switch loop with packed unions" {
     try comptime P.doTheTest(.{ .a = 5 });
 }
 
-test "switch loop with packed unions with OPV" {
+test "switch loop with bitpack unions with OPV" {
     const P = bitpack union {
         a: u0,
         b: void,

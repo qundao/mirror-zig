@@ -311,22 +311,22 @@ fn giveMeLetterB(x: Letter2) !void {
     try expect(x == Value2.B);
 }
 
-// TODO it looks like this test intended to test packed unions, but this is not a packed
+// TODO it looks like this test intended to test bitpack unions, but this is not a bitpack
 // union. go through git history and find out what happened.
 pub const PackThis = union(enum) {
     Invalid: bool,
     StringLiteral: u2,
 };
 
-test "constant packed union" {
+test "constant bitpack union" {
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    try testConstPackedUnion(&[_]PackThis{PackThis{ .StringLiteral = 1 }});
+    try testConstBitpackUnion(&[_]PackThis{PackThis{ .StringLiteral = 1 }});
 }
 
-fn testConstPackedUnion(expected_tokens: []const PackThis) !void {
+fn testConstBitpackUnion(expected_tokens: []const PackThis) !void {
     try expect(expected_tokens[0].StringLiteral == 1);
 }
 
@@ -346,7 +346,7 @@ test "simple union(enum(u32))" {
     try expect(@backingInt(@as(Tag(MultipleChoice), x)) == 60);
 }
 
-test "packed union size" {
+test "bitpack union size" {
     const U = bitpack union {
         signed: isize,
         unsigned: usize,
@@ -1347,7 +1347,7 @@ test "union field ptr - zero sized field" {
     U.qux(&u.foo);
 }
 
-test "packed union in packed struct" {
+test "bitpack union in bitpack struct" {
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
@@ -1434,7 +1434,7 @@ test "union reassignment can use previous value" {
     try expect(a.b == 32);
 }
 
-test "reinterpreting enum value inside packed union" {
+test "reinterpreting enum value inside bitpack union" {
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
@@ -1547,7 +1547,7 @@ test "undefined-layout union field pointer has correct alignment" {
     try comptime S.doTheTest(U2);
 }
 
-test "packed union field pointer has correct alignment" {
+test "bitpack union field pointer has correct alignment" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
@@ -1626,7 +1626,7 @@ test "memset extern union" {
     try S.doTheTest();
 }
 
-test "memset packed union" {
+test "memset bitpack union" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const U = bitpack union {
@@ -1727,7 +1727,7 @@ test "reinterpret extern union" {
     try S.doTheTest();
 }
 
-test "reinterpret packed union" {
+test "reinterpret bitpack union" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
@@ -1805,7 +1805,7 @@ test "reinterpret packed union" {
     try S.doTheTest();
 }
 
-test "reinterpret packed union inside packed struct" {
+test "reinterpret bitpack union inside bitpack struct" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest; // TODO
@@ -1871,7 +1871,7 @@ test "inner struct initializer uses union layout" {
     }
 }
 
-test "inner struct initializer uses packed union layout" {
+test "inner struct initializer uses bitpack union layout" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
 
     const namespace = struct {
@@ -1915,7 +1915,7 @@ test "extern union initialized via reintepreted struct field initializer" {
     try expect(s.u.b == 0xaa);
 }
 
-test "packed union initialized via reintepreted struct field initializer" {
+test "bitpack union initialized via reintepreted struct field initializer" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
@@ -1961,7 +1961,7 @@ test "store of comptime reinterpreted memory to extern union" {
     try expect(u.b == 0xaa);
 }
 
-test "store of comptime reinterpreted memory to packed union" {
+test "store of comptime reinterpreted memory to bitpack union" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 

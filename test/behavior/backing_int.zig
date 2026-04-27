@@ -211,7 +211,7 @@ const S5 = bitpack struct(u0) {
     };
 };
 
-test "@backingInt with packed structs" {
+test "@backingInt with bitpack structs" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
 
     const static = struct {
@@ -241,7 +241,7 @@ test "@backingInt with packed structs" {
     try comptime static.doTheTest(S1.expected.val, S2.expected.val, S3.expected.val, S4.expected.val, S5.expected.val);
 }
 
-test "@fromBackingInt with packed structs" {
+test "@fromBackingInt with bitpack structs" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
 
     const static = struct {
@@ -320,7 +320,7 @@ const U5 = bitpack union(u0) {
     };
 };
 
-test "@backingInt with packed unions" {
+test "@backingInt with bitpack unions" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const static = struct {
@@ -350,7 +350,7 @@ test "@backingInt with packed unions" {
     try comptime static.doTheTest(U1.expected.val, U2.expected.val, U3.expected.val, U4.expected.val, U5.expected.val);
 }
 
-test "@fromBackingInt with packed unions" {
+test "@fromBackingInt with bitpack unions" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const static = struct {

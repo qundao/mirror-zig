@@ -14,11 +14,11 @@ export fn writeToVRam() void {
     vram[0] = 'X';
 }
 
-const PackedStruct = bitpack struct {
+const BitpackStruct = bitpack struct {
     a: u8,
     b: u8,
 };
-const PackedUnion = bitpack union {
+const BitpackUnion = bitpack union {
     a: bitpack struct(u32) {
         a: u8,
         b: u24 = 0,
@@ -26,16 +26,16 @@ const PackedUnion = bitpack union {
     b: u32,
 };
 
-test "packed struct, enum, union parameters in extern function" {
+test "bitpack struct, enum, union parameters in extern function" {
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
 
-    testPackedStuff(&(PackedStruct{
+    testBitpackStuff(&(BitpackStruct{
         .a = 1,
         .b = 2,
-    }), &(PackedUnion{ .a = .{ .a = 1 } }));
+    }), &(BitpackUnion{ .a = .{ .a = 1 } }));
 }
 
-export fn testPackedStuff(a: *const PackedStruct, b: *const PackedUnion) void {
+export fn testBitpackStuff(a: *const BitpackStruct, b: *const BitpackUnion) void {
     if (false) {
         a;
         b;

@@ -1448,7 +1448,7 @@ test "single range switch prong capture" {
     try comptime S.doTheTest(2);
 }
 
-test "switch on packed struct" {
+test "switch on bitpack struct" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const P = bitpack struct {
@@ -1480,7 +1480,7 @@ test "switch on packed struct" {
     try comptime P.doTheTest(.{ .a = 0, .b = 1 });
 }
 
-test "switch on packed union" {
+test "switch on bitpack union" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const P = bitpack union(u2) {
@@ -1529,7 +1529,7 @@ test "switch on packed union" {
     try comptime P.doTheTest(.{ .a = 1 });
 }
 
-test "switch on nested packed containers" {
+test "switch on nested bitpack containers" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
     const P = bitpack struct {
