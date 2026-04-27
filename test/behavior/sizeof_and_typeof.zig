@@ -61,7 +61,7 @@ const A = struct {
     i: u7,
 };
 
-const P = packed struct {
+const P = bitpack struct {
     a: u8,
     b: u32,
     c: u8,
@@ -157,7 +157,7 @@ test "@bitSizeOf" {
 
     try expect(@bitSizeOf(u2) == 2);
     try expect(@bitSizeOf(u8) == @sizeOf(u8) * 8);
-    try expect(@bitSizeOf(packed struct {
+    try expect(@bitSizeOf(bitpack struct {
         a: u2,
     }) == 2);
 }
@@ -279,7 +279,7 @@ test "@sizeOf optional of previously unresolved union" {
 }
 
 test "@offsetOf zero-bit field" {
-    const S = packed struct {
+    const S = bitpack struct {
         a: u32,
         b: u0,
         c: u32,

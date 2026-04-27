@@ -513,14 +513,14 @@ pub const Instruction = union(enum) {
         shift64,
     };
 
-    pub const MemOrderingConstraint = packed struct {
+    pub const MemOrderingConstraint = bitpack struct {
         store_store: bool = false,
         load_store: bool = false,
         store_load: bool = false,
         load_load: bool = false,
     };
 
-    pub const MemCompletionConstraint = packed struct {
+    pub const MemCompletionConstraint = bitpack struct {
         sync: bool = false,
         mem_issue: bool = false,
         lookaside: bool = false,

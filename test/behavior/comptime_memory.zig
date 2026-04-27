@@ -88,7 +88,7 @@ test "type pun endianness" {
     }
 }
 
-const Bits = packed struct {
+const Bits = bitpack struct {
     // Note: This struct has only single byte words so it
     // doesn't need to be byte swapped.
     p0: u1,
@@ -100,7 +100,7 @@ const Bits = packed struct {
     p6: u7,
     p7: u1,
 };
-const ShuffledBits = packed struct {
+const ShuffledBits = bitpack struct {
     p1: u4,
     p3: u2,
     p7: u1,
@@ -382,7 +382,7 @@ test "accessing reinterpreted memory of parent object" {
 }
 
 test "bitcast packed union to integer" {
-    const U = packed union {
+    const U = bitpack union {
         x: i2,
         y: u2,
     };
@@ -539,7 +539,7 @@ test "comptime store of extern struct with void field into array" {
 
 test "comptime store of packed struct with void field" {
     comptime {
-        var x: packed struct { a: u8, b: void } = undefined;
+        var x: bitpack struct { a: u8, b: void } = undefined;
         x = .{ .a = 123, .b = {} };
         std.debug.assert(x.a == 123);
     }
@@ -547,7 +547,7 @@ test "comptime store of packed struct with void field" {
 
 test "comptime store of packed struct with void field into array" {
     comptime {
-        var x: [3]packed struct { a: u8, b: void } = undefined;
+        var x: [3]bitpack struct { a: u8, b: void } = undefined;
         x[1] = .{ .a = 123, .b = {} };
         std.debug.assert(x[1].a == 123);
     }
@@ -567,7 +567,7 @@ test "comptime store of reinterpreted zero-bit type" {
     S.doTheTest([1]u0);
     S.doTheTest([5]u0);
     S.doTheTest([5]void);
-    S.doTheTest(packed struct(u0) {});
+    S.doTheTest(bitpack struct(u0) {});
 }
 
 test "comptime store to extern struct reinterpreted as byte array" {
@@ -585,7 +585,7 @@ test "comptime store to extern struct reinterpreted as byte array" {
 }
 
 test "reinterpret sentinel-terminated array as packed struct" {
-    const S = packed struct(u16) { lo: u8, hi: u8 };
+    const S = bitpack struct(u16) { lo: u8, hi: u8 };
     const data: [2:0]u8 = .{ 0x12, 0x34 };
     const ptr: *align(1) const S = @ptrCast(&data);
     switch (endian) {

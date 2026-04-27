@@ -177,12 +177,12 @@ pub fn containerLayout(comptime T: type) Type.ContainerLayout {
 
 test containerLayout {
     const S1 = struct {};
-    const S2 = packed struct {};
+    const S2 = bitpack struct {};
     const S3 = extern struct {};
     const U1 = union {
         a: u8,
     };
-    const U2 = packed union {
+    const U2 = bitpack union {
         a: u8,
     };
     const U3 = extern union {
@@ -540,10 +540,10 @@ test BackingInt {
     const E = enum(u8) { a, b, c };
     try testing.expect(BackingInt(E) == u8);
 
-    const S = packed struct(u16) { x: u8, y: i8 };
+    const S = bitpack struct(u16) { x: u8, y: i8 };
     try testing.expect(BackingInt(S) == u16);
 
-    const U = packed union(i32) { a: u32, b: enum(i32) { _ } };
+    const U = bitpack union(i32) { a: u32, b: enum(i32) { _ } };
     try testing.expect(BackingInt(U) == i32);
 
     const T = union(enum(i8)) { a, b, c };
@@ -995,7 +995,7 @@ test hasUniqueRepresentation {
 
     try testing.expect(!hasUniqueRepresentation(TestStruct5));
 
-    const TestStruct6 = packed struct(u8) {
+    const TestStruct6 = bitpack struct(u8) {
         @"0": bool,
         @"1": bool,
         @"2": bool,
@@ -1036,14 +1036,14 @@ test hasUniqueRepresentation {
 
     try testing.expect(hasUniqueRepresentation(TestUnion5));
 
-    const TestUnion6 = packed union(u7) {
+    const TestUnion6 = bitpack union(u7) {
         a: u7,
         b: i7,
     };
 
     try testing.expect(!hasUniqueRepresentation(TestUnion6));
 
-    const TestUnion7 = packed union(u8) {
+    const TestUnion7 = bitpack union(u8) {
         a: u8,
         b: i8,
     };

@@ -4,7 +4,7 @@
 #}
 
 #write test.zig {
-const Foo = packed struct(u32) {
+const Foo = bitpack struct(u32) {
     x: u1,
 };
 fn bar(_: Foo) callconv(.c) void {}
@@ -14,7 +14,7 @@ export fn entry() void {
 #}
 #update
 #check errors {
-test.zig:1:20: error: backing integer bit width does not match total bit width of fields
-test.zig:1:27: note: backing integer 'u32' has bit width '32'
-test.zig:1:20: note: struct fields have total bit width '1'
+test.zig:1:21: error: backing integer bit width does not match total bit width of fields
+test.zig:1:28: note: backing integer 'u32' has bit width '32'
+test.zig:1:21: note: struct fields have total bit width '1'
 #}

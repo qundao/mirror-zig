@@ -16,13 +16,13 @@ test "flags in packed union" {
 }
 
 fn testFlagsInPackedUnion() !void {
-    const FlagBits = packed struct(u8) {
+    const FlagBits = bitpack struct(u8) {
         enable_1: bool = false,
         enable_2: bool = false,
         enable_3: bool = false,
         enable_4: bool = false,
-        other_flags: packed union {
-            flags: packed struct(u4) {
+        other_flags: bitpack union {
+            flags: bitpack struct(u4) {
                 enable_1: bool = true,
                 enable_2: bool = false,
                 enable_3: bool = false,
@@ -59,10 +59,10 @@ test "flags in packed union at offset" {
 }
 
 fn testFlagsInPackedUnionAtOffset() !void {
-    const FlagBits = packed union {
-        base_flags: packed struct(u12) {
-            a: packed union {
-                flags: packed struct(u4) {
+    const FlagBits = bitpack union {
+        base_flags: bitpack struct(u12) {
+            a: bitpack union {
+                flags: bitpack struct(u4) {
                     enable_1: bool = true,
                     enable_2: bool = false,
                     enable_3: bool = false,
@@ -72,10 +72,10 @@ fn testFlagsInPackedUnionAtOffset() !void {
             },
             pad: u8 = 0,
         },
-        adv_flags: packed struct(u12) {
+        adv_flags: bitpack struct(u12) {
             pad: u8 = 0,
-            adv: packed union {
-                flags: packed struct(u4) {
+            adv: bitpack union {
+                flags: bitpack struct(u4) {
                     enable_1: bool = true,
                     enable_2: bool = false,
                     enable_3: bool = false,
@@ -114,16 +114,16 @@ test "packed union in packed struct" {
 }
 
 fn testPackedUnionInPackedStruct() !void {
-    const ReadRequest = packed struct { key: i32 };
+    const ReadRequest = bitpack struct { key: i32 };
     const RequestType = enum(u1) {
         read,
         insert,
     };
-    const RequestUnion = packed union {
+    const RequestUnion = bitpack union {
         read: ReadRequest,
     };
 
-    const Request = packed struct {
+    const Request = bitpack struct {
         active_type: RequestType,
         request: RequestUnion,
         const Self = @This();
@@ -146,11 +146,11 @@ test "packed union initialized with a runtime value" {
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const Fields = packed struct {
+    const Fields = bitpack struct {
         timestamp: u50,
         random_bits: u13,
     };
-    const ID = packed union {
+    const ID = bitpack union {
         value: u63,
         fields: Fields,
 
@@ -169,9 +169,9 @@ test "packed union initialized with a runtime value" {
 
 test "assigning to non-active field at comptime" {
     comptime {
-        const FlagBits = packed union {
-            flags: packed struct {},
-            bits: packed struct {},
+        const FlagBits = bitpack union {
+            flags: bitpack struct {},
+            bits: bitpack struct {},
         };
 
         var test_bits: FlagBits = .{ .flags = .{} };
@@ -184,9 +184,9 @@ test "packed union with explicit backing integer" {
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union(i32) {
+    const U = bitpack union(i32) {
         raw: i32,
-        unsigned_halves: packed struct { low: u16, high: u16 },
+        unsigned_halves: bitpack struct { low: u16, high: u16 },
 
         fn check(val: @This()) !void {
             try expect(@as(i32, @bitCast(val)) == -2);
@@ -203,7 +203,7 @@ test "packed union with explicit backing integer" {
 test "packed union equality" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const Foo = packed union {
+    const Foo = bitpack union {
         a: u4,
         b: i4,
     };
@@ -223,7 +223,7 @@ test "packed union equality" {
 }
 
 test "initialize packed union field to undefined at comptime" {
-    const U = packed union(u8) { x: u8 };
+    const U = bitpack union(u8) { x: u8 };
     const val: U = .{ .x = undefined };
     _ = val;
 }
@@ -231,7 +231,7 @@ test "initialize packed union field to undefined at comptime" {
 test "convert from/to backing int" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union(u10) {
+    const U = bitpack union(u10) {
         a: i10,
         b: enum(u10) { x, y, z },
         fn doTheTest(u: @This()) !void {
@@ -248,7 +248,7 @@ test "equality with wide backing integer" {
     if (builtin.zig_backend == .stage2_x86_64) return error.SkipZigTest; // https://codeberg.org/ziglang/zig/issues/35982
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union(i200) {
+    const U = bitpack union(i200) {
         x: u200,
         fn doTheTest(s: @This(), int: i200) !void {
             try expect(s == @as(@This(), @bitCast(int)));

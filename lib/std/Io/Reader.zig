@@ -1317,7 +1317,7 @@ pub fn takeLeb128(r: *Reader, comptime T: type) TakeLeb128Error!T {
         .int => |info| info,
         else => @compileError(@typeName(T) ++ " not supported"),
     };
-    const Byte = packed struct { bits: u7, more: bool };
+    const Byte = bitpack struct { bits: u7, more: bool };
 
     if (info.bits <= 7) {
         var byte: Byte = undefined;
@@ -1936,7 +1936,7 @@ test "takeDelimiterInclusive on an indirect reader when it rebases" {
 
 test "takeStruct and peekStruct packed" {
     var r: Reader = .fixed(&.{ 0b11110000, 0b00110011 });
-    const S = packed struct(u16) { a: u2, b: u6, c: u7, d: u1 };
+    const S = bitpack struct(u16) { a: u2, b: u6, c: u7, d: u1 };
 
     try testing.expectEqual(@as(S, .{
         .a = 0b11,

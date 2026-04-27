@@ -346,7 +346,7 @@ const Format = struct {
     }
 };
 
-pub const Flags = packed struct {
+pub const Flags = bitpack struct {
     /// Whether the symbol is imported at runtime.
     import: bool = false,
 
@@ -385,7 +385,7 @@ pub const Flags = packed struct {
     trampoline: bool = false,
 };
 
-pub const SectionFlags = packed struct(u8) {
+pub const SectionFlags = bitpack struct(u8) {
     /// Whether the symbol contains __got indirection.
     needs_got: bool = false,
     has_got: bool = false,

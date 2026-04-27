@@ -2,7 +2,7 @@ const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
 test "packed union equality" {
-    const U = packed union {
+    const U = bitpack union {
         a: u4,
         b: i4,
     };

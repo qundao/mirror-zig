@@ -2066,7 +2066,7 @@ pub const DeclGen = struct {
     }
 };
 
-const CQualifiers = packed struct {
+const CQualifiers = bitpack struct {
     @"const": bool = false,
     @"volatile": bool = false,
     restrict: bool = false,
@@ -7893,7 +7893,7 @@ fn intLiteralSuffix(cty: CType.Int) []const u8 {
     };
 }
 
-const F80Repr = packed struct {
+const F80Repr = bitpack struct {
     mantissa: u64,
     exponent: u16,
 
@@ -7905,7 +7905,7 @@ const F80Repr = packed struct {
         });
     }
 };
-const F128Repr = packed struct {
+const F128Repr = bitpack struct {
     lo: u64,
     hi: u64,
 

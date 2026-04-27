@@ -1,10 +1,10 @@
 const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
-const Full = packed struct {
+const Full = bitpack struct {
     number: u16,
 };
-const Divided = packed struct {
+const Divided = bitpack struct {
     half1: u8,
     quarter3: u4,
     quarter4: u4,

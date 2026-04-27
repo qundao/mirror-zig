@@ -2776,7 +2776,7 @@ pub const LazySrcLoc = struct {
             /// The index of the item to point to within this case.
             item_idx: SwitchItem.Index,
 
-            pub const Index = packed struct(u32) {
+            pub const Index = bitpack struct(u32) {
                 kind: enum(u1) { single, range },
                 value: u31,
             };

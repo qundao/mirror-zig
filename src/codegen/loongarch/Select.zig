@@ -195,7 +195,7 @@ pub const Value = struct {
         if (!std.debug.runtime_safety) assert(@sizeOf(Value) == 32);
     }
 
-    pub const Flags = packed struct(u32) {
+    pub const Flags = bitpack struct(u32) {
         alignment: InternPool.Alignment,
         parent_tag: Parent.Tag,
         location_tag: LocationInfo.Tag,
@@ -221,7 +221,7 @@ pub const Value = struct {
     pub const LocationInfo = union(enum(u2)) {
         /// Small values that fit into a register
         small: struct {
-            flags: packed struct {
+            flags: bitpack struct {
                 /// Byte-size of the part
                 size: u6,
                 /// Way in which the unused bits are filled
@@ -310,7 +310,7 @@ pub const Value = struct {
     };
 
     // TODO far indirect
-    pub const Indirect = packed struct(u32) {
+    pub const Indirect = bitpack struct(u32) {
         base: Register,
         offset: i25,
 
@@ -2199,7 +2199,7 @@ pub const Value = struct {
         next_vi: Value.Index,
         opts: Options,
 
-        const Options = packed struct {
+        const Options = bitpack struct {
             /// Reversed order
             reverse: bool = true,
             /// Whether to include root nodes

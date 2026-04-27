@@ -3786,7 +3786,7 @@ pub const Object = struct {
         });
         const llvm_field_types = llvm_field_types_buf[0..f80_layout.llvm_fields_len];
         const f80_llvm_ty = try o.builder.structType(.normal, llvm_field_types);
-        const f80_repr: packed struct { mantissa: u64, exponent: u16 } = @bitCast(val);
+        const f80_repr: bitpack struct { mantissa: u64, exponent: u16 } = @bitCast(val);
         var llvm_field_vals_buf: [5]Builder.Constant = undefined;
         const llvm_field_vals = llvm_field_vals_buf[0..f80_layout.llvm_fields_len];
         for (
@@ -3815,7 +3815,7 @@ pub const Object = struct {
         });
         const llvm_field_types = llvm_field_types_buf[0..f128_layout.llvm_fields_len];
         const f128_llvm_ty = try o.builder.structType(.normal, llvm_field_types);
-        const f128_repr: packed struct { lo: u64, hi: u64 } = @bitCast(val);
+        const f128_repr: bitpack struct { lo: u64, hi: u64 } = @bitCast(val);
         var llvm_field_vals_buf: [5]Builder.Constant = undefined;
         const llvm_field_vals = llvm_field_vals_buf[0..f128_layout.llvm_fields_len];
         for (

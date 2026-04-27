@@ -17137,7 +17137,7 @@ export fn zig_med_struct_mixed(x: MedStructMixed) void {
     expect(x.c == 1337.0) catch @panic("test failure");
 }
 
-const SmallPackedStruct = packed struct(u8) {
+const SmallPackedStruct = bitpack struct(u8) {
     a: u2,
     b: u2,
     c: u2,
@@ -17163,7 +17163,7 @@ test "small packed struct" {
     try expect(s2.d == 3);
 }
 
-const BigPackedStruct = packed struct(u128) {
+const BigPackedStruct = bitpack struct(u128) {
     a: u64,
     b: u64,
 };

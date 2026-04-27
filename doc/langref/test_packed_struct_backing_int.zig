@@ -2,7 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const expectEqual = std.testing.expectEqual;
 
-const PackedStruct = packed struct(u8) {
+const PackedStruct = bitpack struct(u8) {
     lo: u4,
     hi: u4,
 };

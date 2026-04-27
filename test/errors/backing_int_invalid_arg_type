@@ -18,12 +18,12 @@ export fn entry3(x: u32) u32 {
     return @backingInt(x);
 }
 
-const S2 = packed struct { x: u32 };
+const S2 = bitpack struct { x: u32 };
 export fn entry4(x: u32) u32 {
     return @backingInt(@as(S2, .{ .x = x }));
 }
 
-const U2 = packed union { x: u32 };
+const U2 = bitpack union { x: u32 };
 export fn entry5(x: u32) u32 {
     return @backingInt(@as(U2, .{ .x = x }));
 }
@@ -37,9 +37,9 @@ test.zig:8:24: note: untagged union 'test.U1' does not have an enum tag with a b
 test.zig:6:19: note: union declared here
 test.zig:12:24: error: expected enum, tagged union, packed union or packed struct, found 'u32'
 test.zig:17:24: error: @backingInt is ambiguous for type 'test.S2'
-test.zig:15:19: note: backing integer type of struct is inferred
-test.zig:15:19: note: consider explicitly specifying the backing integer type
+test.zig:15:20: note: backing integer type of struct is inferred
+test.zig:15:20: note: consider explicitly specifying the backing integer type
 test.zig:22:24: error: @backingInt is ambiguous for type 'test.U2'
-test.zig:20:19: note: backing integer type of union is inferred
-test.zig:20:19: note: consider explicitly specifying the backing integer type
+test.zig:20:20: note: backing integer type of union is inferred
+test.zig:20:20: note: consider explicitly specifying the backing integer type
 #}

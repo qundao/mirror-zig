@@ -214,7 +214,7 @@ const strings_0_doc_1 =
 ;
 
 const Subnamespaces = struct {
-    packed_struct: packed struct { a: u32, b: u32 },
+    packed_struct: bitpack struct { a: u32, b: u32 },
     union_enum: union(enum) { i: i32, s: []const u8, v },
     inferred_enum: enum { a, b },
     explicit_enum: enum(u8) { a = 0, b = 1 },

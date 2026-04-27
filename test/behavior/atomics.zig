@@ -381,12 +381,12 @@ test "atomics with different types" {
     try testAtomicsWithType(enum(u19) { x = 1234, y = 5678 }, .x, .y);
 
     try testAtomicsWithPackedStruct(
-        packed struct { x: u7, y: u24, z: bool },
+        bitpack struct { x: u7, y: u24, z: bool },
         .{ .x = 1, .y = 2, .z = true },
         .{ .x = 3, .y = 4, .z = false },
     );
     try testAtomicsWithPackedStruct(
-        packed struct { x: u19, y: bool },
+        bitpack struct { x: u19, y: bool },
         .{ .x = 1, .y = true },
         .{ .x = 3, .y = false },
     );

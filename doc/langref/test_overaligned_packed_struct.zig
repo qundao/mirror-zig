@@ -1,7 +1,7 @@
 const std = @import("std");
 const expectEqual = std.testing.expectEqual;
 
-const S = packed struct {
+const S = bitpack struct {
     a: u32,
     b: u32,
 };

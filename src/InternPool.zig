@@ -419,7 +419,7 @@ pub fn rehashTrackedInsts(
 
 /// Analysis Unit. Represents a single entity which undergoes semantic analysis.
 /// This is the "source" of an incremental dependency edge.
-pub const AnalUnit = packed struct(u64) {
+pub const AnalUnit = bitpack struct(u64) {
     kind: Kind,
     id: u32,
 
@@ -676,7 +676,7 @@ pub const Nav = struct {
         @"linksection": OptionalNullTerminatedString,
         bits: Bits,
 
-        const Bits = packed struct(u16) {
+        const Bits = bitpack struct(u16) {
             @"align": Alignment,
             @"addrspace": std.lang.AddressSpace,
             @"const": bool,
@@ -1483,7 +1483,7 @@ const Shard = struct {
                     comptime assert(tid == .main);
                     return .main;
                 }
-            } else packed struct(u8) {
+            } else bitpack struct(u8) {
                 non_null: bool,
                 value: Zcu.PerThread.Id,
                 const @"null": OptionalTid = .{ .non_null = false, .value = .main };
@@ -1917,7 +1917,7 @@ pub const OptionalNullTerminatedString = enum(u32) {
 /// * comptime-known value (where we store the value)
 /// * `Nav` val (so that we can analyze the value lazily)
 /// * `Nav` ref (so that we can analyze the reference lazily)
-pub const CaptureValue = packed struct(u32) {
+pub const CaptureValue = bitpack struct(u32) {
     tag: enum(u2) { @"comptime", runtime, nav_val, nav_ref },
     idx: u30,
 
@@ -2060,7 +2060,7 @@ pub const Key = union(enum) {
             _,
         };
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             size: Size = .one,
             /// `none` indicates the ABI alignment of the pointee_type. In this
             /// case, this field *must* be set to `none`, otherwise the
@@ -2076,7 +2076,7 @@ pub const Key = union(enum) {
             vector_index: VectorIndex = .none,
         };
 
-        pub const PackedOffset = packed struct(u32) {
+        pub const PackedOffset = bitpack struct(u32) {
             /// If this is non-zero it means the pointer points to a sub-byte
             /// range of data, which is backed by a "host integer" with this
             /// number of bytes.
@@ -2155,7 +2155,7 @@ pub const Key = union(enum) {
         ty: Index,
         flags: Flags,
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             tag: @typeInfo(std.lang.Type.Spirv).@"union".tag_type.?,
             // Image type flags
             usage: @typeInfo(std.lang.Type.Spirv.Image.Usage).@"union".tag_type.?,
@@ -5429,7 +5429,7 @@ pub const Tag = enum(u8) {
         location_or_descriptor_set: u32,
         descriptor_binding: u32,
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             linkage: std.lang.GlobalLinkage,
             visibility: std.lang.SymbolVisibility,
             is_dll_import: bool,
@@ -5512,7 +5512,7 @@ pub const Tag = enum(u8) {
         return_type: Index,
         flags: Flags,
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             cc: PackedCallingConvention,
             is_var_args: bool,
             has_comptime_bits: bool,
@@ -5563,7 +5563,7 @@ pub const Tag = enum(u8) {
 
         flags: Flags,
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             any_captures: enum(u2) { true, false, reified },
 
             /// `packed` layout is represented separately by `TypeStructPacked`.
@@ -5604,7 +5604,7 @@ pub const Tag = enum(u8) {
         fields_len: u32,
         field_name_map: MapIndex,
 
-        const Bits = packed struct(u32) {
+        const Bits = bitpack struct(u32) {
             captures_len: enum(u31) {
                 reified = std.math.maxInt(u31),
                 _,
@@ -5647,7 +5647,7 @@ pub const Tag = enum(u8) {
 
         flags: Flags,
 
-        pub const Flags = packed struct(u32) {
+        pub const Flags = bitpack struct(u32) {
             any_captures: enum(u2) { true, false, reified },
 
             /// Whether `enum_tag_type` was explicitly specified with `union(E)` syntax.
@@ -5704,7 +5704,7 @@ pub const Tag = enum(u8) {
         /// work on unresolved types.
         fields_len: u32,
 
-        const Bits = packed struct(u32) {
+        const Bits = bitpack struct(u32) {
             captures_len: enum(u31) {
                 reified = std.math.maxInt(u31),
                 _,
@@ -5736,7 +5736,7 @@ pub const Tag = enum(u8) {
         fields_len: u32,
         field_name_map: MapIndex,
 
-        const Bits = packed struct(u32) {
+        const Bits = bitpack struct(u32) {
             captures_len: enum(u31) {
                 reified = std.math.maxInt(u31),
                 generated_union_tag = std.math.maxInt(u31) - 1,
@@ -5776,7 +5776,7 @@ pub const BackingTypeMode = enum(u1) {
 /// State that is mutable during semantic analysis. This data is not used for
 /// equality or hashing, except for `inferred_error_set` which is considered
 /// to be part of the type of the function.
-pub const FuncAnalysis = packed struct(u32) {
+pub const FuncAnalysis = bitpack struct(u32) {
     want_runtime_analysis: bool,
     branch_hint: std.lang.BranchHint,
     is_noinline: bool,
@@ -6035,7 +6035,7 @@ pub const Array = struct {
     }
 };
 
-pub const PackedU64 = packed struct(u64) {
+pub const PackedU64 = bitpack struct(u64) {
     a: u32,
     b: u32,
 
@@ -6205,7 +6205,7 @@ pub const PtrSlice = struct {
 };
 
 /// Trailing: Limb for every limbs_len
-pub const Int = packed struct {
+pub const Int = bitpack struct {
     ty: Index,
     limbs_len: u32,
 
@@ -12571,7 +12571,7 @@ pub fn getErrorValueIfExists(ip: *const InternPool, name: NullTerminatedString) 
     return @backingInt(ip.global_error_set.getErrorValueIfExists(name) orelse return null);
 }
 
-const PackedCallingConvention = packed struct(u18) {
+const PackedCallingConvention = bitpack struct(u18) {
     tag: std.lang.CallingConvention.Tag,
     /// May be ignored depending on `tag`.
     incoming_stack_alignment: Alignment,

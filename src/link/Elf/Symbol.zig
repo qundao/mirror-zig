@@ -389,7 +389,7 @@ pub fn fmt(symbol: Symbol, elf_file: *Elf) std.fmt.Alt(Format, Format.default) {
     } };
 }
 
-pub const Flags = packed struct {
+pub const Flags = bitpack struct {
     /// Whether the symbol is imported at runtime.
     import: bool = false,
 

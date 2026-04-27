@@ -347,7 +347,7 @@ test "simple union(enum(u32))" {
 }
 
 test "packed union size" {
-    const U = packed union {
+    const U = bitpack union {
         signed: isize,
         unsigned: usize,
     };
@@ -1353,8 +1353,8 @@ test "packed union in packed struct" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const S = packed struct {
-        nested: packed union {
+    const S = bitpack struct {
+        nested: bitpack union {
             val: u32,
             foo: u32,
         },
@@ -1438,7 +1438,7 @@ test "reinterpreting enum value inside packed union" {
     if (builtin.zig_backend == .stage2_arm) return error.SkipZigTest; // TODO
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union {
+    const U = bitpack union {
         tag: enum(u8) { a, b },
         val: u8,
 
@@ -1505,7 +1505,7 @@ test "defined-layout union field pointer has correct alignment" {
     };
 
     const U1 = extern union { x: u32 };
-    const U2 = packed union { x: u32 };
+    const U2 = bitpack union { x: u32 };
 
     try S.doTheTest(U1);
     try S.doTheTest(U2);
@@ -1553,8 +1553,8 @@ test "packed union field pointer has correct alignment" {
     if (builtin.zig_backend == .stage2_sparc64) return error.SkipZigTest; // TODO
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest; // TODO
 
-    const U = packed union { x: u20 };
-    const S = packed struct(u24) { a: u2, u: U, b: u2 };
+    const U = bitpack union { x: u20 };
+    const S = bitpack struct(u24) { a: u2, u: U, b: u2 };
 
     var a: S = undefined;
     var b: S align(1) = undefined;
@@ -1629,7 +1629,7 @@ test "memset extern union" {
 test "memset packed union" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union {
+    const U = bitpack union {
         a: u32,
         b: u32,
     };
@@ -1731,17 +1731,17 @@ test "reinterpret packed union" {
     if (builtin.zig_backend == .stage2_aarch64) return error.SkipZigTest;
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const U = packed union {
-        foo: packed struct(u64) {
+    const U = bitpack union {
+        foo: bitpack struct(u64) {
             a: u8,
             b: u56,
         },
-        bar: packed struct(u64) {
+        bar: bitpack struct(u64) {
             a: u29,
             b: u35,
         },
         baz: u64,
-        qux: packed struct(u64) {
+        qux: bitpack struct(u64) {
             a: u12,
             b: u52,
         },
@@ -1810,15 +1810,15 @@ test "reinterpret packed union inside packed struct" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
     if (builtin.zig_backend == .stage2_riscv64) return error.SkipZigTest; // TODO
 
-    const U = packed union {
+    const U = bitpack union {
         a: u7,
-        b: packed struct(u7) {
+        b: bitpack struct(u7) {
             a: u1,
             b: u6,
         },
     };
 
-    const V = packed struct {
+    const V = bitpack struct {
         lo: U,
         hi: U,
     };
@@ -1875,11 +1875,11 @@ test "inner struct initializer uses packed union layout" {
     if (builtin.cpu.arch.isSpirv() and builtin.zig_backend == .stage2_llvm) return error.SkipZigTest;
 
     const namespace = struct {
-        const U = packed union {
-            a: packed struct {
+        const U = bitpack union {
+            a: bitpack struct {
                 x: u32 = @alignOf(U) + 1,
             },
-            b: packed struct(u32) {
+            b: bitpack struct(u32) {
                 y: u16 = @sizeOf(U) + 2,
                 padding: u16 = 0,
             },
@@ -1921,15 +1921,15 @@ test "packed union initialized via reintepreted struct field initializer" {
 
     const bytes = [_]u8{ 0xaa, 0xbb, 0xcc, 0xdd };
 
-    const U = packed union {
+    const U = bitpack union {
         a: u32,
-        b: packed struct(u32) {
+        b: bitpack struct(u32) {
             a: u8,
             b: u24,
         },
     };
 
-    const S = packed struct {
+    const S = bitpack struct {
         u: U = @as(*align(1) const U, @ptrCast(&bytes)).*,
     };
 
@@ -1967,9 +1967,9 @@ test "store of comptime reinterpreted memory to packed union" {
 
     const bytes = [_]u8{ 0xaa, 0xbb, 0xcc, 0xdd };
 
-    const U = packed union {
+    const U = bitpack union {
         a: u32,
-        b: packed struct(u32) {
+        b: bitpack struct(u32) {
             a: u8,
             b: u24,
         },

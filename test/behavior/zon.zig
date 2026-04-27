@@ -574,7 +574,7 @@ test "build.zig.zon" {
 
 test "packed" {
     {
-        const U = packed union {
+        const U = bitpack union {
             x: f32,
             y: u32,
         };
@@ -585,7 +585,7 @@ test "packed" {
         try expectEqual(@as(u32, @bitCast(@as(f32, 0.5))), u.y);
     }
     {
-        const S = packed struct {
+        const S = bitpack struct {
             x: u3,
             y: f32,
             z: i7,

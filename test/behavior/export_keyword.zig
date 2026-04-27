@@ -14,12 +14,12 @@ export fn writeToVRam() void {
     vram[0] = 'X';
 }
 
-const PackedStruct = packed struct {
+const PackedStruct = bitpack struct {
     a: u8,
     b: u8,
 };
-const PackedUnion = packed union {
-    a: packed struct(u32) {
+const PackedUnion = bitpack union {
+    a: bitpack struct(u32) {
         a: u8,
         b: u24 = 0,
     },

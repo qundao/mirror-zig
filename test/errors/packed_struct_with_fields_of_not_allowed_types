@@ -5,58 +5,58 @@
 
 #write test.zig {
 export fn entry1() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: anyerror,
     });
 }
 export fn entry2() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: [2]u24,
     });
 }
 export fn entry3() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: anyerror!u32,
     });
 }
 export fn entry4() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: S,
     });
 }
 export fn entry5() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: U,
     });
 }
 export fn entry6() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: ?anyerror,
     });
 }
 export fn entry7() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: enum(u1) { A, B },
     });
 }
 export fn entry8() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: fn () void,
     });
 }
 export fn entry9() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: *const fn () void,
     });
 }
 export fn entry10() void {
-    _ = @sizeOf(packed struct {
-        x: packed struct { x: i32 },
+    _ = @sizeOf(bitpack struct {
+        x: bitpack struct { x: i32 },
     });
 }
 export fn entry11() void {
-    _ = @sizeOf(packed struct {
-        x: packed union { A: i32, B: u32 },
+    _ = @sizeOf(bitpack struct {
+        x: bitpack union { A: i32, B: u32 },
     });
 }
 const S = struct {
@@ -67,29 +67,29 @@ const U = extern union {
     B: u32,
 };
 export fn entry12() void {
-    _ = @sizeOf(packed struct {
-        x: packed struct { a: []u8 },
+    _ = @sizeOf(bitpack struct {
+        x: bitpack struct { a: []u8 },
     });
 }
 export fn entry13() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: *type,
     });
 }
 export fn entry14() void {
     const E = enum { implicit, backing, type };
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: E,
     });
 }
 export fn entry15() void {
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: *const u32,
     });
 }
 export fn entry16() void {
     const E = enum(noreturn) {};
-    _ = @sizeOf(packed struct {
+    _ = @sizeOf(bitpack struct {
         x: E,
     });
 }
@@ -115,8 +115,8 @@ test.zig:38:12: note: type does not have a bit-packed representation
 test.zig:43:12: error: packed structs cannot contain fields of type '*const fn () void'
 test.zig:43:12: note: pointers cannot be directly bitpacked
 test.zig:43:12: note: consider using 'usize' and '@intFromPtr'
-test.zig:65:31: error: packed structs cannot contain fields of type '[]u8'
-test.zig:65:31: note: slices do not have a bit-packed representation
+test.zig:65:32: error: packed structs cannot contain fields of type '[]u8'
+test.zig:65:32: note: slices do not have a bit-packed representation
 test.zig:70:12: error: packed structs cannot contain fields of type '*type'
 test.zig:70:12: note: pointers cannot be directly bitpacked
 test.zig:70:12: note: consider using 'usize' and '@intFromPtr'

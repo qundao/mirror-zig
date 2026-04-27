@@ -3969,7 +3969,7 @@ pub const Node = struct {
         then_expr: Index,
     };
 
-    pub const For = packed struct(u32) {
+    pub const For = bitpack struct(u32) {
         inputs: u31,
         has_else: bool,
     };

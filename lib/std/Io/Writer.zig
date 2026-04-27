@@ -1997,7 +1997,7 @@ pub fn writeLeb128(w: *Writer, value: anytype) Error!void {
         return;
     }
 
-    const Byte = packed struct { bits: u7, more: bool };
+    const Byte = bitpack struct { bits: u7, more: bool };
     const Int = std.math.ByteAlignedInt(T);
 
     const max_bytes = @divFloor(info.bits - 1, 7) + 1;

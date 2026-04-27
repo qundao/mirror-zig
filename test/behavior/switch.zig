@@ -1451,7 +1451,7 @@ test "single range switch prong capture" {
 test "switch on packed struct" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const P = packed struct {
+    const P = bitpack struct {
         a: u1,
         b: u1,
 
@@ -1483,10 +1483,10 @@ test "switch on packed struct" {
 test "switch on packed union" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const P = packed union(u2) {
+    const P = bitpack union(u2) {
         a: u2,
         b: i2,
-        c: packed struct(u2) { x: u1, y: i1 },
+        c: bitpack struct(u2) { x: u1, y: i1 },
 
         fn doTheTest(p: @This()) !void {
             switch (p) {
@@ -1532,17 +1532,17 @@ test "switch on packed union" {
 test "switch on nested packed containers" {
     if (builtin.cpu.arch.isSpirv()) return error.SkipZigTest;
 
-    const P = packed struct {
+    const P = bitpack struct {
         iu: u17,
         is: i31,
         b: bool,
         e: enum(u5) { a = 5, b = 3, c = 12 },
-        un: packed union {
+        un: bitpack union {
             a: i9,
             b: u9,
-            c: packed struct(u9) { a: i5, b: u4 },
+            c: bitpack struct(u9) { a: i5, b: u4 },
         },
-        p: packed struct(u9) { a: u3, b: u6 },
+        p: bitpack struct(u9) { a: u3, b: u6 },
 
         fn doTheTest(p: @This()) !void {
             switch (p) {
