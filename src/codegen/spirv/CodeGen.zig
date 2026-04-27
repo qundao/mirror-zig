@@ -7262,7 +7262,7 @@ fn structFieldPtr(
             },
         },
         .@"union" => switch (object_ty.containerLayout(zcu)) {
-            .@"packed" => return cg.todo("implement field access for packed unions", .{}),
+            .@"packed" => return cg.todo("implement field access for bitpack unions", .{}),
             .auto => {
                 if (!field_ty.hasRuntimeBits(zcu)) return try cg.constUndef(result_ptr_ty_id);
                 return try cg.accessChain(result_ptr_ty_id, object_ptr, &.{field_index});

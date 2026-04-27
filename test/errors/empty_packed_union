@@ -11,5 +11,5 @@ export fn foo() void {
 #}
 #update
 #check errors {
-test.zig:2:23: error: packed union has no fields
+test.zig:2:23: error: bitpack union has no fields
 #}

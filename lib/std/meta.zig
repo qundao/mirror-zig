@@ -533,7 +533,7 @@ pub fn BackingInt(comptime T: type) type {
         },
         else => {},
     }
-    @compileError("expected enum, tagged union, packed union or packed struct type, found '" ++ @typeName(T) ++ "'");
+    @compileError("expected enum, tagged union, bitpack union or bitpack struct type, found '" ++ @typeName(T) ++ "'");
 }
 
 test BackingInt {

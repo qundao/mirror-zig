@@ -30,11 +30,11 @@ export fn entry5(x: u32) u32 {
 #}
 #update
 #check errors {
-test.zig:3:17: error: non-packed struct 'test.S1' does not have a backing integer
+test.zig:3:17: error: non-bitpack struct 'test.S1' does not have a backing integer
 test.zig:1:19: note: struct declared here
-test.zig:8:17: error: non-packed union 'test.U1' does not have a backing integer
+test.zig:8:17: error: non-bitpack union 'test.U1' does not have a backing integer
 test.zig:6:19: note: union declared here
-test.zig:12:18: error: expected enum, packed union or packed struct, found 'u32'
+test.zig:12:18: error: expected enum, bitpack union or bitpack struct, found 'u32'
 test.zig:17:17: error: @fromBackingInt is ambiguous for type 'test.S2'
 test.zig:15:20: note: backing integer type of struct is inferred
 test.zig:15:20: note: consider explicitly specifying the backing integer type

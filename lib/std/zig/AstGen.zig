@@ -4936,7 +4936,7 @@ fn structDeclInner(
         defer block_scope.src_baseline = node;
         if (layout != .@"packed") return astgen.failNode(
             backing_int_node,
-            "non-packed struct does not support backing integer type",
+            "non-bitpack struct does not support backing integer type",
             .{},
         );
         astgen.src_hasher.update(astgen.tree.getNodeSource(backing_int_node));
@@ -4988,7 +4988,7 @@ fn structDeclInner(
 
         if (member.ast.align_expr.unwrap()) |align_node| {
             if (layout == .@"packed") {
-                return astgen.failNode(align_node, "unable to override alignment of packed struct fields", .{});
+                return astgen.failNode(align_node, "unable to override alignment of bitpack struct fields", .{});
             }
             const align_ref = try expr(&block_scope, &namespace.base, coerced_align_ri, align_node);
             if (!block_scope.endsWithNoReturn()) {
@@ -5285,7 +5285,7 @@ fn unionDeclInner(
 
         if (member.ast.align_expr.unwrap()) |align_node| {
             if (layout == .@"packed") {
-                return astgen.failNode(align_node, "unable to override alignment of packed union fields", .{});
+                return astgen.failNode(align_node, "unable to override alignment of bitpack union fields", .{});
             }
             const align_ref = try expr(&block_scope, &namespace.base, coerced_align_ri, align_node);
             if (!block_scope.endsWithNoReturn()) {
@@ -5404,7 +5404,7 @@ fn containerDecl(
         },
         .keyword_enum => {
             if (container_decl.layout_token) |t| {
-                return astgen.failTok(t, "enums do not support 'packed' or 'extern'; instead provide an explicit integer tag type", .{});
+                return astgen.failTok(t, "enums do not support 'bitpack' or 'extern'; instead provide an explicit integer tag type", .{});
             }
 
             astgen.advanceSourceCursorToNode(node);
@@ -5602,7 +5602,7 @@ fn containerDecl(
             var wip_decls: WipDecls = try .init(&scratch, scan_result.decls_len);
 
             if (container_decl.layout_token) |layout_token| {
-                return astgen.failTok(layout_token, "opaque types do not support 'packed' or 'extern'", .{});
+                return astgen.failTok(layout_token, "opaque types do not support 'bitpack' or 'extern'", .{});
             }
 
             for (container_decl.ast.members) |member_node| {

@@ -12,5 +12,5 @@ const U = bitpack union {
 #}
 #update
 #check errors {
-test.zig:3:17: error: unable to override alignment of packed union fields
+test.zig:3:17: error: unable to override alignment of bitpack union fields
 #}

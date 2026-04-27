@@ -68,10 +68,10 @@ export fn entry8() void {
 #}
 #update
 #check errors {
-test.zig:7:30: error: cannot capture tag of packed union
+test.zig:7:30: error: cannot capture tag of bitpack union
 test.zig:1:19: note: union declared here
 test.zig:1:19: note: consider using a tagged union
-test.zig:13:30: error: cannot capture tag of packed union
+test.zig:13:30: error: cannot capture tag of bitpack union
 test.zig:1:19: note: union declared here
 test.zig:1:19: note: consider using a tagged union
 test.zig:21:19: error: cannot capture tag of non-union type 'test.E'

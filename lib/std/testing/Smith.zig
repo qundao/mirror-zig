@@ -67,11 +67,11 @@ pub inline fn baselineWeights(T: type) []const Weight {
         .@"struct" => |s| if (s.backing_integer) |B|
             baselineWeights(B)
         else
-            @compileError("non-packed structs cannot be weighted"),
+            @compileError("non-bitpack structs cannot be weighted"),
         .@"union" => |u| if (u.layout == .@"packed")
             baselineWeights(Backing(T))
         else
-            @compileError("non-packed unions cannot be weighted"),
+            @compileError("non-bitpack unions cannot be weighted"),
         .@"enum" => |e| if (e.mode == .nonexhaustive)
             baselineWeights(e.tag_type)
         else if (e.field_names.len == 0)

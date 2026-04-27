@@ -67,7 +67,7 @@ test.zig:1:21: note: struct fields have total bit width '8'
 test.zig:2:36: error: field bit width does not match backing integer
 test.zig:2:36: note: field type 'u10' has bit width '10'
 test.zig:2:27: note: backing integer 'i8' has bit width '8'
-test.zig:2:36: note: all fields in a packed union must have the same bit width
+test.zig:2:36: note: all fields in a bitpack union must have the same bit width
 #}
 
 #write test.zig {
@@ -90,5 +90,5 @@ test.zig:1:21: note: struct fields have total bit width '8'
 test.zig:2:37: error: field bit width does not match backing integer
 test.zig:2:37: note: field type 'u10' has bit width '10'
 test.zig:2:27: note: backing integer 'u32' has bit width '32'
-test.zig:2:37: note: all fields in a packed union must have the same bit width
+test.zig:2:37: note: all fields in a bitpack union must have the same bit width
 #}

@@ -18,5 +18,5 @@ comptime {
 #check errors {
 test.zig:2:46: error: comptime field without default initialization value
 test.zig:5:51: error: extern struct fields cannot be marked comptime
-test.zig:8:51: error: packed struct fields cannot be aligned
+test.zig:8:51: error: bitpack struct fields cannot be aligned
 #}

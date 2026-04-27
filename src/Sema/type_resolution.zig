@@ -531,7 +531,7 @@ fn resolvePackedStructLayout(
             });
         }
         if (field_ty.unpackable(zcu)) |reason| return sema.failWithOwnedErrorMsg(block, msg: {
-            const msg = try sema.errMsg(field_ty_src, "packed structs cannot contain fields of type '{f}'", .{field_ty.fmt(zcu)});
+            const msg = try sema.errMsg(field_ty_src, "bitpack structs cannot contain fields of type '{f}'", .{field_ty.fmt(zcu)});
             errdefer msg.destroy(gpa);
             try sema.explainWhyTypeIsUnpackable(msg, field_ty_src, reason);
             break :msg msg;
@@ -596,7 +596,7 @@ fn resolvePackedStructLayout(
         const backing_int_bits = std.math.cast(u16, field_bits) orelse return sema.fail(
             block,
             struct_ty.srcLoc(zcu),
-            "packed struct bit width '{d}' exceeds maximum bit width of 65535",
+            "bitpack struct bit width '{d}' exceeds maximum bit width of 65535",
             .{field_bits},
         );
         break :ty try pt.intType(.unsigned, backing_int_bits);
@@ -1142,7 +1142,7 @@ fn resolvePackedUnionLayout(
 
     // Uninstantiable `packed union`s don't make sense; disallow them.
     if (union_obj.field_types.len == 0) {
-        return sema.fail(block, union_ty.srcLoc(zcu), "packed union has no fields", .{});
+        return sema.fail(block, union_ty.srcLoc(zcu), "bitpack union has no fields", .{});
     }
 
     // Resolve the layout of all fields, and check their types are allowed.
@@ -1161,7 +1161,7 @@ fn resolvePackedUnionLayout(
             });
         }
         if (field_ty.unpackable(zcu)) |reason| return sema.failWithOwnedErrorMsg(block, msg: {
-            const msg = try sema.errMsg(field_ty_src, "packed unions cannot contain fields of type '{f}'", .{field_ty.fmt(zcu)});
+            const msg = try sema.errMsg(field_ty_src, "bitpack unions cannot contain fields of type '{f}'", .{field_ty.fmt(zcu)});
             errdefer msg.destroy(gpa);
             try sema.explainWhyTypeIsUnpackable(msg, field_ty_src, reason);
             break :msg msg;
@@ -1216,7 +1216,7 @@ fn resolvePackedUnionLayout(
                     "backing integer '{f}' has bit width '{d}'",
                     .{ backing_ty.fmt(zcu), backing_int_bits },
                 );
-                try sema.errNote(field_ty_src, msg, "all fields in a packed union must have the same bit width", .{});
+                try sema.errNote(field_ty_src, msg, "all fields in a bitpack union must have the same bit width", .{});
                 break :msg msg;
             });
         }
@@ -1235,14 +1235,14 @@ fn resolvePackedUnionLayout(
                 errdefer msg.destroy(gpa);
                 try sema.errNote(field_ty_src, msg, "field type '{f}' has bit width '{d}'", .{ field_type.fmt(zcu), field_bits });
                 try sema.errNote(first_field_ty_src, msg, "other field type '{f}' has bit width '{d}'", .{ first_field_type.fmt(zcu), first_field_bits });
-                try sema.errNote(field_ty_src, msg, "all fields in a packed union must have the same bit width", .{});
+                try sema.errNote(field_ty_src, msg, "all fields in a bitpack union must have the same bit width", .{});
                 break :msg msg;
             });
         }
         const backing_int_bits = std.math.cast(u16, first_field_bits) orelse return sema.fail(
             block,
             union_ty.srcLoc(zcu),
-            "packed union bit width '{d}' exceeds maximum bit width of 65535",
+            "bitpack union bit width '{d}' exceeds maximum bit width of 65535",
             .{first_field_bits},
         );
         break :ty try pt.intType(.unsigned, backing_int_bits);
