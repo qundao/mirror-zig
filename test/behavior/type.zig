@@ -243,11 +243,11 @@ test "Type.Union" {
     untagged.int = 3;
     try testing.expectEqual(@as(i32, 3), untagged.int);
 
-    const PackedUntagged = @Union(.@"packed", null, &.{ "signed", "unsigned" }, &.{ i32, u32 }, &.{ .{}, .{} });
-    var packed_untagged: PackedUntagged = .{ .signed = -1 };
-    _ = &packed_untagged;
-    try testing.expectEqual(@as(i32, -1), packed_untagged.signed);
-    try testing.expectEqual(~@as(u32, 0), packed_untagged.unsigned);
+    const BitpackUntagged = @Union(.@"packed", null, &.{ "signed", "unsigned" }, &.{ i32, u32 }, &.{ .{}, .{} });
+    var bitpack_untagged: BitpackUntagged = .{ .signed = -1 };
+    _ = &bitpack_untagged;
+    try testing.expectEqual(@as(i32, -1), bitpack_untagged.signed);
+    try testing.expectEqual(~@as(u32, 0), bitpack_untagged.unsigned);
 
     const Tag = @Enum(u1, .exhaustive, &.{ "signed", "unsigned" }, &.{ 0, 1 });
     const Tagged = @Union(.auto, Tag, &.{ "signed", "unsigned" }, &.{ i32, u32 }, &.{ .{}, .{} });

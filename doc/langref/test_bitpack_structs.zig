@@ -10,7 +10,7 @@ const Divided = bitpack struct {
     quarter4: u4,
 };
 
-test "@bitCast between packed structs" {
+test "@bitCast between bitpack structs" {
     try doTheTest();
     try comptime doTheTest();
 }
