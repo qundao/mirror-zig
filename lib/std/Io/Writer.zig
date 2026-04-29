@@ -973,7 +973,7 @@ pub inline fn writeStruct(w: *Writer, value: anytype, endian: std.lang.Endian) E
                     return w.writeAll(@ptrCast((&copy)[0..1]));
                 }
             },
-            .@"packed" => {
+            .@"bitpack" => {
                 return writeInt(w, info.backing_integer.?, @bitCast(value), endian);
             },
         },
@@ -1429,7 +1429,7 @@ pub fn printValue(
                 .auto => {
                     return w.writeAll(".{ ... }");
                 },
-                .@"extern", .@"packed" => {
+                .@"extern", .@"bitpack" => {
                     if (info.field_names.len == 0) return w.writeAll(".{}");
                     try w.writeAll(".{ ");
                     inline for (info.field_names, 1..) |field_name, i| {

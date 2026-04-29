@@ -522,7 +522,7 @@ pub const Value = struct {
                     switch (ty.zigTypeTag(zcu)) {
                         else => {},
                         .error_union => break :bit_size,
-                        .@"struct", .@"union" => if (ty.containerLayout(zcu) != .@"packed") break :bit_size,
+                        .@"struct", .@"union" => if (ty.containerLayout(zcu) != .@"bitpack") break :bit_size,
                         .pointer, .optional => if (!ty.isPtrAtRuntime(zcu)) break :bit_size,
                         .array, .vector => {
                             ty = ty.childType(zcu);
@@ -1774,7 +1774,7 @@ pub const Value = struct {
                     const loaded_struct = ip.loadStructType(ty.toIntern());
                     switch (loaded_struct.layout) {
                         .auto, .@"extern" => {},
-                        .@"packed" => {
+                        .@"bitpack" => {
                             ty = .fromInterned(loaded_struct.packed_backing_int_type);
                             continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type);
                         },
@@ -1833,7 +1833,7 @@ pub const Value = struct {
                     const loaded_union = ip.loadUnionType(ty.toIntern());
                     switch (loaded_union.layout) {
                         .auto, .@"extern" => {},
-                        .@"packed" => continue :type_key .{ .int_type = .{
+                        .@"bitpack" => continue :type_key .{ .int_type = .{
                             .signedness = .unsigned,
                             .bits = @intCast(ty.bitSize(zcu)),
                         } },
@@ -4510,7 +4510,7 @@ pub fn body(isel: *Select, air_body: []const Air.Inst.Index) codegen.Error!void 
                         8 * field_ty.abiSize(zcu),
                         false,
                     },
-                    .@"packed" => .{
+                    .@"bitpack" => .{
                         if (zcu.typeToPackedStruct(agg_ty)) |loaded_struct|
                             zcu.structPackedFieldBitOffset(loaded_struct, extra.field_index)
                         else
@@ -6767,7 +6767,7 @@ fn moveConstant(isel: *Select, dst: Value.Location, init_constant: Constant, ini
                                 }
                             }
                         },
-                        .@"extern", .@"packed" => {},
+                        .@"extern", .@"bitpack" => {},
                     }
                 },
                 .tuple_type => |tuple_type| {
@@ -7122,7 +7122,7 @@ pub const CallAbiIterator = struct {
                 const loaded_struct = ip.loadStructType(ty.toIntern());
                 switch (loaded_struct.layout) {
                     .auto, .@"extern" => {},
-                    .@"packed" => continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type),
+                    .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type),
                 }
                 const size = wip_vi.size(isel);
                 if (size == 0)
@@ -7139,7 +7139,7 @@ pub const CallAbiIterator = struct {
                 const loaded_union = ip.loadUnionType(ty.toIntern());
                 switch (loaded_union.layout) {
                     .auto, .@"extern" => {},
-                    .@"packed" => continue :type_key .{ .int_type = .{
+                    .@"bitpack" => continue :type_key .{ .int_type = .{
                         .signedness = .unsigned,
                         .bits = @intCast(ty.bitSize(zcu)),
                     } },
@@ -7494,7 +7494,7 @@ fn typeOfField(isel: *Select, ty: ZigType, offset: u64) ?ZigType {
             const loaded_struct = ip.loadStructType(ty.toIntern());
             switch (loaded_struct.layout) {
                 .auto, .@"extern" => {},
-                .@"packed" => continue :type_key ip.indexToKey(loaded_struct.backingIntTypeUnordered(ip)).int_type,
+                .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.backingIntTypeUnordered(ip)).int_type,
             }
             var field_end: u64 = 0;
             var field_it = loaded_struct.iterateRuntimeOrder(ip);
@@ -7533,7 +7533,7 @@ fn typeOfField(isel: *Select, ty: ZigType, offset: u64) ?ZigType {
             const loaded_union = ip.loadUnionType(ty.toIntern());
             switch (loaded_union.flagsUnordered(ip).layout) {
                 .auto, .@"extern" => {},
-                .@"packed" => continue :type_key .{ .int_type = .{
+                .@"bitpack" => continue :type_key .{ .int_type = .{
                     .signedness = .unsigned,
                     .bits = @intCast(ty.bitSize(zcu)),
                 } },
@@ -7676,7 +7676,7 @@ fn writeConstantKeyToMemory(isel: *Select, constant_key: InternPool.Key, buffer:
                             }), buffer[@intCast(field_offset)..][0..@intCast(field_size)])) return false;
                         }
                     },
-                    .@"extern", .@"packed" => return false,
+                    .@"extern", .@"bitpack" => return false,
                 }
             },
             .tuple_type => |tuple_type| {
@@ -7699,7 +7699,7 @@ fn writeConstantKeyToMemory(isel: *Select, constant_key: InternPool.Key, buffer:
             const loaded_union = ip.loadUnionType(union_val.ty);
             switch (loaded_union.layout) {
                 .auto => {},
-                .@"extern", .@"packed" => return false,
+                .@"extern", .@"bitpack" => return false,
             }
             const union_layout = ZigType.getUnionLayout(loaded_union, zcu);
             if (loaded_union.has_runtime_tag)

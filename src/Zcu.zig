@@ -4253,7 +4253,7 @@ pub fn atomicPtrAlignment(
     }
     if (switch (ty.zigTypeTag(zcu)) {
         .int, .@"enum" => true,
-        .@"struct" => ty.containerLayout(zcu) == .@"packed",
+        .@"struct" => ty.containerLayout(zcu) == .@"bitpack",
         else => false,
     }) {
         assert(ty.isAbiInt(zcu));
@@ -4283,7 +4283,7 @@ pub fn typeToStruct(zcu: *const Zcu, ty: Type) ?InternPool.LoadedStructType {
 
 pub fn typeToPackedStruct(zcu: *const Zcu, ty: Type) ?InternPool.LoadedStructType {
     const s = zcu.typeToStruct(ty) orelse return null;
-    if (s.layout != .@"packed") return null;
+    if (s.layout != .@"bitpack") return null;
     return s;
 }
 
@@ -4297,7 +4297,7 @@ pub fn structPackedFieldBitOffset(
     field_index: u32,
 ) u16 {
     const ip = &zcu.intern_pool;
-    assert(struct_type.layout == .@"packed");
+    assert(struct_type.layout == .@"bitpack");
     var bit_sum: u64 = 0;
     for (0..struct_type.field_types.len) |i| {
         if (i == field_index) {

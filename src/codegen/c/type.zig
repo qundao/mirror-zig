@@ -573,7 +573,7 @@ pub const CType = union(enum) {
                     try deps.addType(gpa, cur_ty, allow_incomplete);
                     switch (cur_ty.containerLayout(zcu)) {
                         .auto, .@"extern" => return .{ .@"struct" = cur_ty },
-                        .@"packed" => return .{ .@"bitpack" = cur_ty },
+                        .@"bitpack" => return .{ .@"bitpack" = cur_ty },
                     }
                 },
                 .@"union" => {
@@ -581,7 +581,7 @@ pub const CType = union(enum) {
                     switch (cur_ty.containerLayout(zcu)) {
                         .auto => return .{ .union_auto = cur_ty },
                         .@"extern" => return .{ .union_extern = cur_ty },
-                        .@"packed" => return .{ .@"bitpack" = cur_ty },
+                        .@"bitpack" => return .{ .@"bitpack" = cur_ty },
                     }
                 },
                 .@"enum" => {

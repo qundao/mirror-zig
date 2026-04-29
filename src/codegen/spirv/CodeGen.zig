@@ -637,7 +637,7 @@ pub fn layoutType(cg: *CodeGen, ty: Type, is_block_root: bool) Error!Id {
     const result_id: Id = switch (ty.zigTypeTag(zcu)) {
         .@"struct" => id: {
             const struct_type = ip.loadStructType(ty.toIntern());
-            if (struct_type.layout == .@"packed") return cg.resolveType(ty, .indirect);
+            if (struct_type.layout == .@"bitpack") return cg.resolveType(ty, .indirect);
 
             var member_types: std.ArrayList(Id) = .empty;
             defer member_types.deinit(gpa);
@@ -660,7 +660,7 @@ pub fn layoutType(cg: *CodeGen, ty: Type, is_block_root: bool) Error!Id {
         },
         .@"union" => id: {
             const union_obj = zcu.typeToUnion(ty).?;
-            if (union_obj.layout == .@"packed") return cg.resolveType(ty, .indirect);
+            if (union_obj.layout == .@"bitpack") return cg.resolveType(ty, .indirect);
 
             const layout = cg.unionLayout(ty);
             if (!layout.has_payload) return cg.resolveType(ty, .indirect);
@@ -869,7 +869,7 @@ fn decorateLayout(cg: *CodeGen, ty: Type, ty_id: spec.Id) Error!void {
         .@"struct" => switch (ip.indexToKey(ty.toIntern())) {
             .struct_type => {
                 const struct_type = ip.loadStructType(ty.toIntern());
-                if (struct_type.layout == .@"packed") return;
+                if (struct_type.layout == .@"bitpack") return;
                 var it = struct_type.iterateRuntimeOrder(ip);
                 var member: u32 = 0;
                 while (it.next()) |field_index| {
@@ -892,7 +892,7 @@ fn decorateLayout(cg: *CodeGen, ty: Type, ty_id: spec.Id) Error!void {
         },
         .@"union" => {
             const union_obj = zcu.typeToUnion(ty).?;
-            if (union_obj.layout == .@"packed") return;
+            if (union_obj.layout == .@"bitpack") return;
             const layout = cg.unionLayout(ty);
             if (layout.tag_size != 0) {
                 const tag_ty: Type = .fromInterned(union_obj.enum_tag_type);
@@ -1457,7 +1457,7 @@ fn constant(cg: *CodeGen, ty: Type, val: Value, repr: Repr) Error!Id {
             },
             .struct_type => {
                 const struct_type = zcu.typeToStruct(ty).?;
-                assert(struct_type.layout != .@"packed"); // packed structs use `bitpack`
+                assert(struct_type.layout != .@"bitpack"); // bitpack structs use `bitpack`
 
                 var types: std.ArrayList(Type) = .empty;
                 defer types.deinit(gpa);
@@ -1504,7 +1504,7 @@ fn constant(cg: *CodeGen, ty: Type, val: Value, repr: Repr) Error!Id {
             else => unreachable,
         },
         .un => |un| {
-            assert(ty.containerLayout(zcu) != .@"packed");
+            assert(ty.containerLayout(zcu) != .@"bitpack");
             if (un.tag == .none) return cg.todo("constant of untagged union", .{});
 
             const active_field = ty.unionTagFieldIndex(.fromInterned(un.tag), zcu).?;
@@ -1629,7 +1629,7 @@ fn constantBytes(cg: *CodeGen, ty: Type, bytes: []const u8) Error!Id {
             return cg.constantComposite(ty_id, constituents);
         },
         .@"struct", .@"union" => {
-            if (ty.containerLayout(zcu) == .@"packed") {
+            if (ty.containerLayout(zcu) == .@"bitpack") {
                 return cg.constantBytes(ty.backingIntType(zcu), bytes);
             }
             assert(ty.containerLayout(zcu) == .@"extern");
@@ -2137,7 +2137,7 @@ fn resolveType(cg: *CodeGen, ty: Type, repr: Repr) Error!Id {
                 else => unreachable,
             };
 
-            if (struct_type.layout == .@"packed") {
+            if (struct_type.layout == .@"bitpack") {
                 return try cg.resolveType(.fromInterned(struct_type.packed_backing_int_type), .direct);
             }
 
@@ -2194,7 +2194,7 @@ fn resolveType(cg: *CodeGen, ty: Type, repr: Repr) Error!Id {
             const union_obj = zcu.typeToUnion(ty).?;
             switch (union_obj.layout) {
                 .@"extern" => {},
-                .@"packed" => return try cg.intType(.unsigned, @intCast(ty.bitSize(zcu))),
+                .@"bitpack" => return try cg.intType(.unsigned, @intCast(ty.bitSize(zcu))),
                 .auto => {
                     if (ty.unionHasAllZeroBitFieldTypes(zcu)) {
                         return try cg.resolveType(ty.unionTagTypeRuntime(zcu).?, .indirect);
@@ -7089,7 +7089,7 @@ fn unionInit(
     const layout = cg.unionLayout(ty);
     const payload_ty: Type = .fromInterned(union_ty.field_types.get(ip)[active_field]);
 
-    assert(union_ty.layout != .@"packed");
+    assert(union_ty.layout != .@"bitpack");
     if (union_ty.layout == .auto) {
         if (ty.unionHasAllZeroBitFieldTypes(zcu)) {
             const runtime_tag_ty = ty.unionTagTypeRuntime(zcu).?;
@@ -7255,14 +7255,14 @@ fn structFieldPtr(
             return cg.accessChain(result_ptr_ty_id, object_ptr, &.{field_index});
         },
         .@"struct" => switch (object_ty.containerLayout(zcu)) {
-            .@"packed" => return object_ptr,
+            .@"bitpack" => return object_ptr,
             .auto, .@"extern" => {
                 const member_index = cg.memberIndex(object_ty, field_index);
                 return try cg.accessChain(result_ptr_ty_id, object_ptr, &.{member_index});
             },
         },
         .@"union" => switch (object_ty.containerLayout(zcu)) {
-            .@"packed" => return cg.todo("implement field access for bitpack unions", .{}),
+            .@"bitpack" => return cg.todo("implement field access for bitpack unions", .{}),
             .auto => {
                 if (!field_ty.hasRuntimeBits(zcu)) return try cg.constUndef(result_ptr_ty_id);
                 return try cg.accessChain(result_ptr_ty_id, object_ptr, &.{field_index});
@@ -7277,7 +7277,7 @@ fn structFieldPtr(
 
                 const storage_class = cg.storageClass(as);
                 if (field_ty.toIntern() == layout.payload_ty.toIntern()) {
-                    if (object_ty.containerLayout(zcu) == .@"packed") return object_ptr;
+                    if (object_ty.containerLayout(zcu) == .@"bitpack") return object_ptr;
                     return try cg.accessChain(result_ptr_ty_id, object_ptr, &.{layout.payload_index});
                 }
 
@@ -7285,14 +7285,14 @@ fn structFieldPtr(
                     // Logical addressing forbids OpBitcast on pointers. If the field
                     // type is structurally identical to the payload type (dedup will
                     // unify them) the access chain typed as the field type is valid.
-                    if (object_ty.containerLayout(zcu) == .@"packed") return object_ptr;
+                    if (object_ty.containerLayout(zcu) == .@"bitpack") return object_ptr;
                     return try cg.accessChain(result_ptr_ty_id, object_ptr, &.{layout.payload_index});
                 }
 
                 const layout_payload_ty_id = try cg.resolveType(layout.payload_ty, .indirect);
                 const pl_ptr_ty_id = try cg.ptrType(layout_payload_ty_id, storage_class);
                 const pl_ptr_id = blk: {
-                    if (object_ty.containerLayout(zcu) == .@"packed") break :blk object_ptr;
+                    if (object_ty.containerLayout(zcu) == .@"bitpack") break :blk object_ptr;
                     break :blk try cg.accessChain(pl_ptr_ty_id, object_ptr, &.{layout.payload_index});
                 };
 
@@ -7722,7 +7722,7 @@ fn airAggFieldVal(cg: *CodeGen, inst: Air.Inst.Index) !?Id {
 
     switch (object_ty.zigTypeTag(zcu)) {
         .@"struct" => switch (object_ty.containerLayout(zcu)) {
-            .@"packed" => {
+            .@"bitpack" => {
                 const struct_ty = zcu.typeToPackedStruct(object_ty).?;
                 const struct_backing_int_bits = cg.backingIntBits(@intCast(object_ty.bitSize(zcu))).@"0";
                 const bit_offset = zcu.structPackedFieldBitOffset(struct_ty, field_index);
@@ -7749,7 +7749,7 @@ fn airAggFieldVal(cg: *CodeGen, inst: Air.Inst.Index) !?Id {
             else => return try cg.extractField(field_ty, object_id, cg.memberIndex(object_ty, field_index)),
         },
         .@"union" => switch (object_ty.containerLayout(zcu)) {
-            .@"packed" => {
+            .@"bitpack" => {
                 const backing_int_ty = try pt.intType(.unsigned, @intCast(object_ty.bitSize(zcu)));
                 const signedness = if (field_ty.isInt(zcu)) field_ty.intInfo(zcu).signedness else .unsigned;
                 const field_bit_size: u16 = @intCast(field_ty.bitSize(zcu));

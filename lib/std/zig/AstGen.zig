@@ -4934,7 +4934,7 @@ fn structDeclInner(
     const backing_int_type_body_len: ?u32 = if (maybe_backing_int_node.unwrap()) |backing_int_node| len: {
         block_scope.src_baseline = backing_int_node;
         defer block_scope.src_baseline = node;
-        if (layout != .@"packed") return astgen.failNode(
+        if (layout != .@"bitpack") return astgen.failNode(
             backing_int_node,
             "non-bitpack struct does not support backing integer type",
             .{},
@@ -4987,7 +4987,7 @@ fn structDeclInner(
         }
 
         if (member.ast.align_expr.unwrap()) |align_node| {
-            if (layout == .@"packed") {
+            if (layout == .@"bitpack") {
                 return astgen.failNode(align_node, "unable to override alignment of bitpack struct fields", .{});
             }
             const align_ref = try expr(&block_scope, &namespace.base, coerced_align_ri, align_node);
@@ -5016,7 +5016,7 @@ fn structDeclInner(
 
         if (member.comptime_token) |comptime_token| {
             switch (layout) {
-                .@"packed", .@"extern" => return astgen.failTok(comptime_token, "{s} struct fields cannot be marked comptime", .{@tagName(layout)}),
+                .@"bitpack", .@"extern" => return astgen.failTok(comptime_token, "{s} struct fields cannot be marked comptime", .{@tagName(layout)}),
                 .auto => {},
             }
             if (member.ast.value_expr == .none) {
@@ -5070,7 +5070,7 @@ fn tupleDecl(
 
     switch (layout) {
         .auto => {},
-        .@"extern", .@"packed" => return astgen.failNode(node, "{s} tuples are not supported", .{@tagName(layout)}),
+        .@"extern", .@"bitpack" => return astgen.failNode(node, "{s} tuples are not supported", .{@tagName(layout)}),
     }
 
     if (backing_int_node.unwrap()) |arg| {
@@ -5171,7 +5171,7 @@ fn unionDeclInner(
         .@"extern" => if (opt_arg_node.unwrap()) |arg_node| {
             return astgen.failNode(arg_node, "{s} union does not support enum tag type", .{@tagName(layout)});
         } else false,
-        .@"packed" => false,
+        .@"bitpack" => false,
     };
 
     if (auto_enum_tok) |t| {
@@ -5284,7 +5284,7 @@ fn unionDeclInner(
         }
 
         if (member.ast.align_expr.unwrap()) |align_node| {
-            if (layout == .@"packed") {
+            if (layout == .@"bitpack") {
                 return astgen.failNode(align_node, "unable to override alignment of bitpack union fields", .{});
             }
             const align_ref = try expr(&block_scope, &namespace.base, coerced_align_ri, align_node);
@@ -5343,7 +5343,7 @@ fn unionDeclInner(
                 break :l if (opt_arg_node == .none) .tagged_enum else .tagged_enum_explicit;
             },
             .@"extern" => .@"extern",
-            .@"packed" => if (opt_arg_node != .none) .packed_explicit else .@"packed",
+            .@"bitpack" => if (opt_arg_node != .none) .bitpack_explicit else .@"bitpack",
         },
         .arg_type_body_len = arg_type_body_len,
         .decls_len = scan_result.decls_len,
@@ -5382,8 +5382,8 @@ fn containerDecl(
     switch (tree.tokenTag(container_decl.ast.main_token)) {
         .keyword_struct => {
             const layout: std.lang.Type.ContainerLayout = if (container_decl.layout_token) |t| switch (tree.tokenTag(t)) {
-                .keyword_bitpack => .@"packed",
-                .keyword_packed => .@"packed",
+                .keyword_bitpack => .@"bitpack",
+                .keyword_packed => .@"bitpack",
                 .keyword_extern => .@"extern",
                 else => unreachable,
             } else .auto;
@@ -5393,8 +5393,8 @@ fn containerDecl(
         },
         .keyword_union => {
             const layout: std.lang.Type.ContainerLayout = if (container_decl.layout_token) |t| switch (tree.tokenTag(t)) {
-                .keyword_bitpack => .@"packed",
-                .keyword_packed => .@"packed",
+                .keyword_bitpack => .@"bitpack",
+                .keyword_packed => .@"bitpack",
                 .keyword_extern => .@"extern",
                 else => unreachable,
             } else .auto;

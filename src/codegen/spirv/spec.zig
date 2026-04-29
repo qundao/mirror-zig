@@ -2856,7 +2856,7 @@ pub const Opcode = enum(u16) {
                     break :blk total;
                 },
                 .@"struct" => |struct_info| {
-                    if (struct_info.layout == .@"packed") return 1;
+                    if (struct_info.layout == .@"bitpack") return 1;
                     var total: usize = 0;
                     inline for (struct_info.field_names, struct_info.field_types) |field_name, field_type| {
                         switch (@typeInfo(field_type)) {

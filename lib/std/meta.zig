@@ -190,10 +190,10 @@ test containerLayout {
     };
 
     try testing.expect(containerLayout(S1) == .auto);
-    try testing.expect(containerLayout(S2) == .@"packed");
+    try testing.expect(containerLayout(S2) == .@"bitpack");
     try testing.expect(containerLayout(S3) == .@"extern");
     try testing.expect(containerLayout(U1) == .auto);
-    try testing.expect(containerLayout(U2) == .@"packed");
+    try testing.expect(containerLayout(U2) == .@"bitpack");
     try testing.expect(containerLayout(U3) == .@"extern");
 }
 
@@ -526,7 +526,7 @@ pub fn BackingInt(comptime T: type) type {
         .@"enum" => |info| return info.tag_type,
         .@"struct" => |info| if (info.backing_integer) |Int| return Int,
         .@"union" => |info| switch (info.layout) {
-            .@"packed" => return info.backing_integer.?,
+            .@"bitpack" => return info.backing_integer.?,
             .auto => if (info.tag_type) |EnumTag|
                 return @typeInfo(EnumTag).@"enum".tag_type,
             .@"extern" => {},
@@ -603,7 +603,7 @@ pub fn eql(a: anytype, b: @TypeOf(a)) bool {
 
     switch (@typeInfo(T)) {
         .@"struct" => |info| {
-            if (info.layout == .@"packed") return a == b;
+            if (info.layout == .@"bitpack") return a == b;
 
             inline for (info.field_names) |field_name| {
                 if (!eql(@field(a, field_name), @field(b, field_name))) return false;
@@ -618,7 +618,7 @@ pub fn eql(a: anytype, b: @TypeOf(a)) bool {
             }
         },
         .@"union" => |info| {
-            if (info.layout == .@"packed") return a == b;
+            if (info.layout == .@"bitpack") return a == b;
             const UnionTag = info.tag_type orelse
                 @compileError("cannot compare untagged union type " ++ @typeName(T));
 
@@ -938,7 +938,7 @@ pub inline fn hasUniqueRepresentation(comptime T: type) bool {
         .array => |info| hasUniqueRepresentation(info.child),
 
         .@"struct" => |info| {
-            if (info.layout == .@"packed") return @sizeOf(T) * 8 == @bitSizeOf(T);
+            if (info.layout == .@"bitpack") return @sizeOf(T) * 8 == @bitSizeOf(T);
 
             var sum_size = @as(usize, 0);
 
@@ -952,7 +952,7 @@ pub inline fn hasUniqueRepresentation(comptime T: type) bool {
         },
 
         .@"union" => |info| {
-            if (info.layout == .@"packed") return @sizeOf(T) * 8 == @bitSizeOf(T);
+            if (info.layout == .@"bitpack") return @sizeOf(T) * 8 == @bitSizeOf(T);
             inline for (info.field_types) |field_type| {
                 if (@sizeOf(field_type) != @sizeOf(T)) return false;
                 if (!hasUniqueRepresentation(field_type)) return false;

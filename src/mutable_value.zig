@@ -209,7 +209,7 @@ pub const MutableValue = union(enum) {
                 .undef => |ty_ip| switch (Type.fromInterned(ty_ip).zigTypeTag(zcu)) {
                     .@"struct", .array, .vector => |type_tag| {
                         const ty = Type.fromInterned(ty_ip);
-                        if (type_tag == .@"struct" and ty.containerLayout(zcu) == .@"packed") return;
+                        if (type_tag == .@"struct" and ty.containerLayout(zcu) == .@"bitpack") return;
                         const opt_sent = ty.sentinel(zcu);
                         if (type_tag == .@"struct" or opt_sent != null or !allow_repeated) {
                             const len_no_sent = ip.aggregateTypeLen(ty_ip);
@@ -243,7 +243,7 @@ pub const MutableValue = union(enum) {
                         }
                     },
                     .@"union" => switch (Type.fromInterned(ty_ip).containerLayout(zcu)) {
-                        .auto, .@"packed" => {},
+                        .auto, .@"bitpack" => {},
                         .@"extern" => {
                             const payload = try arena.create(MutableValue);
                             const backing_ty = try Type.fromInterned(ty_ip).externUnionBackingType(pt);

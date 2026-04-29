@@ -68,7 +68,7 @@ pub inline fn baselineWeights(T: type) []const Weight {
             baselineWeights(B)
         else
             @compileError("non-bitpack structs cannot be weighted"),
-        .@"union" => |u| if (u.layout == .@"packed")
+        .@"union" => |u| if (u.layout == .@"bitpack")
             baselineWeights(Backing(T))
         else
             @compileError("non-bitpack unions cannot be weighted"),
@@ -330,7 +330,7 @@ fn weightsContain(int: u64, weights: []const Weight) bool {
 inline fn allBitPatternsValid(T: type) bool {
     return comptime switch (@typeInfo(T)) {
         .void, .bool, .int, .float => true,
-        inline .@"struct", .@"union" => |c| c.layout == .@"packed" and for (c.field_types) |f_type| {
+        inline .@"struct", .@"union" => |c| c.layout == .@"bitpack" and for (c.field_types) |f_type| {
             if (!allBitPatternsValid(f_type)) break false;
         } else true,
         .@"enum" => |e| e.mode == .nonexhaustive,

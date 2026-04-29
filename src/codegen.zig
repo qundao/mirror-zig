@@ -584,7 +584,7 @@ pub fn generateSymbol(
             .struct_type => {
                 const struct_type = ip.loadStructType(ty.toIntern());
                 switch (struct_type.layout) {
-                    .@"packed" => unreachable,
+                    .@"bitpack" => unreachable,
                     .auto, .@"extern" => {
                         const struct_begin = w.end;
                         const field_types = struct_type.field_types.get(ip);
@@ -703,7 +703,7 @@ fn lowerPtr(
                 },
                 .@"struct", .@"union" => switch (base_ty.containerLayout(zcu)) {
                     .auto => base_ty.structFieldOffset(@intCast(field.index), zcu),
-                    .@"extern", .@"packed" => unreachable,
+                    .@"extern", .@"bitpack" => unreachable,
                 },
                 else => unreachable,
             };
@@ -952,7 +952,7 @@ pub fn lowerValue(pt: Zcu.PerThread, val: Value, target: *const std.Target) Allo
                 target,
             );
         },
-        .@"struct", .@"union" => if (ty.containerLayout(zcu) == .@"packed") {
+        .@"struct", .@"union" => if (ty.containerLayout(zcu) == .@"bitpack") {
             const @"bitpack" = ip.indexToKey(val.toIntern()).@"bitpack";
             return lowerValue(pt, .fromInterned(@"bitpack".backing_int_val), target);
         },
@@ -1029,7 +1029,7 @@ pub fn fieldOffset(ptr_agg_ty: Type, ptr_field_ty: Type, field_index: u32, zcu: 
     const agg_ty = ptr_agg_ty.childType(zcu);
     return switch (agg_ty.containerLayout(zcu)) {
         .auto, .@"extern" => agg_ty.structFieldOffset(field_index, zcu),
-        .@"packed" => @divExact(@as(u64, ptr_agg_ty.ptrInfo(zcu).packed_offset.bit_offset) +
+        .@"bitpack" => @divExact(@as(u64, ptr_agg_ty.ptrInfo(zcu).packed_offset.bit_offset) +
             (if (zcu.typeToPackedStruct(agg_ty)) |loaded_struct| zcu.structPackedFieldBitOffset(loaded_struct, field_index) else 0) -
             ptr_field_ty.ptrInfo(zcu).packed_offset.bit_offset, 8),
     };
@@ -1142,7 +1142,7 @@ pub fn flattenType(items_buf: []FlattenedItem, ty: Type, zcu: *Zcu, opts: struct
             const loaded_struct = ip.loadStructType(ty.toIntern());
             switch (loaded_struct.layout) {
                 .auto, .@"extern" => {},
-                .@"packed" => return flattenType(items_buf, .fromInterned(
+                .@"bitpack" => return flattenType(items_buf, .fromInterned(
                     loaded_struct.packed_backing_int_type,
                 ), zcu, opts),
             }
@@ -1191,7 +1191,7 @@ pub fn flattenType(items_buf: []FlattenedItem, ty: Type, zcu: *Zcu, opts: struct
             const loaded_union = ip.loadUnionType(ty.toIntern());
             return switch (loaded_union.layout) {
                 .auto, .@"extern" => return null,
-                .@"packed" => return flattenType(items_buf, .fromInterned(
+                .@"bitpack" => return flattenType(items_buf, .fromInterned(
                     loaded_union.packed_backing_int_type,
                 ), zcu, opts),
             };

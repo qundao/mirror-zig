@@ -3962,7 +3962,7 @@ fn updateConstInner(dwarf: *Dwarf, pt: Zcu.PerThread, debug_const_index: link.Co
                         try diw.writeUleb128(@backingInt(AbbrevCode.null));
                     }
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     const need_terminator: bool = if (loaded_struct.name_nav.unwrap()) |nav_index| t: {
                         const nav = ip.getNav(nav_index);
                         const decl_inst = nav.srcInst(ip).resolve(ip).?;
@@ -4061,7 +4061,7 @@ fn updateConstInner(dwarf: *Dwarf, pt: Zcu.PerThread, debug_const_index: link.Co
                     }
                     if (need_terminator) try diw.writeUleb128(@backingInt(AbbrevCode.null));
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     const need_terminator: bool = if (loaded_union.name_nav.unwrap()) |nav_index| t: {
                         const nav = ip.getNav(nav_index);
                         const decl_inst = nav.srcInst(ip).resolve(ip).?;

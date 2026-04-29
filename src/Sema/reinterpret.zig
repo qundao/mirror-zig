@@ -192,7 +192,7 @@ const UnpackValueBytes = struct {
                 },
                 .@"struct" => switch (ty.containerLayout(zcu)) {
                     .auto => unreachable, // ill-defined layout
-                    .@"packed" => unreachable, // uses `.bitpack`, not `.aggregate`
+                    .@"bitpack" => unreachable, // uses `.bitpack`, not `.aggregate`
                     .@"extern" => {
                         var it = ip.loadStructType(ty.toIntern()).iterateRuntimeOrder(ip);
                         var offset: u64 = 0;
@@ -353,7 +353,7 @@ const PackValueBytes = struct {
                     }
                     return pt.aggregateValue(ty, elems);
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     const backing_int_val = try pack.primitive(ty.backingIntType(zcu));
                     if (backing_int_val.isUndef(zcu)) return pt.undefValue(ty);
                     return pt.bitpackValue(ty, backing_int_val);
@@ -424,7 +424,7 @@ const PackValueBytes = struct {
                         .reinterpret_decl_ref => return error.ReinterpretDeclRef,
                     }
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     const backing_int_val = try pack.primitive(ty.backingIntType(zcu));
                     if (backing_int_val.isUndef(zcu)) return pt.undefValue(ty);
                     return pt.bitpackValue(ty, backing_int_val);

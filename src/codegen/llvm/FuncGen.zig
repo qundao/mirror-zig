@@ -2400,8 +2400,8 @@ fn airAggFieldVal(self: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.
     if (!isByRef(struct_ty, zcu)) {
         // All auto/extern struct/union types are by-ref, unless they have no runtime bits, in which
         // case we shouldn't be seeing this instruction to begin with. Therefore we must be dealing
-        // with a `packed struct` or `packed union`.
-        assert(struct_ty.containerLayout(zcu) == .@"packed");
+        // with a `bitpack struct` or `bitpack union`.
+        assert(struct_ty.containerLayout(zcu) == .@"bitpack");
         assert(!isByRef(field_ty, zcu));
         const field_int_val: Builder.Value = switch (struct_ty.zigTypeTag(zcu)) {
             .@"struct" => field_int_val: {
@@ -6458,7 +6458,7 @@ fn airAggregateInit(fg: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.
             return vector;
         },
         .@"struct" => switch (result_ty.containerLayout(zcu)) {
-            .@"packed" => {
+            .@"bitpack" => {
                 const struct_type = ip.loadStructType(result_ty.toIntern());
                 const backing_int_ty: Type = .fromInterned(struct_type.packed_backing_int_type);
                 const big_bits = backing_int_ty.bitSize(zcu);
@@ -6543,7 +6543,7 @@ fn airUnionInit(self: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.Va
     const union_ty = self.typeOfIndex(inst);
     const union_obj = zcu.typeToUnion(union_ty).?;
 
-    assert(union_obj.layout != .@"packed");
+    assert(union_obj.layout != .@"bitpack");
 
     const layout = Type.getUnionLayout(union_obj, zcu);
 
@@ -6737,7 +6737,7 @@ fn fieldPtr(
 ) Allocator.Error!Builder.Value {
     const zcu = self.object.zcu;
     const aggregate_ty = aggregate_ptr_ty.childType(zcu);
-    if (aggregate_ty.containerLayout(zcu) == .@"packed") {
+    if (aggregate_ty.containerLayout(zcu) == .@"bitpack") {
         // A pointer to a bitpack field is equivalent to a pointer to the whole bitpack; the
         // bit offset is represented in the pointer *type*.
         return aggregate_ptr;
@@ -7939,8 +7939,8 @@ fn isScalar(zcu: *Zcu, ty: Type) bool {
         .vector,
         => true,
 
-        .@"struct" => ty.containerLayout(zcu) == .@"packed",
-        .@"union" => ty.containerLayout(zcu) == .@"packed",
+        .@"struct" => ty.containerLayout(zcu) == .@"bitpack",
+        .@"union" => ty.containerLayout(zcu) == .@"bitpack",
         else => false,
     };
 }
@@ -7992,11 +7992,11 @@ pub fn isByRef(ty: Type, zcu: *const Zcu) bool {
         .optional => !ty.optionalReprIsPayload(zcu) and ty.optionalChild(zcu).hasRuntimeBits(zcu),
 
         .@"struct" => switch (ty.containerLayout(zcu)) {
-            .@"packed" => false,
+            .@"bitpack" => false,
             .auto, .@"extern" => ty.hasRuntimeBits(zcu),
         },
         .@"union" => switch (ty.containerLayout(zcu)) {
-            .@"packed" => false,
+            .@"bitpack" => false,
             else => ty.hasRuntimeBits(zcu),
         },
     };

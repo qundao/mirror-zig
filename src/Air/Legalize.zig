@@ -889,7 +889,7 @@ fn legalizeBody(l: *Legalize, body_start: usize, body_len: usize) Error!void {
                 const extra = l.extraData(Air.StructField, ty_pl.payload).data;
                 switch (l.typeOf(extra.struct_operand).containerLayout(zcu)) {
                     .auto, .@"extern" => {},
-                    .@"packed" => continue :inst l.replaceInst(inst, .block, try l.packedStructFieldValBlockPayload(inst)),
+                    .@"bitpack" => continue :inst l.replaceInst(inst, .block, try l.packedStructFieldValBlockPayload(inst)),
                 }
             },
             .set_union_tag,
@@ -1011,7 +1011,7 @@ fn legalizeBody(l: *Legalize, body_start: usize, body_len: usize) Error!void {
                     .@"union" => unreachable,
                     .@"struct" => switch (agg_ty.containerLayout(zcu)) {
                         .auto, .@"extern" => {},
-                        .@"packed" => {
+                        .@"bitpack" => {
                             // If any field accounts for the full bit size of the struct, this init
                             // is just equivalent to a bitcast of that field. This usually means the
                             // field count is 1, but not always, as there could be zero-bit fields.

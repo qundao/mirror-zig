@@ -2885,7 +2885,7 @@ fn updateConstInner(
                 _, const fi = try ui.get(dwarf).getFile(zcu.gpa, ui, src_inst.file);
                 try dwarf.abbrevCode(di_nw, switch (loaded_struct.layout) {
                     .auto => if (is_empty) .empty_file else .file,
-                    .@"extern", .@"packed" => unreachable,
+                    .@"extern", .@"bitpack" => unreachable,
                 });
                 try di_w.writeUleb128(@backingInt(fi));
                 try dwarf.strx(di_nw, loaded_struct.name.toSlice(ip));
@@ -2893,17 +2893,17 @@ fn updateConstInner(
                 try dwarf.abbrevCode(di_nw, switch (loaded_struct.name_nav) {
                     else => if (is_empty) switch (loaded_struct.layout) {
                         .auto, .@"extern" => .decl_instance_empty_struct,
-                        .@"packed" => .decl_instance_empty_packed_struct,
+                        .@"bitpack" => .decl_instance_empty_packed_struct,
                     } else switch (loaded_struct.layout) {
                         .auto, .@"extern" => .decl_instance_struct,
-                        .@"packed" => .decl_instance_packed_struct,
+                        .@"bitpack" => .decl_instance_packed_struct,
                     },
                     .none => if (is_empty) switch (loaded_struct.layout) {
                         .auto, .@"extern" => .type_decl_instance_empty_struct,
-                        .@"packed" => .type_decl_instance_empty_packed_struct,
+                        .@"bitpack" => .type_decl_instance_empty_packed_struct,
                     } else switch (loaded_struct.layout) {
                         .auto, .@"extern" => .type_decl_instance_struct,
-                        .@"packed" => .type_decl_instance_packed_struct,
+                        .@"bitpack" => .type_decl_instance_packed_struct,
                     },
                 });
                 try dwarf.refType(pt, di_nw, .fromInterned(ip.namespacePtr(
@@ -2920,10 +2920,10 @@ fn updateConstInner(
                 ).owner_type);
                 try dwarf.abbrevCode(di_nw, if (is_empty) switch (loaded_struct.layout) {
                     .auto, .@"extern" => .decl_empty_struct,
-                    .@"packed" => .decl_empty_packed_struct,
+                    .@"bitpack" => .decl_empty_packed_struct,
                 } else switch (loaded_struct.layout) {
                     .auto, .@"extern" => .decl_struct,
-                    .@"packed" => .decl_packed_struct,
+                    .@"bitpack" => .decl_packed_struct,
                 });
                 try dwarf.secOffset(di_nw, parent_ni, 0);
                 try di_w.writeInt(u32, decl.src_line + 1, dwarf.endian);
@@ -2937,10 +2937,10 @@ fn updateConstInner(
                 ).owner_type);
                 try dwarf.abbrevCode(di_nw, if (is_empty) switch (loaded_struct.layout) {
                     .auto, .@"extern" => .type_decl_empty_struct,
-                    .@"packed" => .type_decl_empty_packed_struct,
+                    .@"bitpack" => .type_decl_empty_packed_struct,
                 } else switch (loaded_struct.layout) {
                     .auto, .@"extern" => .type_decl_struct,
-                    .@"packed" => .type_decl_packed_struct,
+                    .@"bitpack" => .type_decl_packed_struct,
                 });
                 try dwarf.secOffset(di_nw, parent_ni, 0);
                 try di_w.writeInt(u32, decl.src_line + 1, dwarf.endian);
@@ -3003,7 +3003,7 @@ fn updateConstInner(
                             try dwarf.refConst(pt, di_nw, .fromInterned(field_default));
                     }
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     try dwarf.refType(pt, di_nw, .fromInterned(loaded_struct.packed_backing_int_type));
                     try dwarf.genCaptures(pt, di_nw, loaded_struct.captures);
                     var field_bit_offset: u16 = 0;
@@ -3033,17 +3033,17 @@ fn updateConstInner(
                 try dwarf.abbrevCode(di_nw, switch (loaded_union.name_nav) {
                     else => if (is_empty) switch (loaded_union.layout) {
                         .auto, .@"extern" => .decl_instance_empty_union,
-                        .@"packed" => .decl_instance_empty_packed_union,
+                        .@"bitpack" => .decl_instance_empty_packed_union,
                     } else switch (loaded_union.layout) {
                         .auto, .@"extern" => .decl_instance_union,
-                        .@"packed" => .decl_instance_packed_union,
+                        .@"bitpack" => .decl_instance_packed_union,
                     },
                     .none => if (is_empty) switch (loaded_union.layout) {
                         .auto, .@"extern" => .type_decl_instance_empty_union,
-                        .@"packed" => .type_decl_instance_empty_packed_union,
+                        .@"bitpack" => .type_decl_instance_empty_packed_union,
                     } else switch (loaded_union.layout) {
                         .auto, .@"extern" => .type_decl_instance_union,
-                        .@"packed" => .type_decl_instance_packed_union,
+                        .@"bitpack" => .type_decl_instance_packed_union,
                     },
                 });
                 try dwarf.refType(pt, di_nw, .fromInterned(ip.namespacePtr(
@@ -3060,10 +3060,10 @@ fn updateConstInner(
                 ).owner_type);
                 try dwarf.abbrevCode(di_nw, if (is_empty) switch (loaded_union.layout) {
                     .auto, .@"extern" => .decl_empty_union,
-                    .@"packed" => .decl_empty_packed_union,
+                    .@"bitpack" => .decl_empty_packed_union,
                 } else switch (loaded_union.layout) {
                     .auto, .@"extern" => .decl_union,
-                    .@"packed" => .decl_packed_union,
+                    .@"bitpack" => .decl_packed_union,
                 });
                 try dwarf.secOffset(di_nw, parent_ni, 0);
                 try di_w.writeInt(u32, decl.src_line + 1, dwarf.endian);
@@ -3077,10 +3077,10 @@ fn updateConstInner(
                 ).owner_type);
                 try dwarf.abbrevCode(di_nw, if (is_empty) switch (loaded_union.layout) {
                     .auto, .@"extern" => .type_decl_empty_union,
-                    .@"packed" => .type_decl_empty_packed_union,
+                    .@"bitpack" => .type_decl_empty_packed_union,
                 } else switch (loaded_union.layout) {
                     .auto, .@"extern" => .type_decl_union,
-                    .@"packed" => .type_decl_packed_union,
+                    .@"bitpack" => .type_decl_packed_union,
                 });
                 try dwarf.secOffset(di_nw, parent_ni, 0);
                 try di_w.writeInt(u32, decl.src_line + 1, dwarf.endian);
@@ -3148,7 +3148,7 @@ fn updateConstInner(
                             field_ty.abiAlignment(zcu).toByteUnits().?);
                     }
                 },
-                .@"packed" => {
+                .@"bitpack" => {
                     try dwarf.refType(pt, di_nw, .fromInterned(loaded_union.packed_backing_int_type));
                     for (0..loaded_union.field_types.len) |field_index| {
                         try dwarf.abbrevCode(di_nw, .packed_field);

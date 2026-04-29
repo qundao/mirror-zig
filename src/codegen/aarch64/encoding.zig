@@ -16558,13 +16558,13 @@ pub const Instruction = bitpack union {
     fn verify(name: []const u8, Type: type) void {
         switch (@typeInfo(Type)) {
             .@"union" => |info| {
-                if (info.layout != .@"packed" or @bitSizeOf(Type) != @bitSizeOf(Backing)) {
+                if (info.layout != .@"bitpack" or @bitSizeOf(Type) != @bitSizeOf(Backing)) {
                     @compileLog(name ++ " should have u32 abi");
                 }
                 for (info.field_names, info.field_types) |field_name, field_type| verify(name ++ "." ++ field_name, field_type);
             },
             .@"struct" => |info| {
-                if (info.layout != .@"packed" or info.backing_integer != Backing) {
+                if (info.layout != .@"bitpack" or info.backing_integer != Backing) {
                     @compileLog(name ++ " should have u32 abi");
                 }
                 var bit_offset = 0;

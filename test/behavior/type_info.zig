@@ -338,7 +338,7 @@ fn testBitpackStruct() !void {
     const struct_info = @typeInfo(TestBitpackStruct);
     try expect(struct_info == .@"struct");
     try expect(struct_info.@"struct".is_tuple == false);
-    try expect(struct_info.@"struct".layout == .@"packed");
+    try expect(struct_info.@"struct".layout == .@"bitpack");
     try expect(struct_info.@"struct".backing_integer == u128);
     try expect(struct_info.@"struct".field_names.len == 4);
     try expect(struct_info.@"struct".field_names.len == struct_info.@"struct".field_types.len);

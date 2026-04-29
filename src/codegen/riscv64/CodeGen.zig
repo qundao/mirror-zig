@@ -4589,7 +4589,7 @@ fn structFieldPtr(func: *Func, inst: Air.Inst.Index, operand: Air.Inst.Ref, inde
 
     const field_offset: i32 = switch (container_ty.containerLayout(zcu)) {
         .auto, .@"extern" => @intCast(container_ty.structFieldOffset(index, zcu)),
-        .@"packed" => @divExact(@as(i32, ptr_container_ty.ptrInfo(zcu).packed_offset.bit_offset) +
+        .@"bitpack" => @divExact(@as(i32, ptr_container_ty.ptrInfo(zcu).packed_offset.bit_offset) +
             (if (zcu.typeToStruct(container_ty)) |struct_obj| zcu.structPackedFieldBitOffset(struct_obj, index) else 0) -
             ptr_field_ty.ptrInfo(zcu).packed_offset.bit_offset, 8),
     };
@@ -4620,7 +4620,7 @@ fn airAggFieldVal(func: *Func, inst: Air.Inst.Index) !void {
 
         const field_off: u32 = switch (struct_ty.containerLayout(zcu)) {
             .auto, .@"extern" => @intCast(struct_ty.structFieldOffset(index, zcu) * 8),
-            .@"packed" => if (zcu.typeToStruct(struct_ty)) |struct_type|
+            .@"bitpack" => if (zcu.typeToStruct(struct_ty)) |struct_type|
                 zcu.structPackedFieldBitOffset(struct_type, index)
             else
                 0,
@@ -8003,7 +8003,7 @@ fn airAggregateInit(func: *Func, inst: Air.Inst.Index) !void {
         switch (result_ty.zigTypeTag(zcu)) {
             .@"struct" => {
                 const frame_index = try func.allocFrameIndex(FrameAlloc.initSpill(result_ty, zcu));
-                if (result_ty.containerLayout(zcu) == .@"packed") {
+                if (result_ty.containerLayout(zcu) == .@"bitpack") {
                     const struct_obj = zcu.typeToStruct(result_ty).?;
                     try func.genInlineMemset(
                         .{ .lea_frame = .{ .index = frame_index } },
