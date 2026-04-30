@@ -25885,7 +25885,7 @@ pub fn explainWhyTypeIsUnpackable(
     switch (reason) {
         .comptime_only => try sema.errNote(src, msg, "comptime-only types have no bit-packed representation", .{}),
         .pointer => {
-            try sema.errNote(src, msg, "pointers cannot be directly bitpacked", .{});
+            try sema.errNote(src, msg, "pointers cannot be directly bit-packed", .{});
             try sema.errNote(src, msg, "consider using 'usize' and '@intFromPtr'", .{});
         },
         .enum_inferred_int_tag => |enum_ty| {

@@ -21,9 +21,9 @@ export fn bar() void {
 #update
 #check errors {
 test.zig:2:10: error: bitpack structs cannot contain fields of type '*u32'
-test.zig:2:10: note: pointers cannot be directly bitpacked
+test.zig:2:10: note: pointers cannot be directly bit-packed
 test.zig:2:10: note: consider using 'usize' and '@intFromPtr'
 test.zig:9:10: error: bitpack unions cannot contain fields of type '*u32'
-test.zig:9:10: note: pointers cannot be directly bitpacked
+test.zig:9:10: note: pointers cannot be directly bit-packed
 test.zig:9:10: note: consider using 'usize' and '@intFromPtr'
 #}

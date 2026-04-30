@@ -113,18 +113,18 @@ test.zig:28:12: note: type does not have a bit-packed representation
 test.zig:38:12: error: bitpack structs cannot contain fields of type 'fn () void'
 test.zig:38:12: note: type does not have a bit-packed representation
 test.zig:43:12: error: bitpack structs cannot contain fields of type '*const fn () void'
-test.zig:43:12: note: pointers cannot be directly bitpacked
+test.zig:43:12: note: pointers cannot be directly bit-packed
 test.zig:43:12: note: consider using 'usize' and '@intFromPtr'
 test.zig:65:32: error: bitpack structs cannot contain fields of type '[]u8'
 test.zig:65:32: note: slices do not have a bit-packed representation
 test.zig:70:12: error: bitpack structs cannot contain fields of type '*type'
-test.zig:70:12: note: pointers cannot be directly bitpacked
+test.zig:70:12: note: pointers cannot be directly bit-packed
 test.zig:70:12: note: consider using 'usize' and '@intFromPtr'
 test.zig:76:12: error: bitpack structs cannot contain fields of type 'test.entry14.E'
 test.zig:74:15: note: integer tag type of enum is inferred
 test.zig:74:15: note: consider explicitly specifying the integer tag type
 test.zig:81:12: error: bitpack structs cannot contain fields of type '*const u32'
-test.zig:81:12: note: pointers cannot be directly bitpacked
+test.zig:81:12: note: pointers cannot be directly bit-packed
 test.zig:81:12: note: consider using 'usize' and '@intFromPtr'
 test.zig:87:12: error: bitpack structs cannot contain fields of type 'test.entry16.E'
 test.zig:87:12: note: type does not have a bit-packed representation
