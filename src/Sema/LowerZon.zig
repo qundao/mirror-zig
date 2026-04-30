@@ -141,7 +141,7 @@ fn lowerExprAnonResTy(self: *LowerZon, node: Zoir.Node.Index) CompileError!Inter
                 .any_comptime_fields = true,
                 .any_field_defaults = true,
                 .any_field_aligns = false,
-                .packed_backing_int_type = .none,
+                .bitpack_backing_int_type = .none,
             })) {
                 .existing => |ty| .fromInterned(ty),
                 .wip => |wip| ty: {

@@ -199,7 +199,7 @@ pub const Feature = enum {
     expand_packed_store,
     /// Replace `agg_field_val` of a packed field with a `bit_cast` to integer, `shr`, `trunc`, and `bit_cast` to field type.
     expand_packed_agg_field_val,
-    /// Replace `aggregate_init` of a packed struct with a sequence of `shl_exact`, `bit_cast`, `int_cast`, and `bit_or`.
+    /// Replace `aggregate_init` of a bitpack struct with a sequence of `shl_exact`, `bit_cast`, `int_cast`, and `bit_or`.
     expand_packed_aggregate_init,
 
     /// Replace `splat` of an array with an `aggregate_init`.

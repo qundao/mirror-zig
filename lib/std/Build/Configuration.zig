@@ -2636,7 +2636,7 @@ pub const Storage = enum {
         };
     }
 
-    /// The type of the field is determined by an enum within a packed struct.
+    /// The type of the field is determined by an enum within a bitpack struct.
     pub fn FlagUnion(
         comptime flags_arg: @EnumLiteral(),
         comptime flag_arg: @EnumLiteral(),
@@ -2673,7 +2673,7 @@ pub const Storage = enum {
     }
 
     /// The field indexes into an auxilary buffer, with the first element being
-    /// a packed struct that contains the tag.
+    /// a bitpack struct that contains the tag.
     pub fn Extended(comptime BaseFlags: type, comptime U: type) type {
         return enum(u32) {
             _,
@@ -2782,7 +2782,7 @@ pub const Storage = enum {
     ///
     /// A field in flags determines whether the metadata is present.
     ///
-    /// The metadata is bit-packed consecutive packed struct which is the
+    /// The metadata is bit-packed consecutive bitpack struct which is the
     /// `UnionArg` enum tag combined with a "last" marker boolean field.
     /// When "last" is true, the element is the last one, providing
     /// the length of the list.

@@ -5202,10 +5202,10 @@ fn lowerConstant(cg: *CodeGen, val: Value) InnerError!WValue {
                 }
                 return cg.storeSimdImmd(buf);
             },
-            .struct_type => unreachable, // packed structs use `bitpack`
+            .struct_type => unreachable, // bitpack structs use `bitpack`
             else => unreachable,
         },
-        .un => unreachable, // packed unions use `bitpack`
+        .un => unreachable, // bitpack unions use `bitpack`
         .@"bitpack" => |@"bitpack"| return cg.lowerConstant(.fromInterned(@"bitpack".backing_int_val)),
         .memoized_call => unreachable,
     }

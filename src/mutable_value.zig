@@ -97,8 +97,8 @@ pub const MutableValue = union(enum) {
     /// * Non-error error unions use `eu_payload`
     /// * Non-null optionals use `eu_payload
     /// * Slices use `slice`
-    /// * Unions use `un` (excluding packed unions)
-    /// * Aggregates use `repeated` or `bytes` or `aggregate` (excluding packed structs)
+    /// * Unions use `un` (excluding bitpack unions)
+    /// * Aggregates use `repeated` or `bytes` or `aggregate` (excluding bitpack structs)
     /// If `!allow_bytes`, the `bytes` representation will not be used.
     /// If `!allow_repeated`, the `repeated` representation will not be used.
     pub fn unintern(

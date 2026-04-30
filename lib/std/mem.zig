@@ -4639,7 +4639,7 @@ test "bytesAsSlice keeps pointer alignment" {
     }
 }
 
-test "bytesAsSlice on a packed struct" {
+test "bytesAsSlice on a bitpack struct" {
     const F = bitpack struct {
         a: u8,
     };
@@ -4729,7 +4729,7 @@ test "sliceAsBytes with zero-bit element type" {
     try testing.expect(bytes.len == 0);
 }
 
-test "sliceAsBytes packed struct at runtime and comptime" {
+test "sliceAsBytes bitpack struct at runtime and comptime" {
     const Foo = bitpack struct {
         a: u4,
         b: u4,

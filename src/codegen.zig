@@ -1030,7 +1030,7 @@ pub fn fieldOffset(ptr_agg_ty: Type, ptr_field_ty: Type, field_index: u32, zcu: 
     return switch (agg_ty.containerLayout(zcu)) {
         .auto, .@"extern" => agg_ty.structFieldOffset(field_index, zcu),
         .@"bitpack" => @divExact(@as(u64, ptr_agg_ty.ptrInfo(zcu).packed_offset.bit_offset) +
-            (if (zcu.typeToPackedStruct(agg_ty)) |loaded_struct| zcu.structPackedFieldBitOffset(loaded_struct, field_index) else 0) -
+            (if (zcu.typeToBitpackStruct(agg_ty)) |loaded_struct| zcu.structPackedFieldBitOffset(loaded_struct, field_index) else 0) -
             ptr_field_ty.ptrInfo(zcu).packed_offset.bit_offset, 8),
     };
 }
@@ -1143,7 +1143,7 @@ pub fn flattenType(items_buf: []FlattenedItem, ty: Type, zcu: *Zcu, opts: struct
             switch (loaded_struct.layout) {
                 .auto, .@"extern" => {},
                 .@"bitpack" => return flattenType(items_buf, .fromInterned(
-                    loaded_struct.packed_backing_int_type,
+                    loaded_struct.bitpack_backing_int_type,
                 ), zcu, opts),
             }
             var items_len: usize = 0;
@@ -1192,7 +1192,7 @@ pub fn flattenType(items_buf: []FlattenedItem, ty: Type, zcu: *Zcu, opts: struct
             return switch (loaded_union.layout) {
                 .auto, .@"extern" => return null,
                 .@"bitpack" => return flattenType(items_buf, .fromInterned(
-                    loaded_union.packed_backing_int_type,
+                    loaded_union.bitpack_backing_int_type,
                 ), zcu, opts),
             };
         },

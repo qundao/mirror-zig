@@ -167,7 +167,7 @@ pub const Instruction = union(enum) {
     // endianness-dependent behavior when constructing the actual
     // assembly instructions.
     // See also: https://github.com/ziglang/zig/issues/10113
-    // TODO: change it back to packed structs once the issue is resolved.
+    // TODO: change it back to bitpack structs once the issue is resolved.
 
     // Format 1 (op = 1): CALL
     format_1: struct {
@@ -711,7 +711,7 @@ pub const Instruction = union(enum) {
     };
 
     pub fn toU32(self: Instruction) u32 {
-        // TODO: Remove this once packed structs work.
+        // TODO: Remove this once bitpack structs work.
         return switch (self) {
             .format_1 => |v| (@as(u32, v.op) << 30) | @as(u32, v.disp30),
             .format_2a => |v| (@as(u32, v.op) << 30) | (@as(u32, v.rd) << 25) | (@as(u32, v.op2) << 22) | @as(u32, v.imm22),
@@ -1481,7 +1481,7 @@ test "Serialize formats" {
     };
 
     // Note that the testcases might or might not be a valid instruction
-    // This is mostly just to check the behavior of the format packed structs
+    // This is mostly just to check the behavior of the format bitpack structs
     // since currently stage1 doesn't properly implement it in all cases
     const testcases = [_]Testcase{
         .{

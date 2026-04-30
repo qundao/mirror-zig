@@ -8019,7 +8019,7 @@ fn airAggregateInit(func: *Func, inst: Air.Inst.Index) !void {
                         const elem_bit_size: u32 = @intCast(elem_ty.bitSize(zcu));
                         if (elem_bit_size > 64) {
                             return func.fail(
-                                "TODO airAggregateInit implement packed structs with large fields",
+                                "TODO airAggregateInit implement bitpack structs with large fields",
                                 .{},
                             );
                         }
@@ -8044,7 +8044,7 @@ fn airAggregateInit(func: *Func, inst: Air.Inst.Index) !void {
                         };
                         defer if (elem_lock) |lock| func.register_manager.unlockReg(lock);
 
-                        return func.fail("TODO: airAggregateInit packed structs", .{});
+                        return func.fail("TODO: airAggregateInit bitpack structs", .{});
                     }
                 } else for (elements, 0..) |elem, elem_i| {
                     if ((try result_ty.structFieldValueComptime(pt, elem_i)) != null) continue;

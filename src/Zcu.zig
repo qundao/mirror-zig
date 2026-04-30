@@ -4281,14 +4281,14 @@ pub fn typeToStruct(zcu: *const Zcu, ty: Type) ?InternPool.LoadedStructType {
     };
 }
 
-pub fn typeToPackedStruct(zcu: *const Zcu, ty: Type) ?InternPool.LoadedStructType {
+pub fn typeToBitpackStruct(zcu: *const Zcu, ty: Type) ?InternPool.LoadedStructType {
     const s = zcu.typeToStruct(ty) orelse return null;
     if (s.layout != .@"bitpack") return null;
     return s;
 }
 
 /// https://github.com/ziglang/zig/issues/17178 explored storing these bit offsets
-/// into the packed struct InternPool data rather than computing this on the
+/// into the bitpack struct InternPool data rather than computing this on the
 /// fly, however it was found to perform worse when measured on real world
 /// projects.
 pub fn structPackedFieldBitOffset(

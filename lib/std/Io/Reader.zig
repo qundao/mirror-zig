@@ -1216,7 +1216,7 @@ pub fn takeVarInt(r: *Reader, comptime Int: type, endian: std.builtin.Endian, n:
 /// * `peekStructPointer`
 /// * `takeStruct`
 pub fn takeStructPointer(r: *Reader, comptime T: type) Error!*align(1) T {
-    // Only extern and packed structs have defined in-memory layout.
+    // Only extern and bitpack structs have defined in-memory layout.
     comptime assert(@typeInfo(T).@"struct".layout != .auto);
     return @ptrCast(try r.takeArray(@sizeOf(T)));
 }
@@ -1230,7 +1230,7 @@ pub fn takeStructPointer(r: *Reader, comptime T: type) Error!*align(1) T {
 /// * `takeStructPointer`
 /// * `peekStruct`
 pub fn peekStructPointer(r: *Reader, comptime T: type) Error!*align(1) T {
-    // Only extern and packed structs have defined in-memory layout.
+    // Only extern and bitpack structs have defined in-memory layout.
     comptime assert(@typeInfo(T).@"struct".layout != .auto);
     return @ptrCast(try r.peekArray(@sizeOf(T)));
 }

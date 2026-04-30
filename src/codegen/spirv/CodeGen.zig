@@ -1096,7 +1096,7 @@ fn isSpvVector(cg: *CodeGen, ty: Type) bool {
     if (ty.zigTypeTag(zcu) != .vector) return false;
 
     // TODO: This check must be expanded for types that can be represented
-    // as integers (enums / packed structs?) and types that are represented
+    // as integers (enums / bitpack structs?) and types that are represented
     // by multiple SPIR-V values.
     const scalar_ty = ty.scalarType(zcu);
     switch (scalar_ty.zigTypeTag(zcu)) {
@@ -1925,7 +1925,7 @@ fn derivePtr(cg: *CodeGen, as: std.lang.AddressSpace, derivation: Value.PointerD
 
 /// Generate a union type. Union types are always generated with the
 /// most aligned field active. If the tag alignment is greater
-/// than that of the payload, a regular union (non-packed, with both tag and
+/// than that of the payload, a regular union (non-bitpack, with both tag and
 /// payload), will be generated as follows:
 ///  struct {
 ///    tag: TagType,
@@ -2138,7 +2138,7 @@ fn resolveType(cg: *CodeGen, ty: Type, repr: Repr) Error!Id {
             };
 
             if (struct_type.layout == .@"bitpack") {
-                return try cg.resolveType(.fromInterned(struct_type.packed_backing_int_type), .direct);
+                return try cg.resolveType(.fromInterned(struct_type.bitpack_backing_int_type), .direct);
             }
 
             var member_types: std.ArrayList(Id) = .empty;
@@ -5322,8 +5322,8 @@ fn cmp(
             return try cg.cmp(op, lhs.pun(ty), rhs.pun(ty));
         },
         .@"struct" => {
-            const struct_ty = zcu.typeToPackedStruct(scalar_ty).?;
-            const ty: Type = .fromInterned(struct_ty.packed_backing_int_type);
+            const struct_ty = zcu.typeToBitpackStruct(scalar_ty).?;
+            const ty: Type = .fromInterned(struct_ty.bitpack_backing_int_type);
             return try cg.cmp(op, lhs.pun(ty), rhs.pun(ty));
         },
         .error_set => {
@@ -7723,7 +7723,7 @@ fn airAggFieldVal(cg: *CodeGen, inst: Air.Inst.Index) !?Id {
     switch (object_ty.zigTypeTag(zcu)) {
         .@"struct" => switch (object_ty.containerLayout(zcu)) {
             .@"bitpack" => {
-                const struct_ty = zcu.typeToPackedStruct(object_ty).?;
+                const struct_ty = zcu.typeToBitpackStruct(object_ty).?;
                 const struct_backing_int_bits = cg.backingIntBits(@intCast(object_ty.bitSize(zcu))).@"0";
                 const bit_offset = zcu.structPackedFieldBitOffset(struct_ty, field_index);
                 // We use the same int type the packed struct is backed by, because even though it would
@@ -8206,9 +8206,9 @@ fn airAggregateInit(cg: *CodeGen, inst: Air.Inst.Index) !?Id {
 
     switch (result_ty.zigTypeTag(zcu)) {
         .@"struct" => {
-            if (zcu.typeToPackedStruct(result_ty)) |struct_type| {
-                comptime assert(Type.packed_struct_layout_version == 2);
-                const backing_int_ty: Type = .fromInterned(struct_type.packed_backing_int_type);
+            if (zcu.typeToBitpackStruct(result_ty)) |struct_type| {
+                comptime assert(Type.bitpack_struct_layout_version == 2);
+                const backing_int_ty: Type = .fromInterned(struct_type.bitpack_backing_int_type);
                 var running_int_id = try cg.constInt(backing_int_ty, 0);
                 var running_bits: u16 = 0;
                 for (struct_type.field_types.get(ip), elements) |field_ty_ip, element| {

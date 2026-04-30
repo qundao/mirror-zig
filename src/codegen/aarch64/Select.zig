@@ -5843,7 +5843,7 @@ pub fn body(isel: *Select, air_body: []const Air.Inst.Index) codegen.Error!void 
                         false,
                     },
                     .@"bitpack" => .{
-                        if (zcu.typeToPackedStruct(agg_ty)) |loaded_struct|
+                        if (zcu.typeToBitpackStruct(agg_ty)) |loaded_struct|
                             zcu.structPackedFieldBitOffset(loaded_struct, extra.field_index)
                         else
                             0,
@@ -10401,7 +10401,7 @@ pub const Value = struct {
                         switch (loaded_struct.layout) {
                             .auto, .@"extern" => {},
                             .@"bitpack" => continue :type_key .{
-                                .int_type = ip.indexToKey(loaded_struct.packed_backing_int_type).int_type,
+                                .int_type = ip.indexToKey(loaded_struct.bitpack_backing_int_type).int_type,
                             },
                         }
                         const min_part_log2_stride: u5 = if (size > 16) 4 else if (size > 8) 3 else 0;
@@ -12183,7 +12183,7 @@ pub const CallAbiIterator = struct {
                 const loaded_struct = ip.loadStructType(ty.toIntern());
                 switch (loaded_struct.layout) {
                     .auto, .@"extern" => {},
-                    .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type),
+                    .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.bitpack_backing_int_type),
                 }
                 const size = wip_vi.size(isel);
                 if (size <= 16 * 4) homogeneous_aggregate: {

@@ -519,7 +519,7 @@ pub fn BareUnion(comptime T: type) type {
     return @Union(u.layout, null, u.field_names, u.field_types[0..], u.field_attrs[0..]);
 }
 
-/// For enums, packed unions and packed structs, returns their backing integer type.
+/// For enums, bitpack unions and bitpack structs, returns their backing integer type.
 /// For tagged unions, returns the backing integer type of their enum tag type.
 pub fn BackingInt(comptime T: type) type {
     switch (@typeInfo(T)) {

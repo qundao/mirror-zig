@@ -16841,8 +16841,8 @@ fn zirTypeInfo(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
             const backing_integer_val = try pt.intern(.{ .opt = .{
                 .ty = (try pt.optionalType(.type_type)).toIntern(),
                 .val = if (layout == .@"bitpack") val: {
-                    assert(Type.fromInterned(union_obj.packed_backing_int_type).isInt(zcu));
-                    break :val union_obj.packed_backing_int_type;
+                    assert(Type.fromInterned(union_obj.bitpack_backing_int_type).isInt(zcu));
+                    break :val union_obj.bitpack_backing_int_type;
                 } else .none,
             } });
 
@@ -17111,9 +17111,9 @@ fn zirTypeInfo(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
 
             const backing_integer_val = try pt.intern(.{ .opt = .{
                 .ty = (try pt.optionalType(.type_type)).toIntern(),
-                .val = if (zcu.typeToPackedStruct(ty)) |struct_obj| val: {
-                    assert(Type.fromInterned(struct_obj.packed_backing_int_type).isInt(zcu));
-                    break :val struct_obj.packed_backing_int_type;
+                .val = if (zcu.typeToBitpackStruct(ty)) |struct_obj| val: {
+                    assert(Type.fromInterned(struct_obj.bitpack_backing_int_type).isInt(zcu));
+                    break :val struct_obj.bitpack_backing_int_type;
                 } else .none,
             } });
 
@@ -19177,7 +19177,7 @@ fn structInitAnon(
         .any_comptime_fields = any_values,
         .any_field_defaults = any_values,
         .any_field_aligns = false,
-        .packed_backing_int_type = .none,
+        .bitpack_backing_int_type = .none,
     })) {
         .existing => |ty| .fromInterned(ty),
         .wip => |wip| ty: {
@@ -20264,7 +20264,7 @@ fn zirReifyStruct(
 
     const backing_int_ty_uncoerced = sema.resolveInst(extra.backing_ty);
     const backing_int_ty_coerced = try sema.coerce(block, .optional_type, backing_int_ty_uncoerced, backing_ty_src);
-    const backing_int_ty_val = try sema.resolveConstDefinedValue(block, backing_ty_src, backing_int_ty_coerced, .{ .simple = .packed_struct_backing_int_type });
+    const backing_int_ty_val = try sema.resolveConstDefinedValue(block, backing_ty_src, backing_int_ty_coerced, .{ .simple = .bitpack_struct_backing_int_type });
 
     const field_names_uncoerced = sema.resolveInst(extra.field_names);
     const field_names_coerced = try sema.coerce(block, .slice_const_slice_const_u8, field_names_uncoerced, field_names_src);
@@ -20400,7 +20400,7 @@ fn zirReifyStruct(
         .any_comptime_fields = any_comptime_fields,
         .any_field_defaults = any_field_defaults,
         .any_field_aligns = any_field_aligns,
-        .packed_backing_int_type = if (backing_int_ty) |ty| ty.toIntern() else .none,
+        .bitpack_backing_int_type = if (backing_int_ty) |ty| ty.toIntern() else .none,
     })) {
         .existing => |ty| {
             try sema.addTypeReferenceEntry(src, .fromInterned(ty));
@@ -20541,7 +20541,7 @@ fn zirReifyUnion(
     const arg_ty_uncoerced = sema.resolveInst(extra.arg_ty);
     const arg_ty_coerced = try sema.coerce(block, .optional_type, arg_ty_uncoerced, arg_ty_src);
     const arg_ty_val = try sema.resolveConstDefinedValue(block, arg_ty_src, arg_ty_coerced, switch (layout) {
-        .@"bitpack" => .{ .simple = .packed_union_backing_int_type },
+        .@"bitpack" => .{ .simple = .bitpack_union_backing_int_type },
         .auto, .@"extern" => .{ .simple = .union_enum_tag_type },
     });
 
@@ -20644,7 +20644,7 @@ fn zirReifyUnion(
             break :tag .none;
         },
         .enum_tag_type = if (explicit_tag_ty) |ty| ty.toIntern() else .none,
-        .packed_backing_int_type = if (explicit_packed_backing_type) |ty| ty.toIntern() else .none,
+        .bitpack_backing_int_type = if (explicit_packed_backing_type) |ty| ty.toIntern() else .none,
     })) {
         .existing => |ty| {
             try sema.addTypeReferenceEntry(src, .fromInterned(ty));
@@ -22562,7 +22562,7 @@ fn zirBitOffsetOf(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError
 
 fn zirOffsetOf(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
     const offset = try sema.bitOffsetOf(block, inst);
-    // TODO reminder to make this a compile error for packed structs
+    // TODO reminder to make this a compile error for bitpack structs
     return sema.pt.intRef(.comptime_int, offset / 8);
 }
 
@@ -25839,10 +25839,10 @@ pub fn explainWhyTypeIsNotExtern(
             switch (struct_obj.layout) {
                 .auto => try sema.errNote(src_loc, msg, "struct with automatic layout has no guaranteed in-memory representation", .{}),
                 .@"extern" => unreachable,
-                .@"bitpack" => switch (struct_obj.packed_backing_mode) {
+                .@"bitpack" => switch (struct_obj.bitpack_backing_mode) {
                     .auto => try sema.errNote(src_loc, msg, "inferred backing integer of bitpack struct has unspecified signedness", .{}),
                     .explicit => {
-                        const backing_int_ty: Type = .fromInterned(struct_obj.packed_backing_int_type);
+                        const backing_int_ty: Type = .fromInterned(struct_obj.bitpack_backing_int_type);
                         try sema.errNote(src_loc, msg, "bitpack struct backing integer type '{f}' is not extern compatible", .{backing_int_ty.fmt(zcu)});
                         try sema.explainWhyTypeIsNotExtern(msg, src_loc, backing_int_ty, position);
                     },
@@ -25854,10 +25854,10 @@ pub fn explainWhyTypeIsNotExtern(
             switch (union_obj.layout) {
                 .auto => try sema.errNote(src_loc, msg, "union with automatic layout has no guaranteed in-memory representation", .{}),
                 .@"extern" => unreachable,
-                .@"bitpack" => switch (union_obj.packed_backing_mode) {
+                .@"bitpack" => switch (union_obj.bitpack_backing_mode) {
                     .auto => try sema.errNote(src_loc, msg, "inferred backing integer of bitpack union has unspecified signedness", .{}),
                     .explicit => {
-                        const backing_int_ty: Type = .fromInterned(union_obj.packed_backing_int_type);
+                        const backing_int_ty: Type = .fromInterned(union_obj.bitpack_backing_int_type);
                         try sema.errNote(src_loc, msg, "bitpack union backing integer type '{f}' is not extern compatible", .{backing_int_ty.fmt(zcu)});
                         try sema.explainWhyTypeIsNotExtern(msg, src_loc, backing_int_ty, position);
                     },
@@ -35562,7 +35562,7 @@ fn zirStructDecl(
         .any_comptime_fields = struct_decl.field_comptime_bits != null,
         .any_field_defaults = struct_decl.field_default_body_lens != null,
         .any_field_aligns = struct_decl.field_align_body_lens != null,
-        .packed_backing_mode = if (struct_decl.backing_int_type_body != null) .explicit else .auto,
+        .bitpack_backing_mode = if (struct_decl.backing_int_type_body != null) .explicit else .auto,
     })) {
         .existing => |ty| .fromInterned(ty),
         .wip => |wip| ty: {
@@ -35635,7 +35635,7 @@ fn zirUnionDecl(
             .tagged_explicit => .explicit,
             else => .auto,
         },
-        .packed_backing_mode = switch (union_decl.kind) {
+        .bitpack_backing_mode = switch (union_decl.kind) {
             .bitpack_explicit => .explicit,
             else => .auto,
         },

@@ -3523,12 +3523,12 @@ fn airStore(f: *Function, inst: Air.Inst.Index, safety: bool) !CValue {
     if (val_is_undef) {
         try reap(f, inst, &.{ bin_op.lhs, bin_op.rhs });
         if (safety and ptr_info.packed_offset.host_size == 0) {
-            // If the thing we're initializing is a packed struct/union, we set to 0 instead of
+            // If the thing we're initializing is a bitpack struct/union, we set to 0 instead of
             // 0xAA. This is a hack to work around a problem with partially-undefined packed
             // aggregates. If we used 0xAA here, then a later initialization through RLS would
             // not zero the high padding bits (for a packed type which is not 8/16/32/64/etc bits),
             // so we would get a miscompilation. Using 0x00 here avoids this bug in some cases. It
-            // is *not* a correct fix; for instance it misses any case where packed structs are
+            // is *not* a correct fix; for instance it misses any case where bitpack structs are
             // nested in other aggregates. A proper fix for this will involve changing the language,
             // such as to remove RLS. This just prevents miscompilations in *some* common cases.
             const byte_str: []const u8 = switch (src_ty.zigTypeTag(zcu)) {

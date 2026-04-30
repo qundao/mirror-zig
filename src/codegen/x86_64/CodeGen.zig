@@ -181926,14 +181926,14 @@ fn intInfo(cg: *CodeGen, ty: Type) ?std.lang.Type.Int {
             const loaded_struct = ip.loadStructType(ty_index);
             switch (loaded_struct.layout) {
                 .auto, .@"extern" => return null,
-                .@"bitpack" => ty_index = loaded_struct.packed_backing_int_type,
+                .@"bitpack" => ty_index = loaded_struct.bitpack_backing_int_type,
             }
         },
         .union_type => {
             const loaded_union = ip.loadUnionType(ty_index);
             switch (loaded_union.layout) {
                 .auto, .@"extern" => return null,
-                .@"bitpack" => ty_index = loaded_union.packed_backing_int_type,
+                .@"bitpack" => ty_index = loaded_union.bitpack_backing_int_type,
             }
         },
         .enum_type => ty_index = ip.loadEnumType(ty_index).int_tag_type,

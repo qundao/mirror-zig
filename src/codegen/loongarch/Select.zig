@@ -1775,8 +1775,8 @@ pub const Value = struct {
                     switch (loaded_struct.layout) {
                         .auto, .@"extern" => {},
                         .@"bitpack" => {
-                            ty = .fromInterned(loaded_struct.packed_backing_int_type);
-                            continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type);
+                            ty = .fromInterned(loaded_struct.bitpack_backing_int_type);
+                            continue :type_key ip.indexToKey(loaded_struct.bitpack_backing_int_type);
                         },
                     }
 
@@ -4511,7 +4511,7 @@ pub fn body(isel: *Select, air_body: []const Air.Inst.Index) codegen.Error!void 
                         false,
                     },
                     .@"bitpack" => .{
-                        if (zcu.typeToPackedStruct(agg_ty)) |loaded_struct|
+                        if (zcu.typeToBitpackStruct(agg_ty)) |loaded_struct|
                             zcu.structPackedFieldBitOffset(loaded_struct, extra.field_index)
                         else
                             0,
@@ -7122,7 +7122,7 @@ pub const CallAbiIterator = struct {
                 const loaded_struct = ip.loadStructType(ty.toIntern());
                 switch (loaded_struct.layout) {
                     .auto, .@"extern" => {},
-                    .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.packed_backing_int_type),
+                    .@"bitpack" => continue :type_key ip.indexToKey(loaded_struct.bitpack_backing_int_type),
                 }
                 const size = wip_vi.size(isel);
                 if (size == 0)

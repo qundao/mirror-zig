@@ -324,7 +324,7 @@ fn weightsContain(int: u64, weights: []const Weight) bool {
     return contains;
 }
 
-/// Asserts `T` can be a member of a packed type
+/// Asserts `T` can be a member of a bitpack type
 //
 // `inline` to propogate the `comptime`ness of the result
 inline fn allBitPatternsValid(T: type) bool {

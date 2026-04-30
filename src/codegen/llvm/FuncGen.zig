@@ -6460,10 +6460,10 @@ fn airAggregateInit(fg: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.
         .@"struct" => switch (result_ty.containerLayout(zcu)) {
             .@"bitpack" => {
                 const struct_type = ip.loadStructType(result_ty.toIntern());
-                const backing_int_ty: Type = .fromInterned(struct_type.packed_backing_int_type);
+                const backing_int_ty: Type = .fromInterned(struct_type.bitpack_backing_int_type);
                 const big_bits = backing_int_ty.bitSize(zcu);
                 const int_ty = try o.builder.intType(@intCast(big_bits));
-                comptime assert(Type.packed_struct_layout_version == 2);
+                comptime assert(Type.bitpack_struct_layout_version == 2);
                 var running_int = try o.builder.intValue(int_ty, 0);
                 var running_bits: u16 = 0;
                 for (elements, struct_type.field_types.get(ip)) |elem, field_ty| {
@@ -6810,9 +6810,9 @@ fn load(
         // Therefore, we handle these memory accesses specially: in this case we will actually load
         // the next-largest "natural" integer type and then truncate to `load_ty`.
         const loaded = try fg.wip.load(access_kind, llvm_access_ty, ptr, llvm_ptr_align, "");
-        // For packed structs, current Zig semantics don't really allow us to make the padding bits
+        // For bitpack structs, current Zig semantics don't really allow us to make the padding bits
         // well-defined. This should be solved once https://github.com/ziglang/zig/issues/24061 is
-        // implemented, but until then, do a normal trunc for packed types.
+        // implemented, but until then, do a normal trunc for bitpack types.
         return fg.wip.cast(switch (load_ty.zigTypeTag(zcu)) {
             .@"struct", .@"union" => .trunc,
             else => switch (signedness) {

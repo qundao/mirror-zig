@@ -175,7 +175,7 @@ pub fn ensureStructDefaultsResolved(sema: *Sema, ty: Type, src: LazySrcLoc) Sema
     };
 }
 
-/// Asserts that `struct_ty` is a non-packed non-tuple struct, and that `sema.owner` is that type.
+/// Asserts that `struct_ty` is a non-bitpack non-tuple struct, and that `sema.owner` is that type.
 /// This function *does* register the `src_hash` dependency on the struct.
 pub fn resolveStructLayout(sema: *Sema, struct_ty: Type) CompileError!void {
     const pt = sema.pt;
@@ -304,7 +304,7 @@ pub fn resolveStructLayout(sema: *Sema, struct_ty: Type) CompileError!void {
     }
 
     if (struct_obj.layout == .@"bitpack") {
-        return resolvePackedStructLayout(sema, &block, struct_ty, &struct_obj);
+        return resolveBitpackStructLayout(sema, &block, struct_ty, &struct_obj);
     }
 
     // Resolve the layout of all fields, and check their types are allowed.
@@ -395,7 +395,7 @@ pub fn resolveStructLayout(sema: *Sema, struct_ty: Type) CompileError!void {
         };
         align_out.* = field_align;
         if (struct_obj.field_is_comptime_bits.get(ip, field_idx)) {
-            assert(struct_obj.layout == .auto); // comptime fields not allowed in extern or packed structs
+            assert(struct_obj.layout == .auto); // comptime fields not allowed in extern or bitpack structs
             struct_obj.field_runtime_order.get(ip)[field_idx] = .omitted; // comptime fields are not in the runtime order
             any_comptime_fields = true;
             continue; // `comptime` fields do not contribute to the struct layout
@@ -498,9 +498,9 @@ pub fn resolveStructLayout(sema: *Sema, struct_ty: Type) CompileError!void {
     );
 }
 
-/// Asserts that `struct_ty` is a packed struct, and that `sema.owner` is that type.
+/// Asserts that `struct_ty` is a bitpack struct, and that `sema.owner` is that type.
 /// This function *does* register the `src_hash` dependency on the struct.
-fn resolvePackedStructLayout(
+fn resolveBitpackStructLayout(
     sema: *Sema,
     block: *Block,
     struct_ty: Type,
@@ -548,8 +548,8 @@ fn resolvePackedStructLayout(
     const backing_int_ty_src = block.src(.container_arg);
 
     const explicit_backing_int_ty: ?Type = if (struct_obj.is_reified) ty: {
-        break :ty switch (struct_obj.packed_backing_mode) {
-            .explicit => .fromInterned(struct_obj.packed_backing_int_type),
+        break :ty switch (struct_obj.bitpack_backing_mode) {
+            .explicit => .fromInterned(struct_obj.bitpack_backing_int_type),
             .auto => null,
         };
     } else ty: {
@@ -563,10 +563,10 @@ fn resolvePackedStructLayout(
         defer block.src_baseline.node = .main;
         block.comptime_reason = .{ .reason = .{
             .src = backing_int_ty_src,
-            .r = .{ .simple = .packed_struct_backing_int_type },
+            .r = .{ .simple = .bitpack_struct_backing_int_type },
         } };
         const type_ref = try sema.resolveInlineBody(block, backing_int_type_body, zir_index);
-        break :ty try sema.analyzeAsType(block, backing_int_ty_src, .packed_struct_backing_int_type, type_ref);
+        break :ty try sema.analyzeAsType(block, backing_int_ty_src, .bitpack_struct_backing_int_type, type_ref);
     };
 
     // Finally, either validate or infer the backing int type.
@@ -601,7 +601,7 @@ fn resolvePackedStructLayout(
         );
         break :ty try pt.intType(.unsigned, backing_int_bits);
     };
-    ip.resolvePackedStructLayout(
+    ip.resolveBitpackStructLayout(
         io,
         struct_ty.toIntern(),
         backing_int_ty.toIntern(),
@@ -936,7 +936,7 @@ pub fn resolveUnionLayout(sema: *Sema, union_ty: Type) CompileError!void {
     }
 
     if (union_obj.layout == .@"bitpack") {
-        return resolvePackedUnionLayout(sema, &block, union_ty, &union_obj, enum_tag_ty);
+        return resolveBitpackUnionLayout(sema, &block, union_ty, &union_obj, enum_tag_ty);
     }
 
     // Resolve the layout of all fields, and check their types are allowed.
@@ -1126,7 +1126,7 @@ fn failUnionFieldMismatch(sema: *Sema, block: *Block, union_field_names: []const
     }
     unreachable; // we already determined that *something* is wrong
 }
-fn resolvePackedUnionLayout(
+fn resolveBitpackUnionLayout(
     sema: *Sema,
     block: *Block,
     union_ty: Type,
@@ -1140,7 +1140,7 @@ fn resolvePackedUnionLayout(
     const gpa = comp.gpa;
     const ip = &zcu.intern_pool;
 
-    // Uninstantiable `packed union`s don't make sense; disallow them.
+    // Uninstantiable `bitpack union`s don't make sense; disallow them.
     if (union_obj.field_types.len == 0) {
         return sema.fail(block, union_ty.srcLoc(zcu), "bitpack union has no fields", .{});
     }
@@ -1172,8 +1172,8 @@ fn resolvePackedUnionLayout(
     const backing_int_ty_src = block.src(.container_arg);
 
     const explicit_backing_int_ty: ?Type = if (union_obj.is_reified) ty: {
-        switch (union_obj.packed_backing_mode) {
-            .explicit => break :ty .fromInterned(union_obj.packed_backing_int_type),
+        switch (union_obj.bitpack_backing_mode) {
+            .explicit => break :ty .fromInterned(union_obj.bitpack_backing_int_type),
             .auto => break :ty null,
         }
     } else ty: {
@@ -1187,10 +1187,10 @@ fn resolvePackedUnionLayout(
         defer block.src_baseline.node = .main;
         block.comptime_reason = .{ .reason = .{
             .src = backing_int_ty_src,
-            .r = .{ .simple = .packed_union_backing_int_type },
+            .r = .{ .simple = .bitpack_struct_backing_int_type },
         } };
         const type_ref = try sema.resolveInlineBody(block, backing_int_type_body, zir_index);
-        break :ty try sema.analyzeAsType(block, backing_int_ty_src, .packed_union_backing_int_type, type_ref);
+        break :ty try sema.analyzeAsType(block, backing_int_ty_src, .bitpack_struct_backing_int_type, type_ref);
     };
 
     // Finally, either validate or infer the backing int type.
@@ -1247,7 +1247,7 @@ fn resolvePackedUnionLayout(
         );
         break :ty try pt.intType(.unsigned, backing_int_bits);
     };
-    ip.resolvePackedUnionLayout(
+    ip.resolveBitpackUnionLayout(
         io,
         union_ty.toIntern(),
         enum_tag_ty.toIntern(),

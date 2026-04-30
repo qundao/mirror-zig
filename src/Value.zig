@@ -888,7 +888,7 @@ pub fn fieldValue(val: Value, pt: Zcu.PerThread, index: usize) !Value {
                 },
                 else => unreachable,
             };
-            // Avoid hitting gpa for accesses to small packed structs
+            // Avoid hitting gpa for accesses to small bitpack structs
             var bfa_buf: [128]u8 = undefined;
             var bfa_state: std.heap.BufferFirstAllocator = .init(&bfa_buf, zcu.comp.gpa);
             const bfa = bfa_state.allocator();
