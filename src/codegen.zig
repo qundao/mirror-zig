@@ -878,7 +878,7 @@ pub fn genNavRef(
             },
             .link_once => unreachable,
         }
-    } else if (lf.cast(.coff2)) |coff| {
+    } else if (lf.cast(.coff)) |coff| {
         return @fromBackingInt(@intCast(@backingInt(try coff.navSymbol(zcu, nav_index))));
     } else {
         std.debug.panic("TODO genNavRef for '{t}'", .{lf.tag});
