@@ -43,6 +43,7 @@ pub const Feature = enum {
     fuse_wideimm,
     fuse_zeromove,
     fusion,
+    future_vector,
     hard_float,
     htm,
     icbt,
@@ -83,6 +84,7 @@ pub const Feature = enum {
     spe,
     stfiwx,
     two_const_nr,
+    use_ptrgl_helper,
     vectors_use_two_units,
     vsx,
 };
@@ -342,6 +344,14 @@ pub const all_features = blk: {
         .description = "Target supports instruction fusion",
         .dependencies = featureSet(&[_]Feature{}),
     };
+    result[@backingInt(Feature.future_vector)] = .{
+        .llvm_name = "future-vector",
+        .description = "Enable Future vector instructions",
+        .dependencies = featureSet(&[_]Feature{
+            .isa_future_instructions,
+            .power10_vector,
+        }),
+    };
     result[@backingInt(Feature.hard_float)] = .{
         .llvm_name = "hard-float",
         .description = "Enable floating-point instructions",
@@ -441,6 +451,7 @@ pub const all_features = blk: {
         .description = "32Byte load and store instructions",
         .dependencies = featureSet(&[_]Feature{
             .isa_v30_instructions,
+            .vsx,
         }),
     };
     result[@backingInt(Feature.partword_atomics)] = .{
@@ -578,6 +589,11 @@ pub const all_features = blk: {
     result[@backingInt(Feature.two_const_nr)] = .{
         .llvm_name = "two-const-nr",
         .description = "Requires two constant Newton-Raphson computation",
+        .dependencies = featureSet(&[_]Feature{}),
+    };
+    result[@backingInt(Feature.use_ptrgl_helper)] = .{
+        .llvm_name = "use-ptrgl-helper",
+        .description = "Use ._ptrgl for indirect calls",
         .dependencies = featureSet(&[_]Feature{}),
     };
     result[@backingInt(Feature.vectors_use_two_units)] = .{
@@ -803,8 +819,8 @@ pub const cpu = struct {
             .fuse_logical_add,
             .fuse_sha3,
             .fuse_store,
+            .future_vector,
             .icbt,
-            .isa_future_instructions,
             .isa_v206_instructions,
             .isel,
             .ldbrx,
@@ -814,7 +830,6 @@ pub const cpu = struct {
             .partword_atomics,
             .pcrelative_memops,
             .popcntd,
-            .power10_vector,
             .ppc_postra_sched,
             .ppc_prera_sched,
             .predictable_select_expensive,
