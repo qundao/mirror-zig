@@ -1763,19 +1763,17 @@ pub fn runFallible(b: *Build, argv: []const []const u8, options: RunOptions) Run
     const io = graph.io;
     const arena = graph.arena;
 
-    const print_opts: std.zig.AllocPrintCmdOptions = .{
-        .cwd = switch (options.cwd) {
-            .inherit => null,
-            .path => |p| p,
-            .dir => null, // Unknown without changing function signature of runFallible.
-        },
-        .child_env = options.environ_map,
-        .parent_env = &graph.environ_map,
-    };
-
     if (graph.verbose) {
-        const text = std.zig.allocPrintCmd(arena, argv, print_opts) catch @panic("OOM");
-        std.log.scoped(.verbose).info("{s}", .{text});
+        std.log.scoped(.verbose).info("{f}", .{std.zig.SubprocessCommand{
+            .argv = argv,
+            .cwd = switch (options.cwd) {
+                .inherit => null,
+                .path => |p| p,
+                .dir => null, // Unknown without changing function signature of runFallible.
+            },
+            .child_env = options.environ_map,
+            .parent_env = &graph.environ_map,
+        }});
     }
 
     var child = process.spawn(io, .{
@@ -1813,21 +1811,22 @@ pub fn runFallible(b: *Build, argv: []const []const u8, options: RunOptions) Run
 /// See also:
 /// * `runFallible`.
 pub fn run(b: *Build, argv: []const []const u8) []u8 {
-    const graph = b.graph;
-    const arena = graph.arena;
     switch (b.runFallible(argv, .{
         .stderr_behavior = .inherit,
     })) {
         .success => |stdout| return stdout,
-        .spawn_failed => |err| fatal("the following command failed with {t}:\n{s}", .{
-            err, std.zig.allocPrintCmd(arena, argv, .{}) catch @panic("OOM"),
-        }),
-        .bad_exit_code => |code| fatal("the following command exited with code {d}:\n{s}", .{
-            code, std.zig.allocPrintCmd(arena, argv, .{}) catch @panic("OOM"),
-        }),
-        .crashed => fatal("the following command crashed:\n{s}", .{
-            std.zig.allocPrintCmd(arena, argv, .{}) catch @panic("OOM"),
-        }),
+        .spawn_failed => |err| fatal(
+            "the following command failed with {t}:\n{f}",
+            .{ err, std.zig.SubprocessCommand{ .argv = argv } },
+        ),
+        .bad_exit_code => |code| fatal(
+            "the following command exited with code {d}:\n{f}",
+            .{ code, std.zig.SubprocessCommand{ .argv = argv } },
+        ),
+        .crashed => fatal(
+            "the following command crashed:\n{f}",
+            .{std.zig.SubprocessCommand{ .argv = argv }},
+        ),
     }
 }
 

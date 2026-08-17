@@ -430,7 +430,12 @@ pub fn setFailedCommand(
     options: std.zig.AllocPrintCmdOptions,
 ) void {
     s.clearFailedCommand(gpa);
-    s.result_failed_command = std.zig.allocPrintCmd(gpa, argv, options) catch |err| switch (err) {
+    s.result_failed_command = gpa.print("{f}", .{std.zig.SubprocessCommand{
+        .argv = argv,
+        .cwd = options.cwd,
+        .child_env = options.child_env,
+        .parent_env = options.parent_env,
+    }}) catch |err| switch (err) {
         error.OutOfMemory => {
             s.result_oom = true;
             return;

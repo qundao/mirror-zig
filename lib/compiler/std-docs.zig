@@ -422,24 +422,25 @@ fn buildWasmBinary(
 
     const term = try child.wait(io);
     if (!term.eql(.success)) {
-        std.log.err("the following command {f}:\n{s}", .{
-            term, try std.zig.allocPrintCmd(arena, argv.items, .{}),
-        });
+        std.log.err(
+            "the following command {f}:\n{f}",
+            .{ term, std.zig.SubprocessCommand{ .argv = argv.items } },
+        );
         return error.WasmCompilationFailed;
     }
 
     if (result_error_bundle.errorMessageCount() > 0) {
         try result_error_bundle.renderToStderr(io, .{}, .auto);
-        std.log.err("the following command failed with {d} compilation errors:\n{s}", .{
+        std.log.err("the following command failed with {d} compilation errors:\n{f}", .{
             result_error_bundle.errorMessageCount(),
-            try std.zig.allocPrintCmd(arena, argv.items, .{}),
+            std.zig.SubprocessCommand{ .argv = argv.items },
         });
         return error.WasmCompilationFailed;
     }
 
     return result orelse {
-        std.log.err("child process failed to report result\n{s}", .{
-            try std.zig.allocPrintCmd(arena, argv.items, .{}),
+        std.log.err("child process failed to report result\n{f}", .{
+            std.zig.SubprocessCommand{ .argv = argv.items },
         });
         return error.WasmCompilationFailed;
     };
