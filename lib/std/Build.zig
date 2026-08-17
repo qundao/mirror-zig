@@ -474,7 +474,7 @@ fn addPackageOptionFromArg(
         },
         std.zig.BuildId => return if (maybe_value) |v| {
             map.putAssumeCapacity(field_name, .{
-                .scalar = std.fmt.allocPrint(arena, "{f}", .{v}) catch @panic("OOM"),
+                .scalar = arena.print("{f}", .{v}) catch @panic("OOM"),
             });
         },
         LazyPath => return if (maybe_value) |v| {
@@ -504,12 +504,12 @@ fn addPackageOptionFromArg(
             },
             .comptime_int, .int => return if (maybe_value) |v| {
                 map.putAssumeCapacity(field_name, .{
-                    .scalar = std.fmt.allocPrint(arena, "{d}", .{v}) catch @panic("OOM"),
+                    .scalar = arena.print("{d}", .{v}) catch @panic("OOM"),
                 });
             },
             .comptime_float, .float => return if (maybe_value) |v| {
                 map.putAssumeCapacity(field_name, .{
-                    .scalar = std.fmt.allocPrint(arena, "{x}", .{v}) catch @panic("OOM"),
+                    .scalar = arena.print("{x}", .{v}) catch @panic("OOM"),
                 });
             },
             .pointer => |ptr_info| switch (ptr_info.size) {
@@ -1572,7 +1572,7 @@ pub fn pathResolve(b: *Build, paths: []const []const u8) []u8 {
 pub fn fmt(b: *Build, comptime format: []const u8, args: anytype) []u8 {
     const graph = b.graph;
     const arena = graph.arena;
-    return std.fmt.allocPrint(arena, format, args) catch @panic("OOM");
+    return arena.print(format, args) catch @panic("OOM");
 }
 
 /// Creates an anonymous `Step` that searches for an executable on the host that

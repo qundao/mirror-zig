@@ -62,7 +62,7 @@ pub fn main(init: std.process.Init) !void {
         .reuse_address = true,
     });
     const port = http_server.socket.address.getPort();
-    const url_with_newline = try std.fmt.allocPrint(arena, "http://127.0.0.1:{d}/\n", .{port});
+    const url_with_newline = try arena.print("http://127.0.0.1:{d}/\n", .{port});
     Io.File.stdout().writeStreamingAll(io, url_with_newline) catch {};
     if (should_open_browser) {
         openBrowserTab(io, url_with_newline[0 .. url_with_newline.len - 1 :'\n']) catch |err| {
@@ -321,13 +321,11 @@ fn buildWasmBinary(
         "--name", autodoc_root_name, //
         "-rdynamic", //
         "--dep", "Walk", //
-        try std.fmt.allocPrint(
-            arena,
+        try arena.print(
             "-Mroot={s}/docs/wasm/main.zig",
             .{context.zig_lib_directory},
         ),
-        try std.fmt.allocPrint(
-            arena,
+        try arena.print(
             "-MWalk={s}/docs/wasm/Walk.zig",
             .{context.zig_lib_directory},
         ),

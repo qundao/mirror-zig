@@ -314,8 +314,7 @@ pub fn make(
 
     const max_rss = conf_step.max_rss.toBytes();
     if (max_rss != 0 and s.result_peak_rss > max_rss) {
-        if (std.fmt.allocPrint(
-            arena,
+        if (arena.print(
             "memory usage peaked at {0B:.2} ({0d} bytes), exceeding the declared upper bound of {1B:.2} ({1d} bytes)",
             .{ s.result_peak_rss, max_rss },
         )) |msg| {
@@ -453,7 +452,7 @@ pub fn fail(step: *Step, maker: *const Maker, comptime fmt: []const u8, args: an
 pub fn addError(step: *Step, maker: *const Maker, comptime fmt: []const u8, args: anytype) error{OutOfMemory}!void {
     const graph = maker.graph;
     const arena = graph.arena; // TODO don't leak into the process_arena
-    const msg = try std.fmt.allocPrint(arena, fmt, args);
+    const msg = try arena.print(fmt, args);
     try step.result_error_msgs.append(arena, msg);
 }
 
