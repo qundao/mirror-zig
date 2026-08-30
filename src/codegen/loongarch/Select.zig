@@ -18,6 +18,7 @@ target: *const std.Target,
 opt_mode: std.builtin.OptimizeMode,
 air: Air,
 nav_index: InternPool.Nav.Index,
+no_builtin: bool,
 
 // WIP MIR
 saved_registers: RegisterSet = .empty,
@@ -6356,10 +6357,40 @@ fn moveLoc(
         .stack_slot => |dst_stack| {
             if (size > isel.gprSize() and opts.atomic)
                 return isel.fail("Memory store of {d} bytes cannot be atomic", .{size});
+            if (size > 4 * @as(u64, isel.gprSize()) and !isel.no_builtin) call_compiler_rt: {
+                const src_stack = src_loc.stack_slot;
+
+                // If any of the caller saved registers are locked, function calls cannot be used.
+                var caller_saved_regs_it = call.caller_saved_reg_set.iterator();
+                while (caller_saved_regs_it.next()) |caller_saved_reg| {
+                    if (isel.live_registers.get(caller_saved_reg) == .allocating) {
+                        break :call_compiler_rt;
+                    }
+                }
+
+                try call.prepareReturn(isel);
+                try call.finishReturn(isel);
+                try call.prepareCallee(isel);
+
+                try isel.emit(.jirl(.ra, .ra, 0));
+                // TODO use memcpy if possible
+                try isel.global_relocs.append(isel.pt.zcu.gpa, .{
+                    .name = "memmove",
+                    .reloc = .{ .label = @intCast(isel.instructions.items.len), .type = .CALL36 },
+                });
+                try isel.emit(.pcaddu18i(.ra, 0));
+
+                try call.finishCallee(isel);
+                try call.prepareParams(isel);
+                try isel.addImm(.r4, dst_stack.base, dst_stack.offset + @as(i65, dst_off));
+                try isel.addImm(.r5, src_stack.base, src_stack.offset + @as(i65, src_off));
+                try isel.moveIntImm(.r6, @bitCast(size));
+                try call.finishParams(isel);
+                return;
+            }
             if (size > isel.gprSize()) {
                 // large memory copies, src must be stack_slot
                 const src_stack = src_loc.stack_slot;
-                // TODO optimize to memmove call
 
                 const known_direction, const gen_low_to_high, const gen_high_to_low = move_dir: {
                     if (dst_stack.base == src_stack.base) {
@@ -7310,22 +7341,22 @@ const call = struct {
         .fcc6 = callee_clobbered_reg,
         .fcc7 = callee_clobbered_reg,
     });
+    const caller_saved_reg_set = locked_regs: {
+        var locked_regs: RegisterSet = .empty;
+        for (std.enums.values(Register)) |reg| switch (caller_saved_regs.get(reg)) {
+            else => unreachable,
+            param_reg, callee_clobbered_reg => locked_regs.insert(reg),
+            .free => {},
+        };
+        break :locked_regs locked_regs;
+    };
 
     fn prepareReturn(_: *Select) !void {}
 
     fn finishReturn(isel: *Select) !void {
         // Lock remaining clobberred registers
-        const locked_regs = comptime locked_regs: {
-            var locked_regs: RegisterSet = .empty;
-            for (std.enums.values(Register)) |reg| switch (caller_saved_regs.get(reg)) {
-                else => unreachable,
-                param_reg, callee_clobbered_reg => locked_regs.insert(reg),
-                .free => {},
-            };
-            break :locked_regs locked_regs;
-        };
-        try isel.fillRegsBatch(locked_regs, true);
-        isel.markRegsWritten(locked_regs);
+        try isel.fillRegsBatch(caller_saved_reg_set, true);
+        isel.markRegsWritten(caller_saved_reg_set);
     }
 
     fn prepareCallee(isel: *Select) !void {
