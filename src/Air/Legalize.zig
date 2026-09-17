@@ -208,6 +208,8 @@ pub const Feature = enum {
     expand_ptr_elem_val,
     /// Replace `array_to_slice` with a `ptr_cast` followed by a `slice`.
     expand_array_to_slice,
+    /// Replace `slice_elem_ptr` with a `slice_ptr` followed by a `ptr_elem_ptr`.
+    expand_slice_elem_ptr,
 
     /// Replace all arithmetic operations on 16-bit floating-point types with calls to soft-float
     /// routines in compiler_rt, including `fptrunc`/`fpext`/`float_from_int`/`int_from_float`
@@ -883,7 +885,6 @@ fn legalizeBody(l: *Legalize, body_start: usize, body_len: usize) Error!void {
             .ptr_slice_ptr_ptr,
             .array_elem_val,
             .slice_elem_val,
-            .slice_elem_ptr,
             .ptr_elem_ptr,
             => {},
             .ptr_elem_val => if (l.features.has(.expand_ptr_elem_val)) {
@@ -894,6 +895,9 @@ fn legalizeBody(l: *Legalize, body_start: usize, body_len: usize) Error!void {
             },
             .array_to_slice => if (l.features.has(.expand_array_to_slice)) {
                 continue :inst l.replaceInst(inst, .block, try l.arrayToSliceBlockPayload(inst));
+            },
+            .slice_elem_ptr => if (l.features.has(.expand_slice_elem_ptr)) {
+                continue :inst l.replaceInst(inst, .block, try l.sliceElemPtrBlockPayload(inst));
             },
             inline .reduce, .reduce_optimized => |air_tag| {
                 const reduce = l.air_instructions.items(.data)[@backingInt(inst)].reduce;
@@ -3112,6 +3116,43 @@ fn arrayToSliceBlockPayload(l: *Legalize, orig_inst: Air.Inst.Index) Error!Air.I
     main_block.addBr(l, orig_inst, result);
     return .{ .ty_pl = .{
         .ty = slice_ty,
+        .payload = try l.addBlockBody(main_block.body()),
+    } };
+}
+
+fn sliceElemPtrBlockPayload(l: *Legalize, orig_inst: Air.Inst.Index) Error!Air.Inst.Data {
+    const pt = l.pt;
+    const zcu = pt.zcu;
+    const gpa = zcu.gpa;
+
+    const orig_ty_pl = l.air_instructions.items(.data)[@backingInt(orig_inst)].ty_pl;
+
+    const elem_ty = orig_ty_pl.ty;
+
+    const payload = l.extraData(Air.Bin, orig_ty_pl.payload).data;
+    const slice = payload.lhs;
+    const index = payload.rhs;
+    const ptr_ty = l.typeOf(slice).slicePtrFieldType(zcu);
+
+    var inst_buf: [3]Air.Inst.Index = undefined;
+    var main_block: Block = .init(&inst_buf);
+    try l.air_instructions.ensureUnusedCapacity(gpa, inst_buf.len);
+
+    const slice_ptr = main_block.addTyOp(l, .slice_ptr, ptr_ty, slice);
+    const result = main_block.add(l, .{
+        .tag = .ptr_elem_ptr,
+        .data = .{ .ty_pl = .{
+            .ty = elem_ty,
+            .payload = try l.addExtra(Air.Bin, .{
+                .lhs = slice_ptr.toRef(),
+                .rhs = index,
+            }),
+        } },
+    }).toRef();
+
+    main_block.addBr(l, orig_inst, result);
+    return .{ .ty_pl = .{
+        .ty = elem_ty,
         .payload = try l.addBlockBody(main_block.body()),
     } };
 }
