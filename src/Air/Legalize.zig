@@ -3127,32 +3127,31 @@ fn sliceElemPtrBlockPayload(l: *Legalize, orig_inst: Air.Inst.Index) Error!Air.I
 
     const orig_ty_pl = l.air_instructions.items(.data)[@backingInt(orig_inst)].ty_pl;
 
-    const elem_ty = orig_ty_pl.ty;
+    const elem_ptr_ty = orig_ty_pl.ty;
 
     const payload = l.extraData(Air.Bin, orig_ty_pl.payload).data;
     const slice = payload.lhs;
-    const index = payload.rhs;
-    const ptr_ty = l.typeOf(slice).slicePtrFieldType(zcu);
+    const elem_idx = payload.rhs;
 
     var inst_buf: [3]Air.Inst.Index = undefined;
     var main_block: Block = .init(&inst_buf);
     try l.air_instructions.ensureUnusedCapacity(gpa, inst_buf.len);
 
-    const slice_ptr = main_block.addTyOp(l, .slice_ptr, ptr_ty, slice);
+    const slice_ptr = main_block.addTyOp(l, .slice_ptr, l.typeOf(slice).slicePtrFieldType(zcu), slice).toRef();
     const result = main_block.add(l, .{
         .tag = .ptr_elem_ptr,
         .data = .{ .ty_pl = .{
-            .ty = elem_ty,
+            .ty = elem_ptr_ty,
             .payload = try l.addExtra(Air.Bin, .{
-                .lhs = slice_ptr.toRef(),
-                .rhs = index,
+                .lhs = slice_ptr,
+                .rhs = elem_idx,
             }),
         } },
     }).toRef();
 
     main_block.addBr(l, orig_inst, result);
     return .{ .ty_pl = .{
-        .ty = elem_ty,
+        .ty = elem_ptr_ty,
         .payload = try l.addBlockBody(main_block.body()),
     } };
 }
