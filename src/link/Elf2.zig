@@ -7148,7 +7148,6 @@ fn loadInputInner(elf: *Elf, input: link.Input) (Error || error{BadMagic})!void 
                 },
             };
         },
-        .res => unreachable,
         .dso => |dso| {
             try elf.needed.ensureUnusedCapacity(elf.base.comp.gpa, 1);
             var fr = dso.file.reader(io, &buf);
@@ -7165,6 +7164,8 @@ fn loadInputInner(elf: *Elf, input: link.Input) (Error || error{BadMagic})!void 
                 },
             };
         },
+        .res => unreachable,
+        .tbd => unreachable,
     }
 }
 fn loadArchive(elf: *Elf, path: std.Build.Cache.Path, fr: *Io.File.Reader) (LoadParseInputError || error{BadMagic})!void {
