@@ -245,36 +245,34 @@ pub const SystemLibraryMode = enum {
     declared_enabled,
 };
 
-const PackageInstanceMap = std.array_hash_map.Custom(PackageInstanceKey, *Dependency, struct {
-    pub fn hash(_: @This(), k: PackageInstanceKey) u32 {
-        var hasher = std.hash.Wyhash.init(0);
-        hasher.update(k.pkg_hash);
-        for (k.options.keys(), k.options.values()) |option_key, option_value| {
-            hasher.update(option_key);
-            option_value.hash(&hasher);
-        }
-        return @truncate(hasher.final());
+const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, void, struct {
+    pub fn hash(_: @This(), k: PackageInstance) u32 {
+        const package_hash: Package.Hash = .fromSlice(k.pkg_hash);
+        return @truncate(package_hash.projectId().hash());
     }
 
-    pub fn eql(_: @This(), a: PackageInstanceKey, b: PackageInstanceKey, _: usize) bool {
-        if (!mem.eql(u8, a.pkg_hash, b.pkg_hash)) return false;
-        if (a.options.count() != b.options.count()) return false;
-        for (
-            a.options.keys(),
-            b.options.keys(),
-            a.options.values(),
-            b.options.values(),
-        ) |a_key, b_key, a_val, b_val| {
-            if (!mem.eql(u8, a_key, b_key)) return false;
-            if (!a_val.eql(b_val)) return false;
-        }
-        return true;
+    pub fn eql(_: @This(), a: PackageInstance, b: PackageInstance, _: usize) bool {
+        const a_package_hash: Package.Hash = .fromSlice(a.pkg_hash);
+        const b_package_hash: Package.Hash = .fromSlice(b.pkg_hash);
+        return a_package_hash.projectId().eql(&b_package_hash.projectId());
     }
-}, true);
+}, false);
 
-const PackageInstanceKey = struct {
+const PackageInstance = struct {
     pkg_hash: []const u8,
+    dependency: *Dependency,
     options: *const PackageOptions.Map,
+
+    const ProjectIdAdapter = struct {
+        pub fn hash(_: @This(), a_project_id: Package.ProjectId) u32 {
+            return @truncate(a_project_id.hash());
+        }
+
+        pub fn eql(_: @This(), a_project_id: Package.ProjectId, b: PackageInstance, _: usize) bool {
+            const b_package_hash: Package.Hash = .fromSlice(b.pkg_hash);
+            return a_project_id.eql(&b_package_hash.projectId());
+        }
+    };
 };
 
 /// Build system implementation details.
@@ -289,7 +287,11 @@ pub const PackageOptions = struct {
         lazy_path: LazyPath,
         lazy_path_list: std.ArrayList(LazyPath),
 
-        fn eql(a: UserProvided, b: UserProvided) bool {
+        pub fn format(up: UserProvided, w: *Io.Writer) Io.Writer.Error!void {
+            return w.writeAll(@tagName(up)); // TODO
+        }
+
+        pub fn eql(a: UserProvided, b: UserProvided) bool {
             if (std.meta.activeTag(a) != b) return false;
             return switch (a) {
                 .flag => true,
@@ -321,7 +323,7 @@ pub const PackageOptions = struct {
             };
         }
 
-        fn hash(a: UserProvided, hasher: *std.hash.Wyhash) void {
+        pub fn hash(a: UserProvided, hasher: *std.hash.Wyhash) void {
             hasher.update(&mem.toBytes(std.meta.activeTag(a)));
             switch (a) {
                 .flag => {},
@@ -352,6 +354,29 @@ pub const PackageOptions = struct {
                 return mem.lessThan(u8, this.keys[a_index], this.keys[b_index]);
             }
         }, .{ .keys = map.keys() }));
+    }
+
+    pub fn eql(a: *const Map, b: *const Map) bool {
+        if (a.count() != b.count()) return false;
+        for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
+            if (!mem.eql(u8, a_key, b_key)) return false;
+            if (!a_val.eql(b_val)) return false;
+        }
+        return true;
+    }
+
+    /// TODO enhance to have more helpful output
+    pub fn logDifferences(a: *const Map, b: *const Map) void {
+        for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
+            if (!mem.eql(u8, a_key, b_key)) {
+                log.info("{q} does not match {q}", .{ a_key, b_key });
+                return;
+            }
+            if (!a_val.eql(b_val)) {
+                log.info("{qf} does not match {qf}", .{ a_val, b_val });
+                return;
+            }
+        }
     }
 };
 
@@ -2017,7 +2042,7 @@ pub fn dependencyStep(b: *Build, s: *Step, name: []const u8, args: anytype) ?*De
     }
     var map: PackageOptions.Map = .empty;
     PackageOptions.fromArgs(arena, &map, args);
-    return dependencyResolved(b, name, entry, &map);
+    return dependencyResolved(b, name, entry, &map, @returnAddress());
 }
 
 /// Declares that the current configuration does in fact require a potentially lazy dependency.
@@ -2046,7 +2071,7 @@ pub fn dependencyLazy(b: *Build, name: []const u8, args: anytype) error{LazyDepe
     }
     var map: PackageOptions.Map = .empty;
     PackageOptions.fromArgs(b.graph.arena, &map, args);
-    return dependencyResolved(b, name, entry, &map);
+    return dependencyResolved(b, name, entry, &map, @returnAddress());
 }
 
 pub const PackageEntry = struct {
@@ -2165,7 +2190,7 @@ pub fn dependencyFromBuildZig(
         const entry = package_map.get(pkg_hash) orelse break :find_dep;
         var map: PackageOptions.Map = .empty;
         PackageOptions.fromArgs(arena, &map, args);
-        return dependencyResolved(b, dep_name, entry, &map);
+        return dependencyResolved(b, dep_name, entry, &map, @returnAddress());
     }
 
     const full_path = b.root.join(arena, "build.zig.zon") catch @panic("OOM");
@@ -2178,17 +2203,33 @@ fn dependencyResolved(
     name: []const u8,
     entry: PackageEntry,
     package_options: *PackageOptions.Map,
+    first_return_address: usize,
 ) *Dependency {
     const graph = b.graph;
     const io = graph.io;
     const arena = graph.arena;
 
     PackageOptions.sort(package_options);
+    const dep_hash: Package.Hash = .fromSlice(entry.hash);
+    const project_id = dep_hash.projectId();
 
-    if (graph.dependency_cache.getContext(.{
-        .pkg_hash = entry.hash,
-        .options = package_options,
-    }, .{})) |dep| return dep;
+    if (graph.dependency_cache.getKeyPtrAdapted(project_id, @as(PackageInstance.ProjectIdAdapter, .{}))) |dep| {
+        if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
+            log.err("package version conflict: {s} ({s}{s})", .{ dep.pkg_hash, b.dep_prefix, name });
+            log.err("package version conflict: {s} ({s})", .{
+                entry.hash,
+                dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
+            });
+            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+            process.exit(1);
+        }
+        if (!PackageOptions.eql(dep.options, package_options)) {
+            log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
+            PackageOptions.logDifferences(dep.options, package_options);
+            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+            process.exit(1);
+        }
+    }
 
     const dep_root: Cache.Path = .{
         .root_dir = .{
@@ -2203,17 +2244,18 @@ fn dependencyResolved(
         run_build(sub_builder);
 
         if (sub_builder.validateUserInputDidItFail()) {
-            std.debug.dumpCurrentStackTrace(.{ .first_address = @returnAddress() });
+            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
         }
     }
 
     const dep = graph.create(Dependency);
     dep.* = .{ .builder = sub_builder };
 
-    graph.dependency_cache.putContext(arena, .{
+    graph.dependency_cache.put(arena, .{
+        .dependency = dep,
         .pkg_hash = entry.hash,
         .options = &sub_builder.user_input_options,
-    }, dep, .{}) catch @panic("OOM");
+    }, {}) catch @panic("OOM");
     return dep;
 }
 
