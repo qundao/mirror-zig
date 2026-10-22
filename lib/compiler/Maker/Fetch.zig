@@ -46,7 +46,7 @@ const ascii = std.ascii;
 const Allocator = std.mem.Allocator;
 const Path = std.Build.Cache.Path;
 const Directory = std.Build.Cache.Directory;
-const Package = std.zig.Package;
+const Package = std.Build.Package;
 const ErrorBundle = std.zig.ErrorBundle;
 
 const git = @import("Fetch/git.zig");
