@@ -41,7 +41,6 @@ pub const LibCDirs = @import("zig/LibCDirs.zig");
 pub const PkgConfig = @import("zig/PkgConfig.zig");
 pub const target = @import("zig/target.zig");
 pub const llvm = @import("zig/llvm.zig");
-pub const Package = @import("zig/Package.zig");
 
 pub const parser_generated_oracle = @import("zig/parser_generated_oracle.zig");
 

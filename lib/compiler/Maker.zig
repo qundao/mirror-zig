@@ -26,7 +26,7 @@ const EnvVar = std.zig.EnvVar;
 const ErrorBundle = std.zig.ErrorBundle;
 const default_local_zig_cache_basename = std.zig.default_local_zig_cache_basename;
 const stringToEnum = std.meta.stringToEnum;
-const Package = std.zig.Package;
+const Package = std.Build.Package;
 
 const Fuzz = @import("Maker/Fuzz.zig");
 const Graph = @import("Maker/Graph.zig");

@@ -25,6 +25,7 @@ pub const abi = @import("Build/abi.zig");
 pub const Configuration = @import("Build/Configuration.zig");
 /// Logic that transforms `Build` into `Configuration`.
 pub const Serialize = @import("Build/Serialize.zig");
+pub const Package = @import("Build/Package.zig");
 
 /// Shared state among all Build instances.
 graph: *Graph,

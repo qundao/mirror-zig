@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const Ast = std.zig.Ast;
 const testing = std.testing;
-const Package = std.zig.Package;
+const Package = std.Build.Package;
 
 pub const max_bytes = 10 * 1024 * 1024;
 pub const basename = "build.zig.zon";
