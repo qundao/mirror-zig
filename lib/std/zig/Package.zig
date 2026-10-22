@@ -1,9 +1,6 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-pub const Fetch = @import("Fetch.zig");
-pub const Manifest = @import("Package/Manifest.zig");
-
 pub const Fingerprint = packed struct(u64) {
     id: u32,
     checksum: u32,
@@ -204,8 +201,4 @@ test Hash {
     };
     const result: Hash = .init(example_digest, "nasm", "2.16.1-3", 0xcafebabe, 10 * 1024 * 1024);
     try std.testing.expectEqualStrings("nasm-2.16.1-3-vrr-ygAAoADH9XG3tOdvPNuHen_d-XeHndOG-nNXmved", result.toSlice());
-}
-
-test {
-    _ = Fetch;
 }

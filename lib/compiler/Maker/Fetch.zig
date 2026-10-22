@@ -46,10 +46,11 @@ const ascii = std.ascii;
 const Allocator = std.mem.Allocator;
 const Path = std.Build.Cache.Path;
 const Directory = std.Build.Cache.Directory;
-const git = @import("Fetch/git.zig");
-const Package = @import("Package.zig");
-const Manifest = Package.Manifest;
+const Package = std.zig.Package;
 const ErrorBundle = std.zig.ErrorBundle;
+
+const git = @import("Fetch/git.zig");
+const Manifest = @import("Manifest.zig");
 
 arena: std.heap.ArenaAllocator,
 location: Location,
@@ -178,7 +179,7 @@ pub const JobQueue = struct {
     pub const Fork = struct {
         path: Path,
         manifest_ast: std.zig.Ast,
-        manifest: Package.Manifest,
+        manifest: Manifest,
         uses: usize,
 
         pub const Context = struct {

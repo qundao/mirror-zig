@@ -26,6 +26,7 @@ const EnvVar = std.zig.EnvVar;
 const ErrorBundle = std.zig.ErrorBundle;
 const default_local_zig_cache_basename = std.zig.default_local_zig_cache_basename;
 const stringToEnum = std.meta.stringToEnum;
+const Package = std.zig.Package;
 
 const Fuzz = @import("Maker/Fuzz.zig");
 const Graph = @import("Maker/Graph.zig");
@@ -35,8 +36,7 @@ const WebServer = @import("Maker/WebServer.zig");
 const ScannedConfig = @import("Maker/ScannedConfig.zig");
 const PkgConfig = @import("Maker/PkgConfig.zig");
 const Fetch = @import("Maker/Fetch.zig");
-const Package = @import("Maker/Package.zig");
-const Manifest = Package.Manifest;
+const Manifest = @import("Maker/Manifest.zig");
 
 pub const std_options: std.Options = .{
     .side_channels_mitigations = .none,
