@@ -2237,7 +2237,7 @@ fn airArrayElemVal(self: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder
         return self.load(elem_ptr, .none, elem_ty, .normal);
     }
 
-    // This branch can be reached for vectors, which are always by-value.
+    // Only vectors that are not by-ref get here.
     return self.wip.extractElement(array_llvm_val, rhs, "");
 }
 
