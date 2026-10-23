@@ -2076,6 +2076,7 @@ pub fn dependencyLazy(b: *Build, name: []const u8, args: anytype) error{LazyDepe
 pub const PackageEntry = struct {
     hash: []const u8,
     available: bool,
+    naked: bool,
     build_root: []const u8,
     deps: AvailableDeps,
     run_build: ?*const fn (*Build) void,
@@ -2093,7 +2094,8 @@ pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
             .hash = decl_name,
             .available = available,
             .build_root = if (available) pkg.build_root else "",
-            .deps = if (available) pkg.deps else &.{},
+            .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
+            .naked = !@hasDecl(pkg, "deps"),
             .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
                 fn run(sb: *Build) void {
                     sb.runPackageScript(pkg.build_zig);
@@ -2212,21 +2214,24 @@ fn dependencyResolved(
     const dep_hash: Package.Hash = .fromSlice(entry.hash);
     const project_id = dep_hash.projectId();
 
-    if (graph.dependency_cache.getKeyPtrAdapted(project_id, @as(PackageInstance.ProjectIdAdapter, .{}))) |dep| {
-        if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
-            log.err("package version conflict: {s} ({s}{s})", .{ dep.pkg_hash, b.dep_prefix, name });
-            log.err("package version conflict: {s} ({s})", .{
-                entry.hash,
-                dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
-            });
-            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-            process.exit(1);
-        }
-        if (!PackageOptions.eql(dep.options, package_options)) {
-            log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
-            PackageOptions.logDifferences(dep.options, package_options);
-            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-            process.exit(1);
+    // TODO still cache this but based on full hash instead
+    if (!entry.naked) {
+        if (graph.dependency_cache.getKeyPtrAdapted(project_id, @as(PackageInstance.ProjectIdAdapter, .{}))) |dep| {
+            if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
+                log.err("package version conflict: {s} ({s})", .{
+                    dep.pkg_hash,
+                    dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
+                });
+                log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
+                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                process.exit(1);
+            }
+            if (!PackageOptions.eql(dep.options, package_options)) {
+                log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
+                PackageOptions.logDifferences(dep.options, package_options);
+                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                process.exit(1);
+            }
         }
     }
 
@@ -2250,7 +2255,7 @@ fn dependencyResolved(
     const dep = graph.create(Dependency);
     dep.* = .{ .builder = sub_builder };
 
-    graph.dependency_cache.put(arena, .{
+    if (!entry.naked) graph.dependency_cache.put(arena, .{
         .dependency = dep,
         .pkg_hash = entry.hash,
         .options = &sub_builder.user_input_options,

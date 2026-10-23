@@ -333,7 +333,6 @@ pub const JobQueue = struct {
                 );
             } else {
                 try w.writeAll(
-                    \\        pub const deps: []const struct { []const u8, []const u8 } = &.{};
                     \\    };
                     \\
                 );
