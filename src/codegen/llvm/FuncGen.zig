@@ -4759,7 +4759,7 @@ fn airBitCast(fg: *FuncGen, inst: Air.Inst.Index, safety: bool) Allocator.Error!
         const scalar_bits = dest_scalar_ty.floatBits(zcu.getTarget());
 
         const len = if (dest_ty.toIntern() != dest_scalar_ty.toIntern())
-            operand_ty.vectorLen(zcu)
+            dest_ty.vectorLen(zcu)
         else
             null;
         const operand_scalar_int_ty = try o.intType(scalar_bits, .as_value);
@@ -4767,7 +4767,7 @@ fn airBitCast(fg: *FuncGen, inst: Air.Inst.Index, safety: bool) Allocator.Error!
             try o.builder.vectorType(.normal, l, operand_scalar_int_ty)
         else
             operand_scalar_int_ty, "");
-        const operand_scalar_size = operand_ty.scalarType(zcu).abiSize(zcu);
+        const dest_scalar_size = dest_scalar_ty.abiSize(zcu);
         const result_ptr = try fg.buildZigAlloca(dest_ty, .none);
         for (0..len orelse 1) |index| {
             const operand_elem = if (len) |_|
@@ -4782,14 +4782,14 @@ fn airBitCast(fg: *FuncGen, inst: Air.Inst.Index, safety: bool) Allocator.Error!
                     const shifted_exponent = try fg.wip.bin(.lshr, operand_elem, try o.builder.intValue(.i80, 64), "bitCast.shifted_exponent");
                     const exponent = try fg.wip.cast(.@"trunc nuw", shifted_exponent, .i16, "bitCast.exponent");
                     try fg.store(
-                        try fg.ptraddConst(result_ptr, operand_scalar_size * index + f80_layout.mantissa_offset),
+                        try fg.ptraddConst(result_ptr, dest_scalar_size * index + f80_layout.mantissa_offset),
                         f80_layout.alignment.offset(f80_layout.mantissa_offset),
                         mantissa,
                         .u64,
                         .normal,
                     );
                     try fg.store(
-                        try fg.ptraddConst(result_ptr, operand_scalar_size * index + f80_layout.exponent_offset),
+                        try fg.ptraddConst(result_ptr, dest_scalar_size * index + f80_layout.exponent_offset),
                         f80_layout.alignment.offset(f80_layout.exponent_offset),
                         exponent,
                         .u16,
@@ -4802,14 +4802,14 @@ fn airBitCast(fg: *FuncGen, inst: Air.Inst.Index, safety: bool) Allocator.Error!
                     const shifted_hi = try fg.wip.bin(.lshr, operand_elem, try o.builder.intValue(.i128, 64), "bitCast.shifted_hi");
                     const hi = try fg.wip.cast(.@"trunc nuw", shifted_hi, .i64, "bitCast.hi");
                     try fg.store(
-                        try fg.ptraddConst(result_ptr, operand_scalar_size * index + f128_layout.lo_offset),
+                        try fg.ptraddConst(result_ptr, dest_scalar_size * index + f128_layout.lo_offset),
                         f128_layout.alignment.offset(f128_layout.lo_offset),
                         lo,
                         .u64,
                         .normal,
                     );
                     try fg.store(
-                        try fg.ptraddConst(result_ptr, operand_scalar_size * index + f128_layout.hi_offset),
+                        try fg.ptraddConst(result_ptr, dest_scalar_size * index + f128_layout.hi_offset),
                         f128_layout.alignment.offset(f128_layout.hi_offset),
                         hi,
                         .u64,
