@@ -28,18 +28,14 @@ pub const Fingerprint = packed struct(u64) {
     }
 };
 
-/// A user-readable, file system safe hash that identifies an exact package
-/// snapshot, including file contents.
+/// A user-readable, file system safe hash that identifies an exact package snapshot, including file
+/// contents.
 ///
-/// The hash is not only to prevent collisions but must resist attacks where
-/// the adversary fully controls the contents being hashed. Thus, it contains
-/// a full SHA-256 digest.
+/// The hash is not only to prevent collisions but must resist attacks where the adversary fully
+/// controls the contents being hashed. Thus, it contains a full SHA-256 digest.
 ///
-/// This data structure can be used to store the legacy hash format too. Legacy
-/// hash format is scheduled to be removed after 0.14.0 is tagged.
-///
-/// There's also a third way this structure is used. When using path rather than
-/// hash, a unique hash is still needed, so one is computed based on the path.
+/// There's also a third way this structure is used. When using path rather than hash, a unique hash
+/// is still needed, so one is computed based on the path.
 pub const Hash = struct {
     /// Maximum size of a package hash. Unused bytes at the end are
     /// filled with zeroes.
@@ -146,14 +142,8 @@ pub const Hash = struct {
     }
 
     pub fn projectIdOptional(hash: *const Hash) ?ProjectId {
-        const bytes = hash.toSlice();
-        const name = std.mem.sliceTo(bytes, '-');
-        const encoded_hashplus = bytes[bytes.len - 44 ..];
-        var hashplus: [33]u8 = undefined;
-        std.base64.url_safe_no_pad.Decoder.decode(&hashplus, encoded_hashplus) catch unreachable;
-        const fingerprint_id = std.mem.readInt(u32, hashplus[0..4], .little);
-        if (fingerprint_id == ProjectId.no_fingerprint) return null;
-        return .init(name, fingerprint_id);
+        const project_id = projectId(hash);
+        return if (project_id.isNaked()) null else project_id;
     }
 
     test projectId {
@@ -204,6 +194,10 @@ pub const ProjectId = struct {
     pub fn hash(a: *const ProjectId) u64 {
         const x: u64 = @bitCast(a.padded_name[0..8].*);
         return std.hash.int(x ^ a.fingerprint_id);
+    }
+
+    pub fn isNaked(pi: *const ProjectId) bool {
+        return pi.fingerprint_id == no_fingerprint;
     }
 };
 

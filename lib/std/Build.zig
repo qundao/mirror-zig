@@ -281,7 +281,15 @@ pub const PackageOptions = struct {
         lazy_path_list: std.ArrayList(LazyPath),
 
         pub fn format(up: UserProvided, w: *Io.Writer) Io.Writer.Error!void {
-            return w.writeAll(@tagName(up)); // TODO
+            switch (up) {
+                .scalar => |bytes| return w.writeAll(bytes),
+                .flag,
+                .list,
+                .map,
+                .lazy_path,
+                .lazy_path_list,
+                => return w.writeAll(@tagName(up)), // TODO
+            }
         }
 
         pub fn eql(a: UserProvided, b: UserProvided) bool {
@@ -362,11 +370,11 @@ pub const PackageOptions = struct {
     pub fn logDifferences(a: *const Map, b: *const Map) void {
         for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
             if (!mem.eql(u8, a_key, b_key)) {
-                log.info("{q} does not match {q}", .{ a_key, b_key });
+                log.info("key {q} does not match key {q}", .{ a_key, b_key });
                 return;
             }
             if (!a_val.eql(b_val)) {
-                log.info("{qf} does not match {qf}", .{ a_val, b_val });
+                log.info("{q} value {qf} does not match {qf}", .{ a_key, a_val, b_val });
                 return;
             }
         }
@@ -2222,7 +2230,7 @@ fn dependencyResolved(
             process.exit(1);
         }
         if (!PackageOptions.eql(dep.options, package_options)) {
-            log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
+            log.err("package {s} reinstantiated with non-matching options", .{dep.pkg_hash});
             PackageOptions.logDifferences(dep.options, package_options);
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
