@@ -1901,6 +1901,16 @@ fn printPkgTree(
     fork_set: *const Fetch.JobQueue.ForkSet,
 ) !void {
     if (!root_fetch.have_manifest) return;
+
+    var print_pkg_tree: PrintPkgTree = .{
+        .terminal = terminal,
+        .arena = arena,
+        .global_cache_root = global_cache_root,
+        .job_queue = job_queue,
+        .already_printed = .empty,
+        .fork_set = fork_set,
+    };
+
     const names = root_fetch.manifest.dependencies.keys();
     for (names, root_fetch.manifest.dependencies.values(), 0..) |name, *dep, i| {
         var print_node: PrintNode = .{
@@ -1911,97 +1921,104 @@ fn printPkgTree(
             .url => {
                 const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
                 const selected_hash = root_fetch.selectDep(dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, selected_hash);
+                try print_pkg_tree.child(&print_node, name, child_hash, selected_hash);
             },
             .path => {
                 const child_hash = Fetch.depDigest(root_fetch.package_root, global_cache_root, dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, null);
+                try print_pkg_tree.child(&print_node, name, child_hash, null);
             },
         }
     }
 }
 
-fn printPkgTreeChild(
+const PrintPkgTree = struct {
     terminal: Io.Terminal,
     arena: Allocator,
     global_cache_root: Cache.Directory,
     job_queue: *const Fetch.JobQueue,
-    parent_print_node: *const PrintNode,
-    dep_name: []const u8,
-    opt_pkg_hash: ?Package.Hash,
+    /// To avoid printing sub-trees multiple times.
+    already_printed: std.array_hash_map.String(void),
     fork_set: *const Fetch.JobQueue.ForkSet,
-    opt_selected_hash: ?Package.Hash,
-) !void {
-    const w = terminal.writer;
-    try parent_print_node.printPrefixedChild(w, terminal.mode);
-    try w.writeAll(dep_name);
 
-    const pkg_hash = opt_pkg_hash orelse {
-        try terminal.setColor(.red);
-        try w.writeAll(" (missing hash)\n");
-        try terminal.setColor(.reset);
-        return;
-    };
-    try terminal.setColor(.dim);
-    try w.print(" {s}", .{pkg_hash.toSlice()});
-    try terminal.setColor(.reset);
+    fn child(
+        ppt: *PrintPkgTree,
+        parent_print_node: *const PrintNode,
+        dep_name: []const u8,
+        opt_pkg_hash: ?Package.Hash,
+        opt_selected_hash: ?Package.Hash,
+    ) !void {
+        const terminal = ppt.terminal;
+        const w = terminal.writer;
+        try parent_print_node.printPrefixedChild(w, terminal.mode);
+        try w.writeAll(dep_name);
 
-    if (opt_selected_hash) |selected_hash| {
-        if (!selected_hash.eql(&pkg_hash)) {
-            try w.print(" (selected: {s})\n", .{selected_hash.toSlice()});
-            return;
-        }
-    }
-
-    const child_fetch = job_queue.table.get(pkg_hash) orelse {
-        try terminal.setColor(.red);
-        try w.writeAll(" (fetch failed)\n");
-        try terminal.setColor(.reset);
-        return;
-    };
-
-    switch (child_fetch.lazy_status) {
-        .eager, .available => {},
-        .unavailable => {
-            try terminal.setColor(.yellow);
-            try w.writeAll(" (not fetched)\n");
+        const pkg_hash = opt_pkg_hash orelse {
+            try terminal.setColor(.red);
+            try w.writeAll(" (missing hash)\n");
             try terminal.setColor(.reset);
             return;
-        },
-    }
-    if (!child_fetch.have_manifest) {
-        try w.writeByte('\n');
-        return;
-    }
-
-    const project_id: Package.ProjectId = .init(child_fetch.manifest.name, child_fetch.manifest.id);
-    if (fork_set.getKeyPtrAdapted(project_id, @as(Fetch.JobQueue.Fork.Adapter, .{}))) |fork| {
-        try terminal.setColor(.yellow);
-        try w.print(" (fork: {f})", .{fork.path});
-        try terminal.setColor(.reset);
-    }
-
-    try w.writeByte('\n');
-
-    const names = child_fetch.manifest.dependencies.keys();
-    for (names, child_fetch.manifest.dependencies.values(), 0..) |name, *dep, i| {
-        var print_node: PrintNode = .{
-            .parent = parent_print_node,
-            .last = i == names.len - 1,
         };
-        switch (dep.location) {
-            .url => {
-                const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
-                const selected_hash = child_fetch.selectDep(dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, selected_hash);
-            },
-            .path => {
-                const child_hash = Fetch.depDigest(child_fetch.package_root, global_cache_root, dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, null);
+        try terminal.setColor(.dim);
+        try w.print(" {s}", .{pkg_hash.toSlice()});
+        try terminal.setColor(.reset);
+
+        if (opt_selected_hash) |selected_hash| {
+            if (!selected_hash.eql(&pkg_hash)) {
+                try w.print(" (selected: {s})\n", .{selected_hash.toSlice()});
+                return;
+            }
+        }
+
+        const child_fetch = ppt.job_queue.table.get(pkg_hash) orelse {
+            try terminal.setColor(.red);
+            try w.writeAll(" (fetch failed)\n");
+            try terminal.setColor(.reset);
+            return;
+        };
+
+        switch (child_fetch.lazy_status) {
+            .eager, .available => {},
+            .unavailable => {
+                try terminal.setColor(.yellow);
+                try w.writeAll(" (not fetched)\n");
+                try terminal.setColor(.reset);
+                return;
             },
         }
+        if (!child_fetch.have_manifest) {
+            try w.writeByte('\n');
+            return;
+        }
+
+        const project_id: Package.ProjectId = .init(child_fetch.manifest.name, child_fetch.manifest.id);
+        if (ppt.fork_set.getKeyPtrAdapted(project_id, @as(Fetch.JobQueue.Fork.Adapter, .{}))) |fork| {
+            try terminal.setColor(.yellow);
+            try w.print(" (fork: {f})", .{fork.path});
+            try terminal.setColor(.reset);
+        }
+
+        try w.writeByte('\n');
+
+        const names = child_fetch.manifest.dependencies.keys();
+        for (names, child_fetch.manifest.dependencies.values(), 0..) |name, *dep, i| {
+            var print_node: PrintNode = .{
+                .parent = parent_print_node,
+                .last = i == names.len - 1,
+            };
+            switch (dep.location) {
+                .url => {
+                    const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
+                    const selected_hash = child_fetch.selectDep(dep);
+                    try ppt.child(&print_node, name, child_hash, selected_hash);
+                },
+                .path => {
+                    const child_hash = Fetch.depDigest(child_fetch.package_root, ppt.global_cache_root, dep);
+                    try ppt.child(&print_node, name, child_hash, null);
+                },
+            }
+        }
     }
-}
+};
 
 fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
     const environ_map = &graph.environ_map;
