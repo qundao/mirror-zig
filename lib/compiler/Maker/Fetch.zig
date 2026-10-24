@@ -100,16 +100,27 @@ oom_flag: bool,
 latest_commit: ?git.Oid,
 
 /// Specifies a set of project ids that, when a dependency is found to match, the one here should be
-/// selected instead of fetching that other one.
-selected_projects: std.array_hash_map.Custom(Package.Hash, void, struct {
-    pub fn hash(_: @This(), a: Package.Hash) u32 {
-        const project_id = a.projectIdOptional().?;
+/// selected instead of fetching that other one. Key is index into `manifest.dependencies` whose
+/// `dep.hash` is the value being compared.
+selected_projects: std.array_hash_map.Custom(u32, void, struct {
+    fetch: *const Fetch,
+
+    pub fn hash(this: @This(), a: u32) u32 {
+        assert(this.fetch.have_manifest);
+        const dep = &this.fetch.manifest.dependencies.values()[a];
+        const package_hash: Package.Hash = .fromSlice(dep.hash.?);
+        const project_id = package_hash.projectIdOptional().?;
         return @truncate(project_id.hash());
     }
 
-    pub fn eql(_: @This(), a: Package.Hash, b: Package.Hash, _: usize) bool {
-        const a_project_id = a.projectIdOptional().?;
-        const b_project_id = b.projectIdOptional().?;
+    pub fn eql(this: @This(), a: u32, b: u32, _: usize) bool {
+        assert(this.fetch.have_manifest);
+        const a_dep = &this.fetch.manifest.dependencies.values()[a];
+        const b_dep = &this.fetch.manifest.dependencies.values()[b];
+        const a_package_hash: Package.Hash = .fromSlice(a_dep.hash.?);
+        const b_package_hash: Package.Hash = .fromSlice(b_dep.hash.?);
+        const a_project_id = a_package_hash.projectIdOptional().?;
+        const b_project_id = b_package_hash.projectIdOptional().?;
         return a_project_id.eql(&b_project_id);
     }
 }, false),
@@ -123,6 +134,25 @@ parent: ?*const Fetch,
 /// This could be an opaque "userdata" field because this code does not observe
 /// this data in any way but let's have some type safety because we can.
 cli_module: ?*@import("../Maker.zig").CliModule,
+
+const SelectedProjectHashAdapter = struct {
+    fetch: *const Fetch,
+
+    pub fn hash(this: @This(), package_hash: Package.Hash) u32 {
+        assert(this.fetch.have_manifest);
+        const project_id = package_hash.projectIdOptional().?;
+        return @truncate(project_id.hash());
+    }
+
+    pub fn eql(this: @This(), a_package_hash: Package.Hash, b: u32, _: usize) bool {
+        assert(this.fetch.have_manifest);
+        const b_dep = &this.fetch.manifest.dependencies.values()[b];
+        const b_package_hash: Package.Hash = .fromSlice(b_dep.hash.?);
+        const a_project_id = a_package_hash.projectIdOptional().?;
+        const b_project_id = b_package_hash.projectIdOptional().?;
+        return a_project_id.eql(&b_project_id);
+    }
+};
 
 pub const LazyStatus = enum {
     /// Not lazy.
@@ -968,7 +998,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         const prog_names = try parent_arena.alloc([]const u8, deps.len);
         var new_fetch_index: usize = 0;
 
-        try f.selected_projects.ensureUnusedCapacity(parent_arena, deps.len);
+        try f.selected_projects.ensureUnusedCapacityContext(parent_arena, deps.len, .{ .fetch = f });
 
         try f.job_queue.mutex.lock(io);
         defer f.job_queue.mutex.unlock(io);
@@ -991,7 +1021,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         // eagerness takes precedence and the existing entry is updated and re-scheduled
         // for fetching.
 
-        for (dep_names, deps) |dep_name, dep| {
+        for (dep_names, deps, 0..) |dep_name, dep, dep_index| {
             var promoted_existing_to_eager = false;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
@@ -1008,7 +1038,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                                     log.debug("package selection: {s} -> {s}", .{ h, selected.toSlice() });
                                     break :s selected;
                                 }
-                                f.selected_projects.putAssumeCapacity(pkg_hash, {});
+                                f.selected_projects.putAssumeCapacityContext(@intCast(dep_index), {}, .{ .fetch = f });
                                 break :s pkg_hash;
                             };
                             const gop = f.job_queue.table.getOrPutAssumeCapacity(selected_hash);
@@ -1103,8 +1133,12 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
     if (start.parent) |parent| {
         var fetch = parent;
         while (true) {
-            if (fetch.selected_projects.getKey(pkg_hash)) |selected| {
-                return selected;
+            if (fetch.selected_projects.getKeyAdapted(pkg_hash, @as(SelectedProjectHashAdapter, .{
+                .fetch = fetch,
+            }))) |selected_dep_index| {
+                const selected_dep = &fetch.manifest.dependencies.values()[selected_dep_index];
+                const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
+                return selected_package_hash;
             }
             fetch = fetch.parent orelse break;
         }
