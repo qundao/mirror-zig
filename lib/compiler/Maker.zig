@@ -1384,6 +1384,8 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
                     .has_build_zig = true,
                     .oom_flag = false,
                     .latest_commit = null,
+                    .selected_projects = .empty,
+                    .parent = null,
 
                     .cli_module = build_mod,
                 };
@@ -1546,12 +1548,8 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
                         const dep_names = man.dependencies.keys();
                         try mod.deps.ensureUnusedCapacity(arena, @intCast(dep_names.len));
                         for (dep_names, man.dependencies.values()) |name, *dep| {
-                            const dep_digest = Fetch.depDigest(
-                                f.package_root,
-                                graph.global_cache_root,
-                                dep,
-                            ) orelse continue;
-                            const dep_mod = job_queue.table.get(dep_digest).?.cli_module orelse continue;
+                            const selected_hash = f.selectDep(dep) orelse continue;
+                            const dep_mod = job_queue.table.get(selected_hash).?.cli_module orelse continue;
                             const name_cloned = try arena.dupe(u8, name);
                             mod.deps.putAssumeCapacityNoClobber(name_cloned, dep_mod);
                         }
@@ -2125,6 +2123,8 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
         .has_build_zig = false,
         .oom_flag = false,
         .latest_commit = null,
+        .selected_projects = .empty,
+        .parent = null,
 
         .cli_module = null,
     };

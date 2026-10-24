@@ -99,6 +99,22 @@ oom_flag: bool,
 /// will be left unchanged.
 latest_commit: ?git.Oid,
 
+/// Specifies a set of project ids that, when a dependency is found to match, the one here should be
+/// selected instead of fetching that other one.
+selected_projects: std.array_hash_map.Custom(Package.Hash, void, struct {
+    pub fn hash(_: @This(), a: Package.Hash) u32 {
+        const project_id = a.projectIdOptional().?;
+        return @truncate(project_id.hash());
+    }
+
+    pub fn eql(_: @This(), a: Package.Hash, b: Package.Hash, _: usize) bool {
+        const a_project_id = a.projectIdOptional().?;
+        const b_project_id = b.projectIdOptional().?;
+        return a_project_id.eql(&b_project_id);
+    }
+}, false),
+parent: ?*const Fetch,
+
 // This field is used by the CLI only, untouched by this file.
 
 /// The module for this `Fetch` tasks's package, which exposes `build.zig` as
@@ -291,9 +307,9 @@ pub const JobQueue = struct {
             }
 
             try w.print(
-                \\        pub const build_root = "{f}";
+                \\        pub const build_root = {qf};
                 \\
-            , .{std.fmt.alt(fetch.package_root, .formatEscapeString)});
+            , .{fetch.package_root});
 
             if (fetch.has_build_zig) b: {
                 if (fetch.have_manifest) {
@@ -319,11 +335,8 @@ pub const JobQueue = struct {
                     \\
                 );
                 for (manifest.dependencies.keys(), manifest.dependencies.values()) |name, *dep| {
-                    const h = depDigest(fetch.package_root, jq.global_cache, dep) orelse continue;
-                    try w.print(
-                        "            .{{ \"{f}\", \"{f}\" }},\n",
-                        .{ std.zig.fmtString(name), std.zig.fmtString(h.toSlice()) },
-                    );
+                    const selected_hash = selectDep(fetch, dep) orelse continue;
+                    try w.print("            .{{ {q}, {q} }},\n", .{ name, selected_hash.toSlice() });
                 }
 
                 try w.writeAll(
@@ -569,7 +582,7 @@ pub fn run(f: *Fetch) RunError!void {
             assert(pkg_root.root_dir.eql(f.remote_package_root.root_dir));
             if (!std.mem.startsWith(u8, pkg_root.sub_path, f.remote_package_root.sub_path)) return f.fail(
                 f.location_tok,
-                try eb.printString("dependency path outside project: '{f}'", .{pkg_root}),
+                try eb.printString("dependency path outside project: {qf}", .{pkg_root}),
             );
             f.package_root = pkg_root;
             try loadManifest(f, pkg_root);
@@ -594,7 +607,7 @@ pub fn run(f: *Fetch) RunError!void {
 
                 const uri = std.Uri.parse(path_or_url) catch |uri_err| {
                     return f.fail(0, try eb.printString(
-                        "'{s}' could not be recognized as a file path ({t}) or an URL ({t})",
+                        "{q} could not be recognized as a file path ({t}) or an URL ({t})",
                         .{ path_or_url, file_err, uri_err },
                     ));
                 };
@@ -822,8 +835,7 @@ fn runResource(
         };
     }
 
-    // Validate the computed hash against the expected hash. If invalid, this
-    // job is done.
+    // Validate the computed hash against the expected hash. If invalid, this job is done.
 
     if (remote_hash) |declared_hash| {
         const hash_tok = f.hash_tok.unwrap().?;
@@ -949,13 +961,14 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         const cache_root = f.job_queue.global_cache;
         const dep_names = manifest.dependencies.keys();
         const deps = manifest.dependencies.values();
-        // Grab the new tasks into a temporary buffer so we can unlock that mutex
-        // as fast as possible.
-        // This overallocates any fetches that get skipped by the `continue` in the
-        // loop below.
+        // Grab the new tasks into a temporary buffer so we can unlock that mutex as fast as
+        // possible.
+        // This overallocates any fetches that get skipped by the `continue` in the loop below.
         const new_fetches = try parent_arena.alloc(Fetch, deps.len);
         const prog_names = try parent_arena.alloc([]const u8, deps.len);
         var new_fetch_index: usize = 0;
+
+        try f.selected_projects.ensureUnusedCapacity(parent_arena, deps.len);
 
         try f.job_queue.mutex.lock(io);
         defer f.job_queue.mutex.unlock(io);
@@ -989,7 +1002,16 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                             const h = dep.hash orelse break :h null;
                             const pkg_hash: Package.Hash = .fromSlice(h);
                             if (h.len == 0) break :h pkg_hash;
-                            const gop = f.job_queue.table.getOrPutAssumeCapacity(pkg_hash);
+                            const selected_hash = s: {
+                                if (pkg_hash.projectId().isNaked()) break :s pkg_hash;
+                                if (selectPackageOptional(f, pkg_hash)) |selected| {
+                                    log.debug("package selection: {s} -> {s}", .{ h, selected.toSlice() });
+                                    break :s selected;
+                                }
+                                f.selected_projects.putAssumeCapacity(pkg_hash, {});
+                                break :s pkg_hash;
+                            };
+                            const gop = f.job_queue.table.getOrPutAssumeCapacity(selected_hash);
                             if (gop.found_existing) {
                                 if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
                                     gop.value_ptr.*.lazy_status = .eager;
@@ -999,7 +1021,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                                 }
                             }
                             gop.value_ptr.* = new_fetch;
-                            break :h pkg_hash;
+                            break :h selected_hash;
                         },
                     },
                 },
@@ -1027,6 +1049,8 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                 f.job_queue.all_fetches.appendAssumeCapacity(new_fetch);
             }
             new_fetch.* = .{
+                .parent = f,
+                .selected_projects = .empty,
                 .arena = std.heap.ArenaAllocator.init(gpa),
                 .location = location,
                 .location_tok = dep.location_tok,
@@ -1073,6 +1097,23 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
     for (new_fetches, prog_names) |*new_fetch, prog_name| {
         f.job_queue.group.async(io, workerRun, .{ new_fetch, prog_name });
     }
+}
+
+fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.Hash {
+    if (start.parent) |parent| {
+        var fetch = parent;
+        while (true) {
+            if (fetch.selected_projects.getKey(pkg_hash)) |selected| {
+                return selected;
+            }
+            fetch = fetch.parent orelse break;
+        }
+    }
+    return null;
+}
+
+fn selectPackage(start: *const Fetch, pkg_hash: Package.Hash) Package.Hash {
+    return selectPackageOptional(start, pkg_hash) orelse pkg_hash;
 }
 
 pub fn relativePathDigest(pkg_root: Path, cache_root: Directory) Package.Hash {
@@ -2082,6 +2123,16 @@ pub fn depDigest(pkg_root: Path, cache_root: Directory, dep: *const Manifest.Dep
             return relativePathDigest(new_root, cache_root);
         },
     }
+}
+
+pub fn selectDep(fetch: *const Fetch, dep: *const Manifest.Dependency) ?Package.Hash {
+    if (dep.hash) |dep_hash| {
+        const dep_pkg_hash: Package.Hash = .fromSlice(dep_hash);
+        if (!dep_pkg_hash.projectId().isNaked()) {
+            return selectPackage(fetch, dep_pkg_hash);
+        }
+    }
+    return depDigest(fetch.package_root, fetch.job_queue.global_cache, dep);
 }
 
 // Detects executable header: ELF or Macho-O magic header or shebang line.
