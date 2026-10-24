@@ -2223,17 +2223,17 @@ fn dependencyResolved(
         .pkg_hash = entry.hash,
         .options = undefined,
     })) |dep| {
+        const dep_prefix = dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1];
         if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
-            log.err("package version conflict: {s} ({s})", .{
-                dep.pkg_hash,
-                dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
-            });
+            log.err("package version conflict: {s} ({s})", .{ dep.pkg_hash, dep_prefix });
             log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
         }
         if (!PackageOptions.eql(dep.options, package_options)) {
-            log.err("package {s} reinstantiated with non-matching options", .{dep.pkg_hash});
+            log.err("package {s} ({s} vs {s}{s}) reinstantiated with non-matching options", .{
+                dep.pkg_hash, dep_prefix, b.dep_prefix, name,
+            });
             PackageOptions.logDifferences(dep.options, package_options);
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
