@@ -248,13 +248,17 @@ pub const SystemLibraryMode = enum {
 const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, void, struct {
     pub fn hash(_: @This(), k: PackageInstance) u32 {
         const package_hash: Package.Hash = .fromSlice(k.pkg_hash);
-        return @truncate(package_hash.projectId().hash());
+        const project_id = package_hash.projectIdOptional() orelse
+            return @truncate(std.hash.Wyhash.hash(0, k.pkg_hash));
+        return @truncate(project_id.hash());
     }
 
     pub fn eql(_: @This(), a: PackageInstance, b: PackageInstance, _: usize) bool {
         const a_package_hash: Package.Hash = .fromSlice(a.pkg_hash);
         const b_package_hash: Package.Hash = .fromSlice(b.pkg_hash);
-        return a_package_hash.projectId().eql(&b_package_hash.projectId());
+        const a_project_id = a_package_hash.projectIdOptional() orelse return mem.eql(u8, a.pkg_hash, b.pkg_hash);
+        const b_project_id = b_package_hash.projectIdOptional() orelse return false;
+        return a_project_id.eql(&b_project_id);
     }
 }, false);
 
@@ -262,17 +266,6 @@ const PackageInstance = struct {
     pkg_hash: []const u8,
     dependency: *Dependency,
     options: *const PackageOptions.Map,
-
-    const ProjectIdAdapter = struct {
-        pub fn hash(_: @This(), a_project_id: Package.ProjectId) u32 {
-            return @truncate(a_project_id.hash());
-        }
-
-        pub fn eql(_: @This(), a_project_id: Package.ProjectId, b: PackageInstance, _: usize) bool {
-            const b_package_hash: Package.Hash = .fromSlice(b.pkg_hash);
-            return a_project_id.eql(&b_package_hash.projectId());
-        }
-    };
 };
 
 /// Build system implementation details.
@@ -2213,27 +2206,26 @@ fn dependencyResolved(
     const arena = graph.arena;
 
     PackageOptions.sort(package_options);
-    const dep_hash: Package.Hash = .fromSlice(entry.hash);
-    const project_id = dep_hash.projectId();
 
-    // TODO still cache this but based on full hash instead
-    if (!entry.naked) {
-        if (graph.dependency_cache.getKeyPtrAdapted(project_id, @as(PackageInstance.ProjectIdAdapter, .{}))) |dep| {
-            if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
-                log.err("package version conflict: {s} ({s})", .{
-                    dep.pkg_hash,
-                    dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
-                });
-                log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
-                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-                process.exit(1);
-            }
-            if (!PackageOptions.eql(dep.options, package_options)) {
-                log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
-                PackageOptions.logDifferences(dep.options, package_options);
-                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-                process.exit(1);
-            }
+    if (graph.dependency_cache.getKeyPtr(.{
+        .dependency = undefined,
+        .pkg_hash = entry.hash,
+        .options = undefined,
+    })) |dep| {
+        if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
+            log.err("package version conflict: {s} ({s})", .{
+                dep.pkg_hash,
+                dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1],
+            });
+            log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
+            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+            process.exit(1);
+        }
+        if (!PackageOptions.eql(dep.options, package_options)) {
+            log.err("packages {s} and {s} instantiated with non-matching options", .{ dep.pkg_hash, entry.hash });
+            PackageOptions.logDifferences(dep.options, package_options);
+            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+            process.exit(1);
         }
     }
 
@@ -2257,7 +2249,7 @@ fn dependencyResolved(
     const dep = graph.create(Dependency);
     dep.* = .{ .builder = sub_builder };
 
-    if (!entry.naked) graph.dependency_cache.put(arena, .{
+    graph.dependency_cache.put(arena, .{
         .dependency = dep,
         .pkg_hash = entry.hash,
         .options = &sub_builder.user_input_options,

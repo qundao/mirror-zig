@@ -145,6 +145,17 @@ pub const Hash = struct {
         return .init(name, fingerprint_id);
     }
 
+    pub fn projectIdOptional(hash: *const Hash) ?ProjectId {
+        const bytes = hash.toSlice();
+        const name = std.mem.sliceTo(bytes, '-');
+        const encoded_hashplus = bytes[bytes.len - 44 ..];
+        var hashplus: [33]u8 = undefined;
+        std.base64.url_safe_no_pad.Decoder.decode(&hashplus, encoded_hashplus) catch unreachable;
+        const fingerprint_id = std.mem.readInt(u32, hashplus[0..4], .little);
+        if (fingerprint_id == ProjectId.no_fingerprint) return null;
+        return .init(name, fingerprint_id);
+    }
+
     test projectId {
         const hash: Hash = .fromSlice("pulseaudio-16.1.1-9-mk_62MZkNwBaFwiZ7ZVrYRIf_3dTqqJR5PbMRCJzSuLw");
         const project_id = hash.projectId();
@@ -175,6 +186,8 @@ pub const ProjectId = struct {
     padded_name: [32]u8,
     fingerprint_id: u32,
 
+    pub const no_fingerprint: u32 = 0xffff;
+
     pub fn init(name: []const u8, fingerprint_id: u32) ProjectId {
         var padded_name: [32]u8 = @splat(0);
         @memcpy(padded_name[0..name.len], name);
@@ -190,7 +203,7 @@ pub const ProjectId = struct {
 
     pub fn hash(a: *const ProjectId) u64 {
         const x: u64 = @bitCast(a.padded_name[0..8].*);
-        return std.hash.int(x | a.fingerprint_id);
+        return std.hash.int(x ^ a.fingerprint_id);
     }
 };
 

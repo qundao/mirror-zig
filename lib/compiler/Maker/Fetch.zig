@@ -864,11 +864,12 @@ pub fn computedPackageHash(f: *const Fetch) Package.Hash {
     // Previous version of Zig did not use f.name to affect the package hash, so
     // allow the user to opt in by only doing that if they specify a version.
     var version_buffer: [Manifest.max_version_len]u8 = undefined;
+    const no_fingerprint = Package.ProjectId.no_fingerprint;
     if (f.parent_specified_version_tok != .none) {
         const v = std.mem.print(&version_buffer, "{f}", .{f.parent_specified_version}) catch unreachable;
-        return .init(f.computed_hash.digest, f.name, v, 0xffff, saturated_size);
+        return .init(f.computed_hash.digest, f.name, v, no_fingerprint, saturated_size);
     } else {
-        return .init(f.computed_hash.digest, "N", "V", 0xffff, saturated_size);
+        return .init(f.computed_hash.digest, "N", "V", no_fingerprint, saturated_size);
     }
 }
 
