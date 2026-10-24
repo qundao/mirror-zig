@@ -1910,11 +1910,12 @@ fn printPkgTree(
         switch (dep.location) {
             .url => {
                 const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set);
+                const selected_hash = root_fetch.selectDep(dep);
+                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, selected_hash);
             },
             .path => {
                 const child_hash = Fetch.depDigest(root_fetch.package_root, global_cache_root, dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set);
+                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, null);
             },
         }
     }
@@ -1929,6 +1930,7 @@ fn printPkgTreeChild(
     dep_name: []const u8,
     opt_pkg_hash: ?Package.Hash,
     fork_set: *const Fetch.JobQueue.ForkSet,
+    opt_selected_hash: ?Package.Hash,
 ) !void {
     const w = terminal.writer;
     try parent_print_node.printPrefixedChild(w, terminal.mode);
@@ -1943,6 +1945,14 @@ fn printPkgTreeChild(
     try terminal.setColor(.dim);
     try w.print(" {s}", .{pkg_hash.toSlice()});
     try terminal.setColor(.reset);
+
+    if (opt_selected_hash) |selected_hash| {
+        if (!selected_hash.eql(&pkg_hash)) {
+            try w.print(" (selected: {s})\n", .{selected_hash.toSlice()});
+            return;
+        }
+    }
+
     const child_fetch = job_queue.table.get(pkg_hash) orelse {
         try terminal.setColor(.red);
         try w.writeAll(" (fetch failed)\n");
@@ -1982,11 +1992,12 @@ fn printPkgTreeChild(
         switch (dep.location) {
             .url => {
                 const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set);
+                const selected_hash = child_fetch.selectDep(dep);
+                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, selected_hash);
             },
             .path => {
                 const child_hash = Fetch.depDigest(child_fetch.package_root, global_cache_root, dep);
-                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set);
+                try printPkgTreeChild(terminal, arena, global_cache_root, job_queue, &print_node, name, child_hash, fork_set, null);
             },
         }
     }
