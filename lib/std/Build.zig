@@ -282,13 +282,18 @@ pub const PackageOptions = struct {
 
         pub fn format(up: UserProvided, w: *Io.Writer) Io.Writer.Error!void {
             switch (up) {
-                .scalar => |bytes| return w.writeAll(bytes),
-                .flag,
-                .list,
-                .map,
-                .lazy_path,
-                .lazy_path_list,
-                => return w.writeAll(@tagName(up)), // TODO
+                .scalar => |bytes| return w.print("{q}", .{bytes}),
+                .flag => {},
+                .list => |list| for (list.items) |s| {
+                    try w.print("{q},", .{s});
+                },
+                .map => |*map| for (map.keys(), map.values()) |k, v| {
+                    try w.print("{q}={qf},", .{ k, v });
+                },
+                .lazy_path => |lp| return lp.format(w),
+                .lazy_path_list => |*list| for (list.items) |lp| {
+                    try w.print("{qf},", .{lp});
+                },
             }
         }
 
@@ -366,7 +371,6 @@ pub const PackageOptions = struct {
         return true;
     }
 
-    /// TODO enhance to have more helpful output
     pub fn logDifferences(a: *const Map, b: *const Map) void {
         for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
             if (!mem.eql(u8, a_key, b_key)) {
@@ -374,8 +378,7 @@ pub const PackageOptions = struct {
                 return;
             }
             if (!a_val.eql(b_val)) {
-                log.info("{q} value {qf} does not match {qf}", .{ a_key, a_val, b_val });
-                return;
+                log.info("{q} value {f} does not match {f}", .{ a_key, a_val, b_val });
             }
         }
     }
