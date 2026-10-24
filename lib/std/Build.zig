@@ -2088,6 +2088,7 @@ pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
     const deps = @import("root").dependencies;
     const decl_names = @typeInfo(deps.packages).@"struct".decl_names;
     var kvs: [decl_names.len]struct { []const u8, PackageEntry } = undefined;
+    @setEvalBranchQuota(decl_names.len + 100);
     for (decl_names, 0..) |decl_name, i| {
         const pkg = @field(deps.packages, decl_name);
         const available = !@hasDecl(pkg, "available") or pkg.available;
