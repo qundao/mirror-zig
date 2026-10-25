@@ -2239,10 +2239,22 @@ fn airArrayElemVal(self: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder
 }
 
 fn airLegalizeVecElemVal(fg: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.Value {
+    const zcu = fg.object.zcu;
+
     const bin_op = fg.air.instructions.items(.data)[@backingInt(inst)].bin_op;
+
+    const vec_ty = fg.typeOf(bin_op.lhs);
+
     const vec = try fg.resolveInst(bin_op.lhs);
     const index = try fg.resolveInst(bin_op.rhs);
-    return fg.wip.extractElement(vec, index, "");
+
+    if (isByRef(vec_ty, zcu)) {
+        const elem_ty = vec_ty.childType(zcu);
+        const elem_ptr = try fg.ptraddScaled(vec, index, elem_ty.abiSize(zcu));
+        return fg.load(elem_ptr, elem_ty.abiAlignment(zcu), elem_ty, .normal);
+    } else {
+        return fg.wip.extractElement(vec, index, "");
+    }
 }
 fn airLegalizeVecStoreElem(fg: *FuncGen, inst: Air.Inst.Index) Allocator.Error!Builder.Value {
     const zcu = fg.object.zcu;
@@ -2259,9 +2271,19 @@ fn airLegalizeVecStoreElem(fg: *FuncGen, inst: Air.Inst.Index) Allocator.Error!B
     const index = try fg.resolveInst(extra.lhs);
     const elem = try fg.resolveInst(extra.rhs);
 
-    const old_vec = try fg.load(vec_ptr, ptr_align, vec_ty, .normal);
-    const new_vec = try fg.wip.insertElement(old_vec, elem, index, "");
-    try fg.store(vec_ptr, ptr_align, new_vec, vec_ty, .normal);
+    if (isByRef(vec_ty, zcu)) {
+        const elem_ty = vec_ty.childType(zcu);
+        const elem_ptr = try fg.ptraddScaled(vec_ptr, index, elem_ty.abiSize(zcu));
+        try fg.store(elem_ptr, ptr_align.min(elem_ty.abiAlignment(zcu)), elem, elem_ty, .normal);
+    } else {
+        const old_vec: Builder.Value = if (vec_ty.vectorLen(zcu) == 1) old_vec: {
+            // Workaround for https://github.com/llvm/llvm-project/issues/235439
+            const o = fg.object;
+            break :old_vec try o.builder.poisonValue(try o.lowerType(vec_ty, .as_value));
+        } else try fg.load(vec_ptr, ptr_align, vec_ty, .normal);
+        const new_vec = try fg.wip.insertElement(old_vec, elem, index, "");
+        try fg.store(vec_ptr, ptr_align, new_vec, vec_ty, .normal);
+    }
 
     return .none;
 }
