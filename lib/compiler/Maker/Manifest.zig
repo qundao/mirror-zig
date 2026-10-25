@@ -24,7 +24,7 @@ pub const Dependency = struct {
     node: Ast.Node.Index,
     name_tok: Ast.TokenIndex,
     lazy: bool,
-    allow_multiple_versions: bool,
+    unversioned: bool,
     paths: std.array_hash_map.String(void),
     paths_tok: Ast.OptionalTokenIndex,
     version: std.SemanticVersion,
@@ -289,7 +289,7 @@ const Parse = struct {
             .node = node,
             .name_tok = undefined,
             .lazy = false,
-            .allow_multiple_versions = false,
+            .unversioned = false,
             .paths = .empty,
             .paths_tok = .none,
             .version = undefined,
@@ -342,8 +342,8 @@ const Parse = struct {
                     error.ParseFailure => continue,
                     else => |e| return e,
                 };
-            } else if (mem.eql(u8, field_name, "allow_multiple_versions")) {
-                dep.allow_multiple_versions = parseBool(p, field_init) catch |err| switch (err) {
+            } else if (mem.eql(u8, field_name, "unversioned")) {
+                dep.unversioned = parseBool(p, field_init) catch |err| switch (err) {
                     error.ParseFailure => continue,
                     else => |e| return e,
                 };

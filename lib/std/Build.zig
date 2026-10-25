@@ -93,7 +93,7 @@ pub const Graph = struct {
     /// tree that will be deduplicated based on their project id.
     deduplicated_dependencies: DeduplicatedPackageMap = .empty,
     /// Maps full package hash and provided options to package instance. This one is used for
-    /// naked packages and project ids that have been marked with allow_multiple_versions = true
+    /// naked packages and project ids that have been marked with unversioned = true
     package_instances: PackageInstanceMap = .empty,
 
     allow_so_scripts: ?bool = null,
@@ -298,7 +298,7 @@ const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, *Dependenc
 
 const PackageInstance = struct {
     pkg_hash: []const u8,
-    allow_multiple_versions: bool,
+    unversioned: bool,
     options: *const PackageOptions.Map,
 };
 
@@ -2116,7 +2116,7 @@ pub const PackageEntry = struct {
     hash: []const u8,
     available: bool,
     naked: bool,
-    allow_multiple_versions: bool,
+    unversioned: bool,
     build_root: []const u8,
     deps: AvailableDeps,
     run_build: ?*const fn (*Build) void,
@@ -2137,7 +2137,7 @@ pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
             .build_root = if (available) pkg.build_root else "",
             .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
             .naked = !@hasDecl(pkg, "deps"),
-            .allow_multiple_versions = if (@hasDecl(pkg, "allow_multiple_versions")) pkg.allow_multiple_versions else false,
+            .unversioned = if (@hasDecl(pkg, "unversioned")) pkg.unversioned else false,
             .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
                 fn run(sb: *Build) void {
                     sb.runPackageScript(pkg.build_zig);
@@ -2256,7 +2256,7 @@ fn dependencyResolved(
 
     const package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
-        .allow_multiple_versions = entry.allow_multiple_versions,
+        .unversioned = entry.unversioned,
         .options = package_options,
     };
 
@@ -2265,7 +2265,7 @@ fn dependencyResolved(
         const dep_pkg_hash = kv.key_ptr.pkg_hash;
         const dep_options = kv.key_ptr.options;
 
-        if (kv.key_ptr.allow_multiple_versions or entry.allow_multiple_versions) {
+        if (kv.key_ptr.unversioned or entry.unversioned) {
             // Opting out of version conflict resolution. Use the other map instead. We only
             // bother to populate the other map if this one doesn't contain it however.
             if (mem.eql(u8, dep_pkg_hash, entry.hash) and PackageOptions.eql(dep_options, package_options)) {
@@ -2317,7 +2317,7 @@ fn dependencyResolved(
 
     const updated_package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
-        .allow_multiple_versions = entry.allow_multiple_versions,
+        .unversioned = entry.unversioned,
         .options = &sub_builder.user_input_options,
     };
     if (dedup) {

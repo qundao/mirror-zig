@@ -112,7 +112,7 @@ Boolean. Default is `false`.
 When this is set to `true`, a package is declared to be lazily fetched. This
 makes the dependency only get fetched if it is actually used.
 
-#### `allow_multiple_versions`
+#### `unversioned`
 
 Boolean. Default is `false`.
 
