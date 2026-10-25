@@ -24,6 +24,7 @@ pub const Dependency = struct {
     node: Ast.Node.Index,
     name_tok: Ast.TokenIndex,
     lazy: bool,
+    override: bool,
     paths: std.array_hash_map.String(void),
     paths_tok: Ast.OptionalTokenIndex,
     version: std.SemanticVersion,
@@ -288,6 +289,7 @@ const Parse = struct {
             .node = node,
             .name_tok = undefined,
             .lazy = false,
+            .override = true,
             .paths = .empty,
             .paths_tok = .none,
             .version = undefined,
@@ -337,6 +339,11 @@ const Parse = struct {
                 dep.hash_node = field_init.toOptional();
             } else if (mem.eql(u8, field_name, "lazy")) {
                 dep.lazy = parseBool(p, field_init) catch |err| switch (err) {
+                    error.ParseFailure => continue,
+                    else => |e| return e,
+                };
+            } else if (mem.eql(u8, field_name, "override")) {
+                dep.override = parseBool(p, field_init) catch |err| switch (err) {
                     error.ParseFailure => continue,
                     else => |e| return e,
                 };
