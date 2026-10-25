@@ -1449,6 +1449,7 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
                 }
 
                 try validateFingerprints(gpa, &job_queue, &fork_set);
+                try validateVersionSelections(gpa, &job_queue, &fork_set, &fetch, graph.global_cache_root);
 
                 // Create the dependencies.zig file for configurer to
                 // obtain via `@import("@dependencies")`.
@@ -1893,6 +1894,107 @@ fn validateFingerprints(
     }
 }
 
+fn validateVersionSelections(
+    gpa: Allocator,
+    job_queue: *const Fetch.JobQueue,
+    fork_set: *const Fetch.JobQueue.ForkSet,
+    root_fetch: *const Fetch,
+    global_cache_root: Cache.Directory,
+) !void {
+    if (!root_fetch.have_manifest) return;
+
+    var validate_pkg_tree: ValidatePkgTree = .{
+        .gpa = gpa,
+        .global_cache_root = global_cache_root,
+        .job_queue = job_queue,
+        .already_traversed = .empty,
+        .fork_set = fork_set,
+        .any_errors = false,
+    };
+    defer validate_pkg_tree.already_traversed.deinit(gpa);
+
+    const names = root_fetch.manifest.dependencies.keys();
+    for (names, root_fetch.manifest.dependencies.values()) |name, *dep| {
+        switch (dep.location) {
+            .url => {
+                const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
+                const selected_hash = root_fetch.selectDep(dep);
+                try validate_pkg_tree.child(name, child_hash, selected_hash);
+            },
+            .path => {
+                const child_hash = Fetch.depDigest(root_fetch.package_root, global_cache_root, dep);
+                try validate_pkg_tree.child(name, child_hash, null);
+            },
+        }
+    }
+
+    if (validate_pkg_tree.any_errors) {
+        log.info("hint: use --print-tree to visualize all package versions and hashes", .{});
+        return error.FailedButCacheIntact;
+    }
+}
+
+const ValidatePkgTree = struct {
+    gpa: Allocator,
+    global_cache_root: Cache.Directory,
+    job_queue: *const Fetch.JobQueue,
+    /// To avoid validating sub-trees multiple times.
+    already_traversed: std.array_hash_map.Auto(Package.Hash, void),
+    fork_set: *const Fetch.JobQueue.ForkSet,
+    any_errors: bool,
+
+    fn child(
+        vpt: *ValidatePkgTree,
+        dep_name: []const u8,
+        opt_pkg_hash: ?Package.Hash,
+        opt_selected_hash: ?Package.Hash,
+    ) !void {
+        const pkg_hash = opt_pkg_hash orelse return;
+        const child_fetch = vpt.job_queue.table.get(opt_selected_hash orelse pkg_hash) orelse return;
+        switch (child_fetch.lazy_status) {
+            .eager, .available => {},
+            .unavailable => return,
+        }
+        if (!child_fetch.have_manifest) return;
+
+        const gop = try vpt.already_traversed.getOrPut(vpt.gpa, pkg_hash);
+        if (gop.found_existing) return;
+
+        // Forked packages are exempt.
+        const project_id: Package.ProjectId = .init(child_fetch.manifest.name, child_fetch.manifest.id);
+        if (!vpt.fork_set.containsAdapted(project_id, @as(Fetch.JobQueue.Fork.Adapter, .{}))) {
+            if (opt_selected_hash) |selected_hash| {
+                const requested_version = pkg_hash.version();
+                const selected_version = selected_hash.version();
+                switch (requested_version.order(selected_version)) {
+                    .lt, .eq => {},
+                    .gt => {
+                        log.err("{s}: selected package {s} fails version requirements of {s}", .{
+                            dep_name, selected_hash.toSlice(), pkg_hash.toSlice(),
+                        });
+                        vpt.any_errors = true;
+                    },
+                }
+            }
+        }
+
+        const names = child_fetch.manifest.dependencies.keys();
+        for (names, child_fetch.manifest.dependencies.values()) |name, *dep| {
+            switch (dep.location) {
+                .url => {
+                    const child_hash = if (dep.hash) |h| Package.Hash.fromSlice(h) else null;
+                    const selected_hash = child_fetch.selectDep(dep);
+                    try vpt.child(name, child_hash, selected_hash);
+                },
+                .path => {
+                    const child_hash = Fetch.depDigest(child_fetch.package_root, vpt.global_cache_root, dep);
+                    try vpt.child(name, child_hash, null);
+                },
+            }
+        }
+    }
+};
+
 fn printPkgTree(
     terminal: Io.Terminal,
     arena: Allocator,
@@ -1908,7 +2010,7 @@ fn printPkgTree(
         .arena = arena,
         .global_cache_root = global_cache_root,
         .job_queue = job_queue,
-        .already_printed = .empty,
+        .already_traversed = .empty,
         .fork_set = fork_set,
     };
 
@@ -1938,7 +2040,7 @@ const PrintPkgTree = struct {
     global_cache_root: Cache.Directory,
     job_queue: *const Fetch.JobQueue,
     /// To avoid printing sub-trees multiple times.
-    already_printed: std.array_hash_map.Auto(Package.Hash, void),
+    already_traversed: std.array_hash_map.Auto(Package.Hash, void),
     fork_set: *const Fetch.JobQueue.ForkSet,
 
     fn child(
@@ -1963,19 +2065,30 @@ const PrintPkgTree = struct {
         try w.print(" {s}", .{pkg_hash.toSlice()});
         try terminal.setColor(.reset);
 
-        if (opt_selected_hash) |selected_hash| {
-            if (!selected_hash.eql(&pkg_hash)) {
-                try w.print(" (selected: {s})\n", .{selected_hash.toSlice()});
-                return;
-            }
-        }
-
-        const child_fetch = ppt.job_queue.table.get(pkg_hash) orelse {
+        const child_fetch = ppt.job_queue.table.get(opt_selected_hash orelse pkg_hash) orelse {
             try terminal.setColor(.red);
             try w.writeAll(" (fetch failed)\n");
             try terminal.setColor(.reset);
             return;
         };
+
+        if (opt_selected_hash) |selected_hash| {
+            if (child_fetch.have_manifest) {
+                const requested_version = pkg_hash.version();
+                const selected_version = selected_hash.version();
+                switch (requested_version.order(selected_version)) {
+                    .eq => {},
+                    .lt => {
+                        try w.print(" (selected: {s})", .{selected_hash.toSlice()});
+                    },
+                    .gt => {
+                        try terminal.setColor(.red);
+                        try w.print(" (selected: {s})", .{selected_hash.toSlice()});
+                        try terminal.setColor(.reset);
+                    },
+                }
+            }
+        }
 
         switch (child_fetch.lazy_status) {
             .eager, .available => {},
@@ -2000,7 +2113,7 @@ const PrintPkgTree = struct {
 
         try w.writeByte('\n');
 
-        const gop = try ppt.already_printed.getOrPut(ppt.arena, pkg_hash);
+        const gop = try ppt.already_traversed.getOrPut(ppt.arena, pkg_hash);
         if (gop.found_existing) return;
 
         const names = child_fetch.manifest.dependencies.keys();

@@ -131,6 +131,13 @@ pub const Hash = struct {
         return result;
     }
 
+    pub fn version(hash: *const Hash) std.SemanticVersion {
+        const bytes = hash.toSlice();
+        const pos = std.mem.findScalar(u8, bytes, '-').? + 1;
+        const text = std.mem.sliceTo(bytes[pos..], '-');
+        return std.SemanticVersion.parse(text) catch unreachable;
+    }
+
     pub fn projectId(hash: *const Hash) ProjectId {
         const bytes = hash.toSlice();
         const name = std.mem.sliceTo(bytes, '-');
