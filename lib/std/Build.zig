@@ -88,7 +88,14 @@ pub const Graph = struct {
     unlazy_deps: std.array_hash_map.Auto(Configuration.String, void) = .empty,
     /// Information about the native target. Computed before build() is invoked.
     host: ResolvedTarget,
-    dependency_cache: PackageInstanceMap = .empty,
+
+    /// Maps project id to package instance. This is the one used for packages in the dependency
+    /// tree that will be deduplicated based on their project id.
+    deduplicated_dependencies: DeduplicatedPackageMap = .empty,
+    /// Maps full package hash and provided options to package instance. This one is used for
+    /// naked packages and project ids that have been marked with allow_multiple_versions = true
+    package_instances: PackageInstanceMap = .empty,
+
     allow_so_scripts: ?bool = null,
     time_report: bool = false,
     verbose: bool = false,
@@ -245,7 +252,7 @@ pub const SystemLibraryMode = enum {
     declared_enabled,
 };
 
-const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, void, struct {
+const DeduplicatedPackageMap = std.array_hash_map.Custom(PackageInstance, *Dependency, struct {
     pub fn hash(_: @This(), k: PackageInstance) u32 {
         const package_hash: Package.Hash = .fromSlice(k.pkg_hash);
         const project_id = package_hash.projectIdOptional() orelse
@@ -262,9 +269,36 @@ const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, void, stru
     }
 }, false);
 
+const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, *Dependency, struct {
+    pub fn hash(_: @This(), k: PackageInstance) u32 {
+        var hasher = std.hash.Wyhash.init(0);
+        hasher.update(k.pkg_hash);
+        for (k.options.keys(), k.options.values()) |option_key, option_value| {
+            hasher.update(option_key);
+            option_value.hash(&hasher);
+        }
+        return @truncate(hasher.final());
+    }
+
+    pub fn eql(_: @This(), a: PackageInstance, b: PackageInstance, _: usize) bool {
+        if (!mem.eql(u8, a.pkg_hash, b.pkg_hash)) return false;
+        if (a.options.count() != b.options.count()) return false;
+        for (
+            a.options.keys(),
+            b.options.keys(),
+            a.options.values(),
+            b.options.values(),
+        ) |a_key, b_key, a_val, b_val| {
+            if (!mem.eql(u8, a_key, b_key)) return false;
+            if (!a_val.eql(b_val)) return false;
+        }
+        return true;
+    }
+}, true);
+
 const PackageInstance = struct {
     pkg_hash: []const u8,
-    dependency: *Dependency,
+    allow_multiple_versions: bool,
     options: *const PackageOptions.Map,
 };
 
@@ -2082,6 +2116,7 @@ pub const PackageEntry = struct {
     hash: []const u8,
     available: bool,
     naked: bool,
+    allow_multiple_versions: bool,
     build_root: []const u8,
     deps: AvailableDeps,
     run_build: ?*const fn (*Build) void,
@@ -2102,6 +2137,7 @@ pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
             .build_root = if (available) pkg.build_root else "",
             .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
             .naked = !@hasDecl(pkg, "deps"),
+            .allow_multiple_versions = if (@hasDecl(pkg, "allow_multiple_versions")) pkg.allow_multiple_versions else false,
             .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
                 fn run(sb: *Build) void {
                     sb.runPackageScript(pkg.build_zig);
@@ -2218,27 +2254,46 @@ fn dependencyResolved(
 
     PackageOptions.sort(package_options);
 
-    if (graph.dependency_cache.getKeyPtr(.{
-        .dependency = undefined,
+    const package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
-        .options = undefined,
-    })) |dep| {
-        const dep_prefix = dep.dependency.builder.dep_prefix[0 .. dep.dependency.builder.dep_prefix.len - 1];
-        if (!mem.eql(u8, dep.pkg_hash, entry.hash)) {
-            log.err("package version conflict: {s} ({s})", .{ dep.pkg_hash, dep_prefix });
+        .allow_multiple_versions = entry.allow_multiple_versions,
+        .options = package_options,
+    };
+
+    const dedup = if (graph.deduplicated_dependencies.getEntry(package_instance)) |kv| dedup: {
+        const dep_dependency = kv.value_ptr.*;
+        const dep_pkg_hash = kv.key_ptr.pkg_hash;
+        const dep_options = kv.key_ptr.options;
+
+        if (kv.key_ptr.allow_multiple_versions or entry.allow_multiple_versions) {
+            // Opting out of version conflict resolution. Use the other map instead. We only
+            // bother to populate the other map if this one doesn't contain it however.
+            if (mem.eql(u8, dep_pkg_hash, entry.hash) and PackageOptions.eql(dep_options, package_options)) {
+                return dep_dependency;
+            }
+            if (graph.package_instances.get(package_instance)) |dep| {
+                return dep;
+            }
+            break :dedup false;
+        }
+
+        const dep_prefix = dep_dependency.builder.dep_prefix[0 .. dep_dependency.builder.dep_prefix.len - 1];
+        if (!mem.eql(u8, dep_pkg_hash, entry.hash)) {
+            log.err("package version conflict: {s} ({s})", .{ dep_pkg_hash, dep_prefix });
             log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
         }
-        if (!PackageOptions.eql(dep.options, package_options)) {
+        if (!PackageOptions.eql(dep_options, package_options)) {
             log.err("package {s} ({s} vs {s}{s}) reinstantiated with non-matching options", .{
-                dep.pkg_hash, dep_prefix, b.dep_prefix, name,
+                dep_pkg_hash, dep_prefix, b.dep_prefix, name,
             });
-            PackageOptions.logDifferences(dep.options, package_options);
+            PackageOptions.logDifferences(dep_options, package_options);
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
         }
-    }
+        return dep_dependency;
+    } else true;
 
     const dep_root: Cache.Path = .{
         .root_dir = .{
@@ -2260,11 +2315,16 @@ fn dependencyResolved(
     const dep = graph.create(Dependency);
     dep.* = .{ .builder = sub_builder };
 
-    graph.dependency_cache.put(arena, .{
-        .dependency = dep,
+    const updated_package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
+        .allow_multiple_versions = entry.allow_multiple_versions,
         .options = &sub_builder.user_input_options,
-    }, {}) catch @panic("OOM");
+    };
+    if (dedup) {
+        graph.deduplicated_dependencies.put(arena, updated_package_instance, dep) catch @panic("OOM");
+    } else {
+        graph.package_instances.put(arena, updated_package_instance, dep) catch @panic("OOM");
+    }
     return dep;
 }
 

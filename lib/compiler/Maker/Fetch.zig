@@ -63,6 +63,7 @@ parent_specified_paths_tok: std.zig.Ast.OptionalTokenIndex,
 parent_specified_version: std.SemanticVersion,
 parent_specified_version_tok: std.zig.Ast.OptionalTokenIndex,
 lazy_status: LazyStatus,
+allow_multiple_versions: bool,
 /// Same as `parent_packge_root` except it is unchanged when recursing into
 /// relative file paths (as opposed to URL).
 remote_package_root: Path,
@@ -314,6 +315,13 @@ pub const JobQueue = struct {
                 \\    pub const {f} = struct {{
                 \\
             , .{std.zig.fmtId(hash_slice)});
+
+            if (fetch.allow_multiple_versions) {
+                try w.writeAll(
+                    \\        pub const allow_multiple_versions = true;
+                    \\
+                );
+            }
 
             lazy: {
                 switch (fetch.lazy_status) {
@@ -1017,12 +1025,13 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         //   - Hash is added to the table based on the path alone before
         //     calling run(); no need to add it again.
         //
-        // If we add a dep as lazy and then later try to add the same dep as eager,
-        // eagerness takes precedence and the existing entry is updated and re-scheduled
-        // for fetching.
+        // If we add a dep as lazy and then later try to add the same dep as eager, eagerness must
+        // take precedence. To implement this, a new fetch is created for the eager one and the old
+        // lazy entry is also kept around, however, the table is updated with the new one. This
+        // means that certain properties must be inherited such as `allow_multiple_versions`.
 
         for (dep_names, deps, 0..) |dep_name, dep, dep_index| {
-            var promoted_existing_to_eager = false;
+            var allow_multiple_versions = dep.allow_multiple_versions;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
                 .url => |url| .{
@@ -1044,8 +1053,8 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                             const gop = f.job_queue.table.getOrPutAssumeCapacity(selected_hash);
                             if (gop.found_existing) {
                                 if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
-                                    gop.value_ptr.*.lazy_status = .eager;
-                                    promoted_existing_to_eager = true;
+                                    log.debug("promoting {s} to eager", .{selected_hash.toSlice()});
+                                    allow_multiple_versions = gop.value_ptr.*.allow_multiple_versions;
                                 } else {
                                     continue;
                                 }
@@ -1061,23 +1070,14 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                     const new_root = try f.package_root.resolvePosix(parent_arena, rel_path);
                     const pkg_hash = relativePathDigest(new_root, cache_root);
                     const gop = f.job_queue.table.getOrPutAssumeCapacity(pkg_hash);
-                    if (gop.found_existing) {
-                        if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
-                            gop.value_ptr.*.lazy_status = .eager;
-                            promoted_existing_to_eager = true;
-                        } else {
-                            continue;
-                        }
-                    }
+                    if (gop.found_existing) continue;
                     gop.value_ptr.* = new_fetch;
                     break :l .{ .relative_path = new_root };
                 },
             };
             prog_names[new_fetch_index] = dep_name;
             new_fetch_index += 1;
-            if (!promoted_existing_to_eager) {
-                f.job_queue.all_fetches.appendAssumeCapacity(new_fetch);
-            }
+            f.job_queue.all_fetches.appendAssumeCapacity(new_fetch);
             new_fetch.* = .{
                 .parent = f,
                 .selected_projects = .empty,
@@ -1095,6 +1095,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                     .needed => if (dep.lazy) .available else .eager,
                     .all => .eager,
                 },
+                .allow_multiple_versions = allow_multiple_versions,
                 .parent_package_root = f.package_root,
                 .remote_package_root = f.remote_package_root,
                 .parent_manifest_ast = &f.manifest_ast,
@@ -1137,7 +1138,7 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
                 .fetch = fetch,
             }))) |selected_dep_index| {
                 const selected_dep = &fetch.manifest.dependencies.values()[selected_dep_index];
-                if (!selected_dep.override) return null;
+                if (selected_dep.allow_multiple_versions) return null;
                 const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
                 return selected_package_hash;
             }
