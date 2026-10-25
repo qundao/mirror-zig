@@ -107,10 +107,19 @@ computed. This field and `url` are mutually exclusive.
 
 #### `lazy`
 
-Boolean.
+Boolean. Default is `false`.
 
 When this is set to `true`, a package is declared to be lazily fetched. This
 makes the dependency only get fetched if it is actually used.
+
+#### `override`
+
+Boolean. Default is `true`.
+
+* `true`: in the dependency subtree, this dependency is substituted any time a matching project id
+  (`name`, `fingerprint`) is encountered.
+* `false`: in the dependency subtree, packages with matching project id are used as-is, without
+  deduplication.
 
 ### `paths`
 

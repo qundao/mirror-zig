@@ -1137,6 +1137,7 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
                 .fetch = fetch,
             }))) |selected_dep_index| {
                 const selected_dep = &fetch.manifest.dependencies.values()[selected_dep_index];
+                if (!selected_dep.override) return null;
                 const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
                 return selected_package_hash;
             }
