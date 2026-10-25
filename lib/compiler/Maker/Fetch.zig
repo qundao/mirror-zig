@@ -63,7 +63,7 @@ parent_specified_paths_tok: std.zig.Ast.OptionalTokenIndex,
 parent_specified_version: std.SemanticVersion,
 parent_specified_version_tok: std.zig.Ast.OptionalTokenIndex,
 lazy_status: LazyStatus,
-allow_multiple_versions: bool,
+unversioned: bool,
 /// Same as `parent_packge_root` except it is unchanged when recursing into
 /// relative file paths (as opposed to URL).
 remote_package_root: Path,
@@ -316,9 +316,9 @@ pub const JobQueue = struct {
                 \\
             , .{std.zig.fmtId(hash_slice)});
 
-            if (fetch.allow_multiple_versions) {
+            if (fetch.unversioned) {
                 try w.writeAll(
-                    \\        pub const allow_multiple_versions = true;
+                    \\        pub const unversioned = true;
                     \\
                 );
             }
@@ -1028,10 +1028,10 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         // If we add a dep as lazy and then later try to add the same dep as eager, eagerness must
         // take precedence. To implement this, a new fetch is created for the eager one and the old
         // lazy entry is also kept around, however, the table is updated with the new one. This
-        // means that certain properties must be inherited such as `allow_multiple_versions`.
+        // means that certain properties must be inherited such as `unversioned`.
 
         for (dep_names, deps, 0..) |dep_name, dep, dep_index| {
-            var allow_multiple_versions = dep.allow_multiple_versions;
+            var unversioned = dep.unversioned;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
                 .url => |url| .{
@@ -1054,7 +1054,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                             if (gop.found_existing) {
                                 if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
                                     log.debug("promoting {s} to eager", .{selected_hash.toSlice()});
-                                    allow_multiple_versions = gop.value_ptr.*.allow_multiple_versions;
+                                    unversioned = gop.value_ptr.*.unversioned;
                                 } else {
                                     continue;
                                 }
@@ -1095,7 +1095,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                     .needed => if (dep.lazy) .available else .eager,
                     .all => .eager,
                 },
-                .allow_multiple_versions = allow_multiple_versions,
+                .unversioned = unversioned,
                 .parent_package_root = f.package_root,
                 .remote_package_root = f.remote_package_root,
                 .parent_manifest_ast = &f.manifest_ast,
@@ -1138,7 +1138,7 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
                 .fetch = fetch,
             }))) |selected_dep_index| {
                 const selected_dep = &fetch.manifest.dependencies.values()[selected_dep_index];
-                if (selected_dep.allow_multiple_versions) return null;
+                if (selected_dep.unversioned) return null;
                 const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
                 return selected_package_hash;
             }
