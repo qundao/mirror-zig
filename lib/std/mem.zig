@@ -1461,6 +1461,21 @@ pub fn findLastNone(comptime T: type, slice: []const T, values: []const T) ?usiz
     return null;
 }
 
+/// Return the index of the final occurrence of `value`.
+pub fn findLastScalar(comptime T: type, slice: []const T, value: T) ?usize {
+    var i: usize = slice.len;
+    while (i != 0) {
+        i -= 1;
+        if (slice[i] == value) return i;
+    }
+    return null;
+}
+
+test findLastScalar {
+    try testing.expectEqual(15, findLastScalar(u8, "catch me if you can", ' '));
+    try testing.expectEqual(null, findLastScalar(u8, "catch me if you can", 'x'));
+}
+
 pub const indexOfNonePos = findNonePos;
 
 /// Find the first item in `slice[start_index..]` which is not contained in `values`.
