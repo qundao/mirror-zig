@@ -208,6 +208,10 @@ pub const JobQueue = struct {
     /// Identifies paths that override all packages in the tree with matching
     /// project ids.
     fork_set: ForkSet = .empty,
+    /// Set of package paths into the dependency tree that are exempt from the rule that prevents
+    /// packages from being instantiated with multiple different sets of options. Package names in
+    /// the path are separated by '.'.
+    instances: InstanceSet = .empty,
 
     pub const Mode = enum {
         /// Non-lazy dependencies are always fetched.
@@ -219,6 +223,8 @@ pub const JobQueue = struct {
     pub const Table = std.array_hash_map.Auto(Package.Hash, *Fetch);
     pub const UnlazySet = std.array_hash_map.Auto(Package.Hash, void);
     pub const ForkSet = std.array_hash_map.Custom(Fork, void, Fork.Context, false);
+
+    pub const InstanceSet = std.array_hash_map.String(void);
 
     pub const Fork = struct {
         path: Path,
@@ -257,6 +263,7 @@ pub const JobQueue = struct {
         if (jq.all_fetches.items.len == 0) return;
         const gpa = jq.all_fetches.items[0].arena.child_allocator;
         jq.table.deinit(gpa);
+        jq.instances.deinit(gpa);
         // These must be deinitialized in reverse order because subsequent
         // `Fetch` instances are allocated in prior ones' arenas.
         // Sorry, I know it's a bit weird, but it slightly simplifies the
@@ -405,6 +412,10 @@ pub const JobQueue = struct {
                 .{ std.zig.fmtString(name), std.zig.fmtString(h.toSlice()) },
             );
         }
+        try w.writeAll("};\n\npub const instances: []const []const u8 = &.{\n");
+        for (jq.instances.keys()) |pkg_path| {
+            try w.print("    {q},\n", .{pkg_path});
+        }
         try w.writeAll("};\n");
     }
 
@@ -413,6 +424,7 @@ pub const JobQueue = struct {
             \\pub const Dep = struct { []const u8, []const u8 };
             \\pub const packages = struct {};
             \\pub const root_deps: []const Dep = &.{};
+            \\pub const instances: []const []const u8 = &.{};
             \\
         );
     }
@@ -916,7 +928,7 @@ pub fn computedPackageHash(f: *const Fetch) Package.Hash {
     if (f.parentDep()) |dep| {
         if (dep.version_tok != .none) {
             const v = std.mem.print(&version_buffer, "{f}", .{dep.version}) catch unreachable;
-            return .init(f.computed_hash.digest, f.name, v, no_fingerprint, saturated_size);
+            return .init(f.computed_hash.digest, f.depName(), v, no_fingerprint, saturated_size);
         }
     }
     return .init(f.computed_hash.digest, "N", "V", no_fingerprint, saturated_size);
@@ -1029,6 +1041,17 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
 
         for (dep_names, deps, 0..) |dep_name, dep, dep_index_usize| {
             const dep_index: u32 = @intCast(dep_index_usize);
+            const full_dep_name = if (f.name.len == 0)
+                dep_name
+            else
+                try std.mem.join(parent_arena, ".", &.{ f.name, dep_name });
+
+            try f.job_queue.instances.ensureUnusedCapacity(gpa, dep.instances.count());
+            for (dep.instances.keys()) |pkg_path| {
+                const full_pkg_path = try std.mem.join(parent_arena, ".", &.{ full_dep_name, pkg_path });
+                f.job_queue.instances.putAssumeCapacity(full_pkg_path, {});
+            }
+
             var unversioned = dep.unversioned;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
@@ -1073,7 +1096,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                     break :l .{ .relative_path = new_root };
                 },
             };
-            prog_names[new_fetch_index] = dep_name;
+            prog_names[new_fetch_index] = full_dep_name;
             new_fetch_index += 1;
             f.job_queue.all_fetches.appendAssumeCapacity(new_fetch);
             new_fetch.* = .{
@@ -1084,7 +1107,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                 .selected_projects = .empty,
                 .arena = std.heap.ArenaAllocator.init(gpa),
                 .location = location,
-                .name = dep_name,
+                .name = full_dep_name,
                 .lazy_status = switch (f.job_queue.mode) {
                     .needed => if (dep.lazy) .available else .eager,
                     .all => .eager,
@@ -2177,6 +2200,11 @@ fn locationTok(f: *const Fetch) std.zig.Ast.TokenIndex {
 fn hashTok(f: *const Fetch) ?std.zig.Ast.TokenIndex {
     const dep = parentDep(f) orelse return null;
     return dep.hash_tok.unwrap();
+}
+
+fn depName(f: *const Fetch) []const u8 {
+    const start = std.mem.findLastScalar(u8, f.name, '.') orelse 0;
+    return f.name[start..];
 }
 
 // Detects executable header: ELF or Macho-O magic header or shebang line.

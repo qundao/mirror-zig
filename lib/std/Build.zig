@@ -472,7 +472,7 @@ pub fn create(
 
 fn createChild(
     parent: *Build,
-    dep_name: []const u8,
+    dep_prefix: []const u8,
     root: Cache.Path,
     pkg_hash: []const u8,
     pkg_deps: AvailableDeps,
@@ -505,7 +505,7 @@ fn createChild(
         .default_step = undefined,
         .top_level_steps = .{},
         .debug_log_scopes = parent.debug_log_scopes,
-        .dep_prefix = parent.fmt("{s}{s}.", .{ parent.dep_prefix, dep_name }),
+        .dep_prefix = dep_prefix,
         .modules = .empty,
         .named_writefiles = .empty,
         .named_lazy_paths = .empty,
@@ -2123,15 +2123,15 @@ pub const PackageEntry = struct {
 };
 
 /// Build system implementation detail.
-pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
+pub const package_map: std.StaticStringMap(PackageEntry) = map: {
     const deps = @import("root").dependencies;
     const decl_names = @typeInfo(deps.packages).@"struct".decl_names;
     var kvs: [decl_names.len]struct { []const u8, PackageEntry } = undefined;
-    @setEvalBranchQuota(decl_names.len + 100);
-    for (decl_names, 0..) |decl_name, i| {
+    @setEvalBranchQuota(decl_names.len + 1);
+    for (decl_names, &kvs) |decl_name, *kv| {
         const pkg = @field(deps.packages, decl_name);
         const available = !@hasDecl(pkg, "available") or pkg.available;
-        kvs[i] = .{ decl_name, .{
+        kv.* = .{ decl_name, .{
             .hash = decl_name,
             .available = available,
             .build_root = if (available) pkg.build_root else "",
@@ -2146,7 +2146,16 @@ pub const package_map: std.StaticStringMap(PackageEntry) = blk: {
         } };
     }
     const frozen = kvs;
-    break :blk .initComptime(&frozen);
+    break :map .initComptime(&frozen);
+};
+
+pub const instance_map: std.StaticStringMap(void) = map: {
+    const instances = @import("root").dependencies.instances;
+    var kvs: [instances.len]struct { []const u8 } = undefined;
+    @setEvalBranchQuota(instances.len + 1);
+    for (&kvs, instances) |*kv, pkg_path| kv.* = .{pkg_path};
+    const frozen = kvs;
+    break :map .initComptime(&frozen);
 };
 
 /// Declares that the current configuration does in fact require a potentially
@@ -2259,13 +2268,21 @@ fn dependencyResolved(
         .unversioned = entry.unversioned,
         .options = package_options,
     };
+    const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{ b.dep_prefix, name }) catch @panic("OOM");
 
     const dedup = if (graph.deduplicated_dependencies.getEntry(package_instance)) |kv| dedup: {
         const dep_dependency = kv.value_ptr.*;
         const dep_pkg_hash = kv.key_ptr.pkg_hash;
         const dep_options = kv.key_ptr.options;
+        const old_dep_prefix = dep_dependency.builder.dep_prefix[0 .. dep_dependency.builder.dep_prefix.len - 1];
+        const new_dep_prefix = child_dep_prefix[0 .. child_dep_prefix.len - 1];
 
-        if (kv.key_ptr.unversioned or entry.unversioned) {
+        log.debug("checking {q} and {q}", .{ old_dep_prefix, new_dep_prefix });
+
+        if (kv.key_ptr.unversioned or entry.unversioned or
+            instance_map.has(old_dep_prefix) or
+            instance_map.has(new_dep_prefix))
+        {
             // Opting out of version conflict resolution. Use the other map instead. We only
             // bother to populate the other map if this one doesn't contain it however.
             if (mem.eql(u8, dep_pkg_hash, entry.hash) and PackageOptions.eql(dep_options, package_options)) {
@@ -2277,16 +2294,15 @@ fn dependencyResolved(
             break :dedup false;
         }
 
-        const dep_prefix = dep_dependency.builder.dep_prefix[0 .. dep_dependency.builder.dep_prefix.len - 1];
         if (!mem.eql(u8, dep_pkg_hash, entry.hash)) {
-            log.err("package version conflict: {s} ({s})", .{ dep_pkg_hash, dep_prefix });
-            log.err("package version conflict: {s} ({s}{s})", .{ entry.hash, b.dep_prefix, name });
+            log.err("package version conflict: {s} ({s})", .{ dep_pkg_hash, old_dep_prefix });
+            log.err("package version conflict: {s} ({s})", .{ entry.hash, new_dep_prefix });
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
             process.exit(1);
         }
         if (!PackageOptions.eql(dep_options, package_options)) {
-            log.err("package {s} ({s} vs {s}{s}) reinstantiated with non-matching options", .{
-                dep_pkg_hash, dep_prefix, b.dep_prefix, name,
+            log.err("package {s} ({s} vs {s}) reinstantiated with non-matching options", .{
+                dep_pkg_hash, old_dep_prefix, new_dep_prefix,
             });
             PackageOptions.logDifferences(dep_options, package_options);
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
@@ -2303,7 +2319,8 @@ fn dependencyResolved(
         },
     };
 
-    const sub_builder = b.createChild(name, dep_root, entry.hash, entry.deps, package_options.*) catch @panic("OOM");
+    const sub_builder = b.createChild(child_dep_prefix, dep_root, entry.hash, entry.deps, package_options.*) catch
+        @panic("OOM");
     if (entry.run_build) |run_build| {
         run_build(sub_builder);
 
