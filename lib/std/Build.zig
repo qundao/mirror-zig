@@ -314,7 +314,6 @@ const ProjectIdAdapter = struct {
 
 const PackageInstance = struct {
     pkg_hash: []const u8,
-    unversioned: bool,
     options: *const PackageOptions.Map,
 };
 
@@ -2132,7 +2131,6 @@ pub const PackageEntry = struct {
     hash: []const u8,
     available: bool,
     naked: bool,
-    unversioned: bool,
     build_root: []const u8,
     deps: AvailableDeps,
     run_build: ?*const fn (*Build) void,
@@ -2153,7 +2151,6 @@ pub const package_map: std.StaticStringMap(PackageEntry) = map: {
             .build_root = if (available) pkg.build_root else "",
             .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
             .naked = !@hasDecl(pkg, "deps"),
-            .unversioned = if (@hasDecl(pkg, "unversioned")) pkg.unversioned else false,
             .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
                 fn run(sb: *Build) void {
                     sb.runPackageScript(pkg.build_zig);
@@ -2281,7 +2278,6 @@ fn dependencyResolved(
 
     const package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
-        .unversioned = entry.unversioned,
         .options = package_options,
     };
     const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{ b.dep_prefix, name }) catch @panic("OOM");
@@ -2351,7 +2347,6 @@ fn dependencyResolved(
 
     const updated_package_instance: PackageInstance = .{
         .pkg_hash = entry.hash,
-        .unversioned = entry.unversioned,
         .options = &sub_builder.user_input_options,
     };
     graph.package_instances.put(arena, updated_package_instance, dep) catch @panic("OOM");

@@ -57,7 +57,6 @@ location: Location,
 parent: ?Parent,
 name: []const u8,
 lazy_status: LazyStatus,
-unversioned: bool,
 /// Same as `parent_packge_root` except it is unchanged when recursing into
 /// relative file paths (as opposed to URL).
 remote_package_root: Path,
@@ -319,13 +318,6 @@ pub const JobQueue = struct {
                 \\    pub const {f} = struct {{
                 \\
             , .{std.zig.fmtId(hash_slice)});
-
-            if (fetch.unversioned) {
-                try w.writeAll(
-                    \\        pub const unversioned = true;
-                    \\
-                );
-            }
 
             lazy: {
                 switch (fetch.lazy_status) {
@@ -1037,7 +1029,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         // If we add a dep as lazy and then later try to add the same dep as eager, eagerness must
         // take precedence. To implement this, a new fetch is created for the eager one and the old
         // lazy entry is also kept around, however, the table is updated with the new one. This
-        // means that certain properties must be inherited such as `unversioned`.
+        // means that certain properties must be inherited.
 
         for (dep_names, deps, 0..) |dep_name, dep, dep_index_usize| {
             const dep_index: u32 = @intCast(dep_index_usize);
@@ -1052,7 +1044,6 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                 f.job_queue.instances.putAssumeCapacity(full_pkg_path, {});
             }
 
-            var unversioned = dep.unversioned;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
                 .url => |url| .{
@@ -1075,7 +1066,9 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                             if (gop.found_existing) {
                                 if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
                                     log.debug("promoting {s} to eager", .{selected_hash.toSlice()});
-                                    unversioned = gop.value_ptr.*.unversioned;
+                                    // Certain properties might need to be inherited here. No known
+                                    // properties exist currently. There used to be "unversioned"
+                                    // here.
                                 } else {
                                     continue;
                                 }
@@ -1112,7 +1105,6 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                     .needed => if (dep.lazy) .available else .eager,
                     .all => .eager,
                 },
-                .unversioned = unversioned,
                 .parent_package_root = f.package_root,
                 .remote_package_root = f.remote_package_root,
                 .prog_node = f.prog_node,
@@ -1154,7 +1146,6 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
                 .fetch = fetch,
             }))) |selected_dep_index| {
                 const selected_dep = &fetch.manifest.dependencies.values()[selected_dep_index];
-                if (selected_dep.unversioned) return null;
                 const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
                 return selected_package_hash;
             }
