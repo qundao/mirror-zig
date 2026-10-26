@@ -54,21 +54,14 @@ const Manifest = @import("Manifest.zig");
 
 arena: std.heap.ArenaAllocator,
 location: Location,
-location_tok: std.zig.Ast.TokenIndex,
-hash_tok: std.zig.Ast.OptionalTokenIndex,
-name_tok: std.zig.Ast.TokenIndex,
+parent: ?Parent,
 name: []const u8,
-parent_specified_paths: std.array_hash_map.String(void),
-parent_specified_paths_tok: std.zig.Ast.OptionalTokenIndex,
-parent_specified_version: std.SemanticVersion,
-parent_specified_version_tok: std.zig.Ast.OptionalTokenIndex,
 lazy_status: LazyStatus,
 unversioned: bool,
 /// Same as `parent_packge_root` except it is unchanged when recursing into
 /// relative file paths (as opposed to URL).
 remote_package_root: Path,
 parent_package_root: Path,
-parent_manifest_ast: ?*const std.zig.Ast,
 prog_node: std.Progress.Node,
 job_queue: *JobQueue,
 /// If true, don't add an error for a missing hash. This flag is not passed
@@ -125,7 +118,6 @@ selected_projects: std.array_hash_map.Custom(u32, void, struct {
         return a_project_id.eql(&b_project_id);
     }
 }, false),
-parent: ?*const Fetch,
 
 // This field is used by the CLI only, untouched by this file.
 
@@ -135,6 +127,11 @@ parent: ?*const Fetch,
 /// This could be an opaque "userdata" field because this code does not observe
 /// this data in any way but let's have some type safety because we can.
 cli_module: ?*@import("../Maker.zig").CliModule,
+
+pub const Parent = struct {
+    fetch: *const Fetch,
+    dep_index: u32,
+};
 
 const SelectedProjectHashAdapter = struct {
     fetch: *const Fetch,
@@ -603,10 +600,10 @@ pub fn run(f: *Fetch) RunError!void {
     const remote = switch (f.location) {
         .relative_path => |pkg_root| {
             if (fs.path.isAbsolute(pkg_root.sub_path)) return f.fail(
-                f.location_tok,
+                f.locationTok(),
                 try eb.addString("expected path relative to build root; found absolute path"),
             );
-            if (f.hash_tok.unwrap()) |hash_tok| return f.fail(
+            if (f.hashTok()) |hash_tok| return f.fail(
                 hash_tok,
                 try eb.addString("path-based dependencies are not hashed"),
             );
@@ -619,7 +616,7 @@ pub fn run(f: *Fetch) RunError!void {
             assert(job_queue.local_storage != null);
             assert(pkg_root.root_dir.eql(f.remote_package_root.root_dir));
             if (!std.mem.startsWith(u8, pkg_root.sub_path, f.remote_package_root.sub_path)) return f.fail(
-                f.location_tok,
+                f.locationTok(),
                 try eb.printString("dependency path outside project: {qf}", .{pkg_root}),
             );
             f.package_root = pkg_root;
@@ -687,7 +684,7 @@ pub fn run(f: *Fetch) RunError!void {
                 error.FileNotFound => {
                     log.debug("FileNotFound: {f}", .{package_root});
                     if (job_queue.read_only and f.lazy_status == .eager) return f.fail(
-                        f.name_tok,
+                        f.parentDep().?.name_tok,
                         try eb.printString("package not found at {qf}", .{package_root}),
                     );
                 },
@@ -737,14 +734,14 @@ pub fn run(f: *Fetch) RunError!void {
     } else if (job_queue.read_only) {
         try eb.addRootErrorMessage(.{
             .msg = try eb.addString("dependency is missing hash field"),
-            .src_loc = try f.srcLoc(f.location_tok),
+            .src_loc = try f.srcLoc(f.locationTok()),
         });
         return error.FetchFailed;
     }
 
     // Fetch and unpack the remote into a temporary directory.
     const uri = std.Uri.parse(remote.url) catch |err| return f.fail(
-        f.location_tok,
+        f.locationTok(),
         try eb.printString("invalid URI: {t}", .{err}),
     );
     var resource: Resource = undefined;
@@ -818,7 +815,7 @@ fn runResource(
         try loadManifest(f, pkg_path);
 
         const filter: Filter = .{
-            .include_paths = if (f.have_manifest) f.manifest.paths else f.parent_specified_paths,
+            .include_paths = if (f.have_manifest) f.manifest.paths else if (f.parentDep()) |dep| dep.paths else .empty,
         };
 
         // Ignore errors that were excluded by manifest, such as failure to
@@ -876,7 +873,7 @@ fn runResource(
     // Validate the computed hash against the expected hash. If invalid, this job is done.
 
     if (remote_hash) |declared_hash| {
-        const hash_tok = f.hash_tok.unwrap().?;
+        const hash_tok = f.hashTok().?;
         if (!computed_package_hash.eql(&declared_hash)) {
             return f.fail(hash_tok, try eb.printString(
                 "hash mismatch: manifest declares {s} but the fetched package has {s}",
@@ -887,7 +884,7 @@ fn runResource(
         const notes_len = 1;
         try eb.addRootErrorMessage(.{
             .msg = try eb.addString("dependency is missing hash field"),
-            .src_loc = try f.srcLoc(f.location_tok),
+            .src_loc = try f.srcLoc(f.locationTok()),
             .notes_len = notes_len,
         });
         const notes_start = try eb.reserveNotes(notes_len);
@@ -915,12 +912,13 @@ pub fn computedPackageHash(f: *const Fetch) Package.Hash {
     // allow the user to opt in by only doing that if they specify a version.
     var version_buffer: [Manifest.max_version_len]u8 = undefined;
     const no_fingerprint = Package.ProjectId.no_fingerprint;
-    if (f.parent_specified_version_tok != .none) {
-        const v = std.mem.print(&version_buffer, "{f}", .{f.parent_specified_version}) catch unreachable;
-        return .init(f.computed_hash.digest, f.name, v, no_fingerprint, saturated_size);
-    } else {
-        return .init(f.computed_hash.digest, "N", "V", no_fingerprint, saturated_size);
+    if (f.parentDep()) |dep| {
+        if (dep.version_tok != .none) {
+            const v = std.mem.print(&version_buffer, "{f}", .{dep.version}) catch unreachable;
+            return .init(f.computed_hash.digest, f.name, v, no_fingerprint, saturated_size);
+        }
     }
+    return .init(f.computed_hash.digest, "N", "V", no_fingerprint, saturated_size);
 }
 
 /// `computeHash` gets a free check for the existence of `build.zig`, but when
@@ -971,16 +969,14 @@ fn loadManifest(f: *Fetch, pkg_root: Path) RunError!void {
     };
     f.have_manifest = true;
 
-    if (f.parent_specified_paths_tok.unwrap()) |tok| {
-        return f.fail(tok, try eb.printString("paths provided for package containing {s}", .{
-            Manifest.basename,
-        }));
-    }
+    if (f.parentDep()) |dep| {
+        if (dep.paths_tok.unwrap()) |tok| {
+            return f.fail(tok, try eb.printString("paths provided for package containing {s}", .{Manifest.basename}));
+        }
 
-    if (f.parent_specified_version_tok.unwrap()) |tok| {
-        return f.fail(tok, try eb.printString("version provided for package containing {s}", .{
-            Manifest.basename,
-        }));
+        if (dep.version_tok.unwrap()) |tok| {
+            return f.fail(tok, try eb.printString("version provided for package containing {s}", .{Manifest.basename}));
+        }
     }
 }
 
@@ -1030,7 +1026,8 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
         // lazy entry is also kept around, however, the table is updated with the new one. This
         // means that certain properties must be inherited such as `unversioned`.
 
-        for (dep_names, deps, 0..) |dep_name, dep, dep_index| {
+        for (dep_names, deps, 0..) |dep_name, dep, dep_index_usize| {
+            const dep_index: u32 = @intCast(dep_index_usize);
             var unversioned = dep.unversioned;
             const new_fetch = &new_fetches[new_fetch_index];
             const location: Location = switch (dep.location) {
@@ -1047,7 +1044,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                                     log.debug("package selection: {s} -> {s}", .{ h, selected.toSlice() });
                                     break :s selected;
                                 }
-                                f.selected_projects.putAssumeCapacityContext(@intCast(dep_index), {}, .{ .fetch = f });
+                                f.selected_projects.putAssumeCapacityContext(dep_index, {}, .{ .fetch = f });
                                 break :s pkg_hash;
                             };
                             const gop = f.job_queue.table.getOrPutAssumeCapacity(selected_hash);
@@ -1079,18 +1076,14 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
             new_fetch_index += 1;
             f.job_queue.all_fetches.appendAssumeCapacity(new_fetch);
             new_fetch.* = .{
-                .parent = f,
+                .parent = .{
+                    .fetch = f,
+                    .dep_index = dep_index,
+                },
                 .selected_projects = .empty,
                 .arena = std.heap.ArenaAllocator.init(gpa),
                 .location = location,
-                .location_tok = dep.location_tok,
-                .hash_tok = dep.hash_tok,
-                .name_tok = dep.name_tok,
                 .name = dep_name,
-                .parent_specified_paths = dep.paths,
-                .parent_specified_paths_tok = dep.paths_tok,
-                .parent_specified_version = dep.version,
-                .parent_specified_version_tok = dep.version_tok,
                 .lazy_status = switch (f.job_queue.mode) {
                     .needed => if (dep.lazy) .available else .eager,
                     .all => .eager,
@@ -1098,7 +1091,6 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                 .unversioned = unversioned,
                 .parent_package_root = f.package_root,
                 .remote_package_root = f.remote_package_root,
-                .parent_manifest_ast = &f.manifest_ast,
                 .prog_node = f.prog_node,
                 .job_queue = f.job_queue,
                 .omit_missing_hash_error = false,
@@ -1132,7 +1124,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
 
 fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.Hash {
     if (start.parent) |parent| {
-        var fetch = parent;
+        var fetch = parent.fetch;
         while (true) {
             if (fetch.selected_projects.getKeyAdapted(pkg_hash, @as(SelectedProjectHashAdapter, .{
                 .fetch = fetch,
@@ -1142,7 +1134,7 @@ fn selectPackageOptional(start: *const Fetch, pkg_hash: Package.Hash) ?Package.H
                 const selected_package_hash: Package.Hash = .fromSlice(selected_dep.hash.?);
                 return selected_package_hash;
             }
-            fetch = fetch.parent orelse break;
+            fetch = if (fetch.parent) |p| p.fetch else break;
         }
     }
     return null;
@@ -1174,7 +1166,7 @@ fn srcLoc(
     f: *Fetch,
     tok: std.zig.Ast.TokenIndex,
 ) Allocator.Error!ErrorBundle.SourceLocationIndex {
-    const ast = f.parent_manifest_ast orelse return .none;
+    const ast = if (f.parent) |p| p.fetch.manifest_ast else return .none;
     const eb = &f.error_bundle;
     const start_loc = ast.tokenLocation(0, tok);
     const src_path = try eb.printString("{f}" ++ fs.path.sep_str ++ Manifest.basename, .{f.parent_package_root});
@@ -1314,7 +1306,7 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
     if (ascii.eqlIgnoreCase(uri.scheme, "file")) {
         const path = try uri.path.toRawMaybeAlloc(arena);
         const file = f.parent_package_root.openFile(io, path, .{}) catch |err| {
-            return f.fail(f.location_tok, try eb.printString("unable to open {f}/{s}: {t}", .{
+            return f.fail(f.locationTok(), try eb.printString("unable to open {f}/{s}: {t}", .{
                 f.parent_package_root, path, err,
             }));
         };
@@ -1329,7 +1321,7 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
     {
         resource.* = .{ .http_request = .{
             .request = http_client.request(.GET, uri, .{}) catch |err|
-                return f.fail(f.location_tok, try eb.printString("server connection failed: {t}", .{err})),
+                return f.fail(f.locationTok(), try eb.printString("server connection failed: {t}", .{err})),
             .response = undefined,
             .transfer_buffer = reader_buffer,
             .decompress_buffer = &.{},
@@ -1339,20 +1331,20 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
         errdefer request.deinit();
 
         request.sendBodiless() catch |err|
-            return f.fail(f.location_tok, try eb.printString("HTTP request failed: {t}", .{err}));
+            return f.fail(f.locationTok(), try eb.printString("HTTP request failed: {t}", .{err}));
 
         var redirect_buffer: [8000]u8 = undefined;
         const response = &resource.http_request.response;
         response.* = request.receiveHead(&redirect_buffer) catch |err| switch (err) {
             error.ReadFailed => {
-                return f.fail(f.location_tok, try eb.printString("HTTP response read failure: {t}", .{
+                return f.fail(f.locationTok(), try eb.printString("HTTP response read failure: {t}", .{
                     request.connection.?.getReadError().?,
                 }));
             },
-            else => |e| return f.fail(f.location_tok, try eb.printString("invalid HTTP response: {t}", .{e})),
+            else => |e| return f.fail(f.locationTok(), try eb.printString("invalid HTTP response: {t}", .{e})),
         };
 
-        if (response.head.status != .ok) return f.fail(f.location_tok, try eb.printString(
+        if (response.head.status != .ok) return f.fail(f.locationTok(), try eb.printString(
             "bad HTTP response code: '{d} {s}'",
             .{ response.head.status, response.head.status.phrase() orelse "" },
         ));
@@ -1368,7 +1360,7 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
         transport_uri.scheme = uri.scheme["git+".len..];
         var session = git.Session.init(arena, http_client, transport_uri, reader_buffer) catch |err| {
             return f.fail(
-                f.location_tok,
+                f.locationTok(),
                 try eb.printString("unable to discover remote git server capabilities: {t}", .{err}),
             );
         };
@@ -1386,10 +1378,10 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
                 .ref_prefixes = &.{ want_ref, want_ref_head, want_ref_tag },
                 .include_peeled = true,
                 .buffer = reader_buffer,
-            }) catch |err| return f.fail(f.location_tok, try eb.printString("unable to list refs: {t}", .{err}));
+            }) catch |err| return f.fail(f.locationTok(), try eb.printString("unable to list refs: {t}", .{err}));
             defer ref_iterator.deinit();
             while (ref_iterator.next() catch |err| {
-                return f.fail(f.location_tok, try eb.printString(
+                return f.fail(f.locationTok(), try eb.printString(
                     "unable to iterate refs: {s}",
                     .{@errorName(err)},
                 ));
@@ -1401,7 +1393,7 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
                     break :want_oid ref.peeled orelse ref.oid;
                 }
             }
-            return f.fail(f.location_tok, try eb.printString("ref not found: {s}", .{want_ref}));
+            return f.fail(f.locationTok(), try eb.printString("ref not found: {s}", .{want_ref}));
         };
         if (f.use_latest_commit) {
             f.latest_commit = want_oid;
@@ -1409,7 +1401,7 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
             const notes_len = 1;
             try eb.addRootErrorMessage(.{
                 .msg = try eb.addString("url field is missing an explicit ref"),
-                .src_loc = try f.srcLoc(f.location_tok),
+                .src_loc = try f.srcLoc(f.locationTok()),
                 .notes_len = notes_len,
             });
             const notes_start = try eb.reserveNotes(notes_len);
@@ -1431,14 +1423,14 @@ fn initResource(f: *Fetch, uri: std.Uri, resource: *Resource, reader_buffer: []u
         } };
         const fetch_stream = &resource.git.fetch_stream;
         session.fetch(fetch_stream, &.{want_oid_hex}, reader_buffer) catch |err| {
-            return f.fail(f.location_tok, try eb.printString("unable to create fetch stream: {t}", .{err}));
+            return f.fail(f.locationTok(), try eb.printString("unable to create fetch stream: {t}", .{err}));
         };
         errdefer fetch_stream.deinit(fetch_stream);
 
         return;
     }
 
-    return f.fail(f.location_tok, try eb.printString("unsupported URL scheme: {s}", .{uri.scheme}));
+    return f.fail(f.locationTok(), try eb.printString("unsupported URL scheme: {s}", .{uri.scheme}));
 }
 
 fn unpackResource(
@@ -1450,14 +1442,14 @@ fn unpackResource(
     const eb = &f.error_bundle;
     const file_type = switch (resource.*) {
         .file => FileType.fromPath(uri_path) orelse
-            return f.fail(f.location_tok, try eb.printString("unknown file type: '{s}'", .{uri_path})),
+            return f.fail(f.locationTok(), try eb.printString("unknown file type: '{s}'", .{uri_path})),
 
         .http_request => |*http_request| ft: {
             const head = &http_request.response.head;
 
             // Content-Type takes first precedence.
             const content_type = head.content_type orelse
-                return f.fail(f.location_tok, try eb.addString("missing 'Content-Type' header"));
+                return f.fail(f.locationTok(), try eb.addString("missing 'Content-Type' header"));
 
             // Extract the MIME type, ignoring charset and boundary directives
             const mime_type_end = std.mem.find(u8, content_type, ";") orelse content_type.len;
@@ -1491,7 +1483,7 @@ fn unpackResource(
             if (!ascii.eqlIgnoreCase(mime_type, "application/octet-stream") and
                 !ascii.eqlIgnoreCase(mime_type, "application/x-compressed"))
             {
-                return f.fail(f.location_tok, try eb.printString(
+                return f.fail(f.locationTok(), try eb.printString(
                     "unrecognized 'Content-Type' header: '{s}'",
                     .{content_type},
                 ));
@@ -1500,7 +1492,7 @@ fn unpackResource(
             // Next, the filename from 'content-disposition: attachment' takes precedence.
             if (head.content_disposition) |cd_header| {
                 break :ft FileType.fromContentDisposition(cd_header) orelse {
-                    return f.fail(f.location_tok, try eb.printString(
+                    return f.fail(f.locationTok(), try eb.printString(
                         "unsupported Content-Disposition header value: '{s}' for Content-Type=application/octet-stream",
                         .{cd_header},
                     ));
@@ -1509,7 +1501,7 @@ fn unpackResource(
 
             // Finally, the path from the URI is used.
             break :ft FileType.fromPath(uri_path) orelse {
-                return f.fail(f.location_tok, try eb.printString("unknown file type: '{s}'", .{uri_path}));
+                return f.fail(f.locationTok(), try eb.printString("unknown file type: '{s}'", .{uri_path}));
             };
         },
 
@@ -1517,7 +1509,7 @@ fn unpackResource(
 
         .dir => |dir| {
             f.recursiveDirectoryCopy(dir, tmp_directory.handle) catch |err| {
-                return f.fail(f.location_tok, try eb.printString("unable to copy directory '{s}': {t}", .{
+                return f.fail(f.locationTok(), try eb.printString("unable to copy directory '{s}': {t}", .{
                     uri_path, err,
                 }));
             };
@@ -1537,7 +1529,7 @@ fn unpackResource(
         .@"tar.xz" => {
             const gpa = f.arena.child_allocator;
             var decompress = std.compress.xz.Decompress.init(resource.reader(), gpa, &.{}) catch |err|
-                return f.fail(f.location_tok, try eb.printString("unable to decompress tarball: {t}", .{err}));
+                return f.fail(f.locationTok(), try eb.printString("unable to decompress tarball: {t}", .{err}));
             defer decompress.deinit();
             return try unpackTarball(f, tmp_directory.handle, &decompress.reader);
         },
@@ -1552,10 +1544,10 @@ fn unpackResource(
         },
         .git_pack => return unpackGitPack(f, tmp_directory.handle, &resource.git) catch |err| switch (err) {
             error.FetchFailed, error.OutOfMemory => |e| return e,
-            else => |e| return f.fail(f.location_tok, try eb.printString("unable to unpack git files: {t}", .{e})),
+            else => |e| return f.fail(f.locationTok(), try eb.printString("unable to unpack git files: {t}", .{e})),
         },
         .zip => return unzip(f, tmp_directory.handle, resource.reader()) catch |err| switch (err) {
-            error.ReadFailed => return f.fail(f.location_tok, try eb.printString(
+            error.ReadFailed => return f.fail(f.locationTok(), try eb.printString(
                 "failed reading resource: {t}",
                 .{err},
             )),
@@ -1577,7 +1569,7 @@ fn unpackTarball(f: *Fetch, out_dir: Io.Dir, reader: *Io.Reader) RunError!Unpack
         .mode_mode = .ignore,
         .exclude_empty_directories = true,
     }) catch |err| return f.fail(
-        f.location_tok,
+        f.locationTok(),
         try eb.printString("unable to unpack tarball to temporary directory: {t}", .{err}),
     );
 
@@ -1635,7 +1627,7 @@ fn unzip(
                     // error.PathAlreadyExists is considered a failure here because
                     // it implies that the prefix is not a directory.
                     else => |e| return f.fail(
-                        f.location_tok,
+                        f.locationTok(),
                         try eb.printString("failed to create temporary directory: {t}", .{e}),
                     ),
                 };
@@ -1643,7 +1635,7 @@ fn unzip(
             },
             error.Canceled => |e| return e,
             else => |e| return f.fail(
-                f.location_tok,
+                f.locationTok(),
                 try eb.printString("failed to create temporary zip file: {t}", .{e}),
             ),
         };
@@ -1656,12 +1648,12 @@ fn unzip(
         _ = reader.streamRemaining(&zip_file_writer.interface) catch |err| switch (err) {
             error.ReadFailed => |e| return e,
             error.WriteFailed => return f.fail(
-                f.location_tok,
+                f.locationTok(),
                 try eb.printString("failed writing temporary zip file: {t}", .{err}),
             ),
         };
         zip_file_writer.interface.flush() catch |err| return f.fail(
-            f.location_tok,
+            f.locationTok(),
             try eb.printString("failed writing temporary zip file: {t}", .{err}),
         );
         break :b zip_file_writer.moveToReader();
@@ -1671,14 +1663,14 @@ fn unzip(
     // no need to deinit since we are using an arena allocator
 
     zip_file_reader.seekTo(0) catch |err|
-        return f.fail(f.location_tok, try eb.printString("failed to seek temporary zip file: {t}", .{err}));
+        return f.fail(f.locationTok(), try eb.printString("failed to seek temporary zip file: {t}", .{err}));
     std.zip.extract(out_dir, &zip_file_reader, .{
         .allow_backslashes = true,
         .diagnostics = &diagnostics,
-    }) catch |err| return f.fail(f.location_tok, try eb.printString("zip extract failed: {t}", .{err}));
+    }) catch |err| return f.fail(f.locationTok(), try eb.printString("zip extract failed: {t}", .{err}));
 
     cache_root.handle.deleteFile(io, &zip_path) catch |err|
-        return f.fail(f.location_tok, try eb.printString("delete temporary zip failed: {t}", .{err}));
+        return f.fail(f.locationTok(), try eb.printString("delete temporary zip failed: {t}", .{err}));
 
     return .{ .root_dir = diagnostics.root_dir };
 }
@@ -1889,7 +1881,7 @@ fn computeHash(f: *Fetch, pkg_path: Path, filter: Filter) RunError!ComputedHash 
                 .directory => unreachable,
                 .file => .file,
                 .sym_link => .link,
-                else => return f.fail(f.location_tok, try eb.printString(
+                else => return f.fail(f.locationTok(), try eb.printString(
                     "package contains {q} which has illegal file type {t}",
                     .{ entry.path, entry.kind },
                 )),
@@ -2171,6 +2163,21 @@ pub fn selectDep(fetch: *const Fetch, dep: *const Manifest.Dependency) ?Package.
     return depDigest(fetch.package_root, fetch.job_queue.global_cache, dep);
 }
 
+fn parentDep(f: *const Fetch) ?*const Manifest.Dependency {
+    const p = f.parent orelse return null;
+    assert(p.fetch.have_manifest);
+    return &p.fetch.manifest.dependencies.values()[p.dep_index];
+}
+
+fn locationTok(f: *const Fetch) std.zig.Ast.TokenIndex {
+    return parentDep(f).?.location_tok;
+}
+
+fn hashTok(f: *const Fetch) ?std.zig.Ast.TokenIndex {
+    const dep = parentDep(f) orelse return null;
+    return dep.hash_tok.unwrap();
+}
+
 // Detects executable header: ELF or Macho-O magic header or shebang line.
 const FileHeader = struct {
     header: [4]u8 = undefined,
@@ -2320,7 +2327,7 @@ const UnpackResult = struct {
         const eb = &f.error_bundle;
         try eb.addRootErrorMessage(.{
             .msg = try eb.addString(self.root_error_message),
-            .src_loc = try f.srcLoc(f.location_tok),
+            .src_loc = try f.srcLoc(f.locationTok()),
             .notes_len = unfiltered_errors,
         });
         var note_i: u32 = try eb.reserveNotes(unfiltered_errors);
@@ -2377,8 +2384,6 @@ const UnpackResult = struct {
 
         // init Fetch
         var fetch: Fetch = undefined;
-        fetch.parent_manifest_ast = null;
-        fetch.location_tok = 0;
         try fetch.error_bundle.init(gpa);
         defer fetch.error_bundle.deinit();
 
