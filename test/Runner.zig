@@ -2,6 +2,7 @@ const assert = std.debug.assert;
 const builtin = @import("builtin");
 const std = @import("std");
 const Runner = @This();
+const Pattern = @import("Runner/match.zig").Pattern;
 
 /// These are passed as `<target>-<cache_mode>-<backend>-<linker>-<pic>` strings.
 ///
@@ -753,30 +754,35 @@ pub const SourceReader = struct {
         try s.eb_wip.addRootErrorMessage(.{ .msg = msg, .src_loc = try s.srcLoc(src_loc) });
         return error.AlreadyReported;
     }
+    fn srcInfo(s: *SourceReader, src_loc: [*]const u8) struct {
+        line: u32,
+        column: u32,
+        source_line: []const u8,
+    } {
+        const buffer = s.interface.buffer[0..s.interface.end];
+        const pos = src_loc - buffer.ptr;
+        const end = std.mem.findScalarPos(u8, buffer, pos, '\n') orelse buffer.len;
+        const start =
+            if (std.mem.findScalarLast(u8, buffer[0..end], '\n')) |newline| newline + 1 else 0;
+        return .{
+            .line = @intCast(s.line + std.mem.countScalar(u8, buffer[0..start], '\n')),
+            .column = @intCast(pos - start),
+            .source_line = buffer[start..end],
+        };
+    }
     fn srcLoc(
         s: *SourceReader,
         src_loc: []const u8,
     ) std.mem.Allocator.Error!std.zig.ErrorBundle.SourceLocationIndex {
-        const line: u32, const column: u32, const source_line = src_loc: {
-            const buffer = s.interface.buffer[0..s.interface.end];
-            const pos = src_loc.ptr - buffer.ptr;
-            const end = std.mem.findScalarPos(u8, buffer, pos, '\n') orelse buffer.len;
-            const start =
-                if (std.mem.findScalarLast(u8, buffer[0..end], '\n')) |newline| newline + 1 else 0;
-            break :src_loc .{
-                @intCast(s.line + std.mem.countScalar(u8, buffer[0..start], '\n')),
-                @intCast(pos - start),
-                buffer[start..end],
-            };
-        };
+        const src_info = s.srcInfo(src_loc.ptr);
         return s.eb_wip.addSourceLocation(.{
             .src_path = s.src_path,
-            .line = line,
-            .column = column,
-            .span_start = column,
-            .span_main = column,
-            .span_end = @intCast(column + src_loc.len),
-            .source_line = try s.eb_wip.addString(source_line),
+            .line = src_info.line,
+            .column = src_info.column,
+            .span_start = src_info.column,
+            .span_main = src_info.column,
+            .span_end = @intCast(src_info.column + src_loc.len),
+            .source_line = try s.eb_wip.addString(src_info.source_line),
         });
     }
 };
@@ -831,8 +837,8 @@ const Update = struct {
     manifest_sr: SourceReader,
     compiler: ?Compiler,
     src_dir: std.Io.Dir,
-    eb_wip: *std.zig.ErrorBundle.Wip,
     cmd_src_loc: std.zig.ErrorBundle.SourceLocationIndex,
+    contents_src_loc: struct { path: std.zig.ErrorBundle.String, line: u32 = 0, column: u32 = 0 },
     src_loc: ?std.zig.ErrorBundle.SourceLocationIndex,
     num: usize,
     name: []const u8,
@@ -840,54 +846,190 @@ const Update = struct {
     mtime: std.Io.Timestamp,
     allow_skip: bool,
 
-    fn checkMatches(
+    fn checkPattern(
         update: *const Update,
+        runner: *Runner,
         what: []const u8,
         expected: []const u8,
         actual: []const u8,
+        patterns: []const struct {
+            []const u8,
+            union(enum) { anon, name: *const Pattern.Compiled },
+            []const Pattern,
+        },
     ) FailError!void {
-        var expected_match_it = std.mem.splitSequence(u8, expected, "#...");
-        var pos: usize = 0;
-        while (expected_match_it.next()) |expected_match| : (pos += expected_match.len) {
-            var context_len: usize = expected_match.len;
-            pos = while (true) : (context_len -= 1) break std.mem.findPos(
-                u8,
-                actual,
-                pos,
-                expected_match[0..context_len],
-            ) orelse continue;
-            const actual_match = actual[pos..];
-            std.testing.expectEqualStrings(
-                expected_match,
-                actual_match[0..@min(actual_match.len, expected_match.len)],
-            ) catch |err| switch (err) {
-                error.TestExpectedEqual => {
-                    std.testing.failPrint("\n=============== full output: =========\n", .{});
-                    std.testing.failPrintWithVisibleNewlines(actual_match);
-                    std.testing.failPrint("\n======================================\n", .{});
-                    return update.fail("{s} did not match expected", .{what});
-                },
-            };
+        const gpa = runner.gpa;
+        var captures: std.array_hash_map.String(usize) = .empty;
+        defer captures.deinit(gpa);
+        var expected_pattern: Pattern.Compiled = .empty;
+        defer expected_pattern.deinit(gpa);
+        var literal_start: usize = 0;
+        var literal_end: usize = 0;
+        while (expected.len - literal_end > 0) {
+            for (patterns) |pattern| {
+                if (!std.mem.startsWith(u8, expected[literal_end..], pattern[0])) continue;
+                const name_start = literal_end + pattern[0].len;
+                const maybe_name, const name_end = name: switch (pattern[1]) {
+                    .anon => .{ null, name_start },
+                    .name => |name_pattern| {
+                        switch (try name_pattern.matches(gpa, expected[name_start..], .start)) {
+                            .expected => return update.failContents(.{
+                                .context = expected,
+                                .start = @intCast(literal_end),
+                                .main = @intCast(name_start),
+                            }, "{s} {q} pattern missing name", .{ what, pattern[0] }),
+                            .matched => |name_len| break :name .{
+                                expected[name_start..][0..name_len],
+                                name_start + name_len,
+                            },
+                        }
+                    },
+                };
+                if (literal_end - literal_start > 0) try expected_pattern.append(gpa, &.{
+                    .{ .literal = expected[literal_start..literal_end] },
+                });
+                literal_end = name_end;
+                if (maybe_name) |name| {
+                    const capture_gop = try captures.getOrPut(gpa, name);
+                    if (capture_gop.found_existing) try expected_pattern.append(gpa, &.{
+                        .{ .reference = capture_gop.value_ptr.* },
+                    }) else {
+                        capture_gop.value_ptr.* = expected_pattern.captures.items.len;
+                        try expected_pattern.append(gpa, &.{
+                            .{ .capture = pattern[2] },
+                        });
+                    }
+                } else try expected_pattern.append(gpa, pattern[2]);
+                literal_start = literal_end;
+                break;
+            } else literal_end += 1;
+        }
+        if (literal_end - literal_start > 0) try expected_pattern.append(gpa, &.{
+            .{ .literal = expected[literal_start..literal_end] },
+        });
+        switch (try expected_pattern.matches(gpa, actual, .all)) {
+            .matched => {},
+            .expected => |failure| {
+                std.testing.failPrint("\n====== expected this output: =========\n", .{});
+                std.testing.failPrintWithVisibleNewlines(expected);
+                std.testing.failPrint("\n======== instead found this: =========\n", .{});
+                std.testing.failPrintWithVisibleNewlines(actual);
+                std.testing.failPrint("\n======================================\n", .{});
+
+                const diff_line_number = 1 + std.mem.countScalar(u8, actual[0..failure.index], '\n');
+                std.testing.failPrint("First difference occurs on line {d}:\n", .{diff_line_number});
+
+                std.testing.failPrint("expected:\n", .{});
+                switch (failure.what) {
+                    .any, .none => |acs, tag| if (acs.eql(.empty)) std.testing.failPrint("/{s}/\n", .{
+                        switch (tag) {
+                            else => unreachable,
+                            .any => "(?!)",
+                            .none => ".",
+                        },
+                    }) else {
+                        std.testing.failPrint("/[{s}", .{switch (tag) {
+                            else => unreachable,
+                            .any => "",
+                            .none => "^",
+                        }});
+                        var remaining = acs;
+                        while (remaining.findFirstSet()) |start| {
+                            remaining.toggleAll();
+                            remaining.setRangeValue(.{ .start = 0, .end = start }, false);
+                            const end = remaining.findFirstSet() orelse
+                                Pattern.AsciiCharSet.bit_length;
+                            remaining.toggleAll();
+                            remaining.setRangeValue(.{ .start = 0, .end = end }, false);
+                            switch (end - start) {
+                                0 => unreachable,
+                                1 => std.testing.failPrint("{c}", .{@as(u8, @intCast(start))}),
+                                else => std.testing.failPrint("{c}-{c}", .{
+                                    @as(u8, @intCast(start)),
+                                    @as(u8, @intCast(end - 1)),
+                                }),
+                            }
+                        }
+                        std.testing.failPrint("]/\n", .{});
+                    },
+                    .literal => |literal| std.testing.failPrint("{q}\n", .{literal}),
+                }
+
+                std.testing.failPrint("found:\n", .{});
+                std.testing.failPrintIndicatorLine(actual, failure.index);
+
+                return update.fail("{s} did not match expected", .{what});
+            },
         }
     }
 
     fn fail(update: *const Update, comptime fmt: []const u8, args: anytype) FailError {
-        return update.failString(try update.eb_wip.printString(fmt, args));
+        return update.failString(try update.manifest_sr.eb_wip.printString(fmt, args));
     }
     fn failString(update: *const Update, msg: std.zig.ErrorBundle.String) FailError {
         var notes_buffer: [1]std.zig.ErrorBundle.ErrorMessage = undefined;
         var notes_len: u32 = 0;
         if (update.src_loc) |src_loc| {
             notes_buffer[notes_len] = .{
-                .msg = try update.eb_wip.addString("after this update"),
+                .msg = try update.manifest_sr.eb_wip.addString("after this update"),
                 .src_loc = src_loc,
             };
             notes_len += 1;
         }
-        try update.eb_wip.addRootErrorMessageWithNotes(.{
+        try update.manifest_sr.eb_wip.addRootErrorMessageWithNotes(.{
             .msg = msg,
             .src_loc = update.cmd_src_loc,
-            .notes_len = 1,
+            .notes_len = notes_len,
+        }, notes_buffer[0..notes_len]);
+        return error.AlreadyReported;
+    }
+    const ContentsSrc = struct {
+        line: u32 = 0,
+        context: []const u8,
+        start: ?u32 = null,
+        main: u32,
+        end: ?u32 = null,
+    };
+    fn failContents(
+        update: *const Update,
+        src: ContentsSrc,
+        comptime fmt: []const u8,
+        args: anytype,
+    ) FailError {
+        return update.failContentsString(src, try update.manifest_sr.eb_wip.printString(fmt, args));
+    }
+    fn failContentsString(
+        update: *const Update,
+        src: ContentsSrc,
+        msg: std.zig.ErrorBundle.String,
+    ) FailError {
+        var notes_buffer: [2]std.zig.ErrorBundle.ErrorMessage = undefined;
+        var notes_len: u32 = 0;
+        notes_buffer[notes_len] = .{
+            .msg = try update.manifest_sr.eb_wip.addString("during this command"),
+            .src_loc = update.cmd_src_loc,
+        };
+        notes_len += 1;
+        if (update.src_loc) |src_loc| {
+            notes_buffer[notes_len] = .{
+                .msg = try update.manifest_sr.eb_wip.addString("after this update"),
+                .src_loc = src_loc,
+            };
+            notes_len += 1;
+        }
+        const src_loc = std.zig.findLineColumn(src.context, src.main);
+        try update.manifest_sr.eb_wip.addRootErrorMessageWithNotes(.{
+            .msg = msg,
+            .src_loc = try update.manifest_sr.eb_wip.addSourceLocation(.{
+                .src_path = update.contents_src_loc.path,
+                .line = @intCast(update.contents_src_loc.line + src.line + src_loc.line),
+                .column = @intCast(update.contents_src_loc.column + src_loc.column),
+                .span_start = src.start orelse src.main,
+                .span_main = src.main,
+                .span_end = src.end orelse src.main,
+                .source_line = try update.manifest_sr.eb_wip.addString(src_loc.source_line),
+            }),
+            .notes_len = notes_len,
         }, notes_buffer[0..notes_len]);
         return error.AlreadyReported;
     }
@@ -928,8 +1070,8 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
             error.Canceled => |e| return e,
             else => |e| return runner.fail("unable to create {q}: {t}", .{ target_query, e }),
         },
-        .eb_wip = &runner.eb_wip,
         .cmd_src_loc = undefined,
+        .contents_src_loc = undefined,
         .src_loc = null,
         .num = 0,
         .name = undefined,
@@ -952,6 +1094,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
     var skip_delimiter = false;
     while (update.manifest_sr.interface.takeSentinel('\n')) |line| {
         var line_it = std.mem.tokenizeScalar(u8, line, ' ');
+
         const cmd_src_loc = line_it.next() orelse continue;
         if (skip_delimiter) {
             assert(std.mem.eql(u8, cmd_src_loc, "#}"));
@@ -965,11 +1108,13 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
         const cmd = std.meta.stringToEnum(Command, std.mem.cutPrefix(u8, cmd_src_loc, "#") orelse
             return update.manifest_sr.fail(cmd_src_loc, "expected command", .{})) orelse
             return update.manifest_sr.fail(cmd_src_loc, "unknown command", .{});
+
         const arg = switch (cmd) {
             .todo, .exe, .lib, .obj, .update => null,
             .skip, .write, .delete, .check => line_it.next() orelse
                 return update.manifest_sr.fail(line_it.rest()[0..0], "missing argument", .{}),
         };
+
         var contents_file: ?std.Io.File = null;
         defer if (contents_file) |file| file.close(runner.io);
         var contents_buffer: [512]u8 = undefined;
@@ -978,84 +1123,102 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
             dr: DelimitedReader,
             fr: std.Io.File.Reader,
         } = undefined;
-        const contents_r: *std.Io.Reader = contents_r: switch (cmd) {
-            .skip, .delete => {
-                const unexpected = line_it.rest();
-                if (unexpected.len > 0) return update.manifest_sr.fail(
-                    unexpected,
-                    "unexpected argument {q}",
-                    .{unexpected},
+        const contents_r: *std.Io.Reader = contents_r: {
+            const contents = line_it.rest();
+            if (contents.len == 0) {
+                const src_info = update.manifest_sr.srcInfo(
+                    update.manifest_sr.interface.buffered().ptr,
                 );
+                update.contents_src_loc = .{
+                    .path = update.manifest_sr.src_path,
+                    .line = src_info.line,
+                    .column = src_info.column,
+                };
                 contents_impl = .{ .r = .ending_instance };
                 break :contents_r &contents_impl.r;
-            },
-            else => {
-                const contents = line_it.rest();
-                if (contents.len == 0) {
-                    contents_impl = .{ .r = .ending_instance };
-                    break :contents_r &contents_impl.r;
-                }
-                contents: switch (contents[0]) {
-                    else => return update.manifest_sr.fail(contents, "invalid contents syntax", .{}),
-                    '"' => {
-                        if (contents.len < 2 or contents[contents.len - 1] != '"') continue :contents 0;
-                        var contents_fw: std.Io.Writer = .fixed(&contents_buffer);
-                        switch (std.zig.string_literal.parseWrite(
-                            &contents_fw,
+            }
+            switch (cmd) {
+                .skip, .delete => return update.manifest_sr.fail(
+                    contents,
+                    "unexpected argument {q}",
+                    .{contents},
+                ),
+                else => {},
+            }
+            contents: switch (contents[0]) {
+                else => return update.manifest_sr.fail(contents, "invalid contents syntax", .{}),
+                '"' => {
+                    if (contents.len < 2 or contents[contents.len - 1] != '"') continue :contents 0;
+                    update.contents_src_loc = .{
+                        .path = try update.manifest_sr.eb_wip.addString("<string>"),
+                    };
+                    var contents_fw: std.Io.Writer = .fixed(&contents_buffer);
+                    switch (std.zig.string_literal.parseWrite(
+                        &contents_fw,
+                        contents,
+                    ) catch |err| switch (err) {
+                        error.WriteFailed => return update.manifest_sr.fail(
                             contents,
-                        ) catch |err| switch (err) {
-                            error.WriteFailed => return update.manifest_sr.fail(
-                                contents,
-                                "contents string too long, use inline or file syntax instead",
-                                .{},
-                            ),
-                        }) {
-                            .success => {
-                                contents_impl = .{ .r = .fixed(contents_fw.buffered()) };
-                                break :contents_r &contents_impl.r;
-                            },
-                            .failure => |err| return update.manifest_sr.fail(
-                                contents[err.offset()..][0..0],
-                                "{f}",
-                                .{err.fmt(contents)},
-                            ),
-                        }
-                    },
-                    '{' => {
-                        if (contents.len != 1) continue :contents 0;
-
-                        contents_impl = .{
-                            .dr = .init(&update.manifest_sr.interface, "#}", &contents_buffer),
-                        };
-                        skip_delimiter = true;
-                        break :contents_r &contents_impl.dr.interface;
-                    },
-                    '@' => {
-                        const args_test = runner.args.@"test" orelse return update.manifest_sr.fail(
-                            contents,
-                            "contents file requires directory test",
+                            "contents string too long, use inline or file syntax instead",
                             .{},
-                        );
-                        const contents_path = contents[1..];
-                        try runner.discoverInput(args_test.input_dir, contents_path);
+                        ),
+                    }) {
+                        .success => {
+                            contents_impl = .{ .r = .fixed(contents_fw.buffered()) };
+                            break :contents_r &contents_impl.r;
+                        },
+                        .failure => |err| return update.manifest_sr.fail(
+                            contents[err.offset()..][0..0],
+                            "{f}",
+                            .{err.fmt(contents)},
+                        ),
+                    }
+                },
+                '{' => {
+                    if (contents.len != 1) continue :contents 0;
 
-                        contents_file = args_test.dir.openFile(
-                            runner.io,
+                    const src_info = update.manifest_sr.srcInfo(
+                        update.manifest_sr.interface.buffered().ptr,
+                    );
+                    update.contents_src_loc = .{
+                        .path = update.manifest_sr.src_path,
+                        .line = src_info.line,
+                        .column = src_info.column,
+                    };
+                    contents_impl = .{
+                        .dr = .init(&update.manifest_sr.interface, "#}", &contents_buffer),
+                    };
+                    skip_delimiter = true;
+                    break :contents_r &contents_impl.dr.interface;
+                },
+                '@' => {
+                    const args_test = runner.args.@"test" orelse return update.manifest_sr.fail(
+                        contents,
+                        "contents file requires directory test",
+                        .{},
+                    );
+                    const contents_path = contents[1..];
+                    try runner.discoverInput(args_test.input_dir, contents_path);
+
+                    update.contents_src_loc = .{
+                        .path = try update.manifest_sr.eb_wip.addString(contents_path),
+                    };
+                    contents_file = args_test.dir.openFile(
+                        runner.io,
+                        contents_path,
+                        .{},
+                    ) catch |err| switch (err) {
+                        error.Canceled => |e| return e,
+                        else => |e| return update.manifest_sr.fail(
                             contents_path,
-                            .{},
-                        ) catch |err| switch (err) {
-                            error.Canceled => |e| return e,
-                            else => |e| return update.manifest_sr.fail(
-                                contents_path,
-                                "unable to open contents file: {t}",
-                                .{e},
-                            ),
-                        };
-                        contents_impl = .{ .fr = contents_file.?.reader(runner.io, &contents_buffer) };
-                        break :contents_r &contents_impl.fr.interface;
-                    },
-                }
-            },
+                            "unable to open contents file: {t}",
+                            .{e},
+                        ),
+                    };
+                    contents_impl = .{ .fr = contents_file.?.reader(runner.io, &contents_buffer) };
+                    break :contents_r &contents_impl.fr.interface;
+                },
+            }
         };
 
         runner.handleCommand(&update, cmd_src_loc, cmd, arg, contents_r) catch |err| switch (err) {
@@ -1674,11 +1837,9 @@ const Compiler = struct {
         const arena = runner.arena.allocator();
         const io = runner.io;
         const target = &comp.target.resolved;
-        const emit_name = switch (check) {
-            else => comp.emit_name orelse
-                return update.fail("unable to perform {t} check without emitted file", .{check}),
-            .errors => return, // expect no emitted file
-        };
+        if (check == .errors) return; // expect no emitted file
+        const emit_name = comp.emit_name orelse
+            return update.fail("unable to perform {t} check without emitted file", .{check});
         const config = &comp.config.?;
         var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
 
@@ -1719,7 +1880,7 @@ const Compiler = struct {
         try environ_map.putAll(&runner.environ_map);
         var script_buffer: [512]u8 = undefined;
         const script_path, const script_file, var script_fw = script: switch (check) {
-            .errors => unreachable,
+            .errors => return,
             .stdout, .exit => .{ undefined, null, undefined },
             .llvm => {
                 var emit_fr = emit_file.reader(io, &.{});
@@ -1736,11 +1897,273 @@ const Compiler = struct {
                     error.Canceled => |e| return e,
                     else => |e| return runner.fail("unable to read {q}: {t}", .{ emit_path, e }),
                 };
-                return update.checkMatches("LLVM IR", expected, actual);
+                const whitespace: Pattern = .{ .@"*" = &.{
+                    .{ .any = &.{
+                        .{ '\t', '\n' },
+                        .{ '\r', '\r' },
+                        .{ ' ', ' ' },
+                    } },
+                } };
+                const newline: []const Pattern = &.{
+                    .{ .@"?" = &.{
+                        .{ .literal = "\r" },
+                    } },
+                    .{ .literal = "\n" },
+                };
+                const int: []const Pattern = &.{
+                    .{ .@"?" = &.{
+                        .{ .@"?" = &.{
+                            .{ .literal = "-" },
+                        } },
+                        .{ .literal = "0x" },
+                    } },
+                    .{ .@"+" = &.{
+                        .{ .any = &.{
+                            .{ '0', '9' },
+                        } },
+                    } },
+                };
+                const attr: []const Pattern = &.{
+                    .{ .@"+" = &.{
+                        .{ .@"|" = &.{ &.{
+                            .{ .none = &.{
+                                .{ '\t', '\n' },
+                                .{ '\r', '\r' },
+                                .{ ' ', ' ' },
+                                .{ '"', '"' },
+                                .{ '(', ')' },
+                                .{ ',', ',' },
+                            } },
+                        }, &.{
+                            .{ .literal = "\"" },
+                            .{ .@"*" = &.{
+                                .{ .none = &.{
+                                    .{ '\t', '\n' },
+                                    .{ '\r', '\r' },
+                                    .{ '"', '"' },
+                                } },
+                            } },
+                            .{ .literal = "\"" },
+                        } } },
+                    } },
+                    .{ .@"?" = &.{
+                        .{ .literal = "(" },
+                        .{ .@"*" = &.{
+                            .{ .none = &.{
+                                .{ '\t', '\n' },
+                                .{ '\r', '\r' },
+                                .{ '(', ')' },
+                            } },
+                        } },
+                        .{ .literal = ")" },
+                    } },
+                };
+                var id: Pattern.Compiled = try .init(gpa, &.{
+                    .{ .any = &.{
+                        .{ '$', '$' },
+                        .{ '-', '.' },
+                        .{ 'A', 'Z' },
+                        .{ '_', '_' },
+                        .{ 'a', 'z' },
+                    } },
+                    .{ .@"*" = &.{
+                        .{ .any = &.{
+                            .{ '$', '$' },
+                            .{ '-', '.' },
+                            .{ '0', '9' },
+                            .{ 'A', 'Z' },
+                            .{ '_', '_' },
+                            .{ 'a', 'z' },
+                        } },
+                    } },
+                });
+                defer id.deinit(gpa);
+                return update.checkPattern(runner, "LLVM IR", expected, actual, &.{
+                    // Match newline.
+                    .{ "\n", .anon, newline },
+                    // Match zero or more metadata attachments at the end of a line.
+                    .{ ", !...\n", .anon, &[_]Pattern{
+                        .{ .@"*" = &[_]Pattern{
+                            .{ .literal = "," },
+                            whitespace,
+                            .{ .literal = "!" },
+                            whitespace,
+                            .{ .any = &.{
+                                .{ 'A', 'Z' },
+                                .{ 'a', 'z' },
+                                .{ '-', '-' },
+                                .{ '$', '$' },
+                                .{ '.', '.' },
+                                .{ '_', '_' },
+                                .{ '\\', '\\' },
+                            } },
+                            .{ .@"*" = &.{
+                                .{ .any = &.{
+                                    .{ 'A', 'Z' },
+                                    .{ 'a', 'z' },
+                                    .{ '0', '9' },
+                                    .{ '-', '-' },
+                                    .{ '$', '$' },
+                                    .{ '.', '.' },
+                                    .{ '_', '_' },
+                                    .{ '\\', '\\' },
+                                } },
+                            } },
+                            whitespace,
+                            .{ .literal = "!" },
+                            whitespace,
+                        } ++ int },
+                    } ++ newline },
+                    // Match zero or more lines.
+                    .{ "...\n", .anon, &.{
+                        .{ .@"*" = &[_]Pattern{
+                            .{ .@"*" = &.{
+                                .{ .none = &.{
+                                    .{ '\n', '\n' },
+                                    .{ '\r', '\r' },
+                                } },
+                            } },
+                        } ++ newline },
+                    } },
+                    // Match zero or more space separated attributes.
+                    .{ "... ", .anon, &.{
+                        .{ .@"*" = attr ++ &[_]Pattern{
+                            .{ .literal = " " },
+                        } },
+                    } },
+                    // Match zero or more comma separated parameters or operands.
+                    .{ "..., ", .anon, &.{
+                        .{ .@"*" = attr ++ &[_]Pattern{
+                            .{ .@"*" = &[_]Pattern{
+                                .{ .literal = " " },
+                            } ++ attr },
+                            .{ .literal = ", " },
+                        } },
+                    } },
+                    // Match zero or more lines not starting with '}'.
+                    .{ "  ...\n", .anon, &.{
+                        .{ .@"*" = &[_]Pattern{
+                            .{ .@"?" = &.{
+                                .{ .none = &.{
+                                    .{ '\n', '\n' },
+                                    .{ '\r', '\r' },
+                                    .{ '}', '}' },
+                                } },
+                                .{ .@"*" = &.{
+                                    .{ .none = &.{
+                                        .{ '\n', '\n' },
+                                        .{ '\r', '\r' },
+                                    } },
+                                } },
+                            } },
+                        } ++ newline },
+                    } },
+                    // Matches a constant integer.
+                    .{ "?", .anon, int },
+                    // Matches an integer type corresponding to Zig `isize/usize`.
+                    .{ "isize", .anon, &.{
+                        .{ .literal = "i" },
+                        .{ .@"|" = &.{ &.{
+                            .{ .literal = "16" },
+                        }, &.{
+                            .{ .literal = "24" },
+                        }, &.{
+                            .{ .literal = "32" },
+                        }, &.{
+                            .{ .literal = "64" },
+                        } } },
+                    } },
+
+                    // Matches literal `!`, escapes named syntax.
+                    .{ "!!", .anon, &.{
+                        .{ .literal = "!" },
+                    } },
+                    .{ "!", .{ .name = &id }, &[_]Pattern{
+                        .{ .literal = "!" },
+                        whitespace,
+                    } ++ int },
+                    // Matches literal `#`, escapes named syntax.
+                    .{ "##", .anon, &.{
+                        .{ .literal = "#" },
+                    } },
+                    //    AttrGrpID ::= #[0-9]+
+                    .{ "#", .{ .name = &id }, &.{
+                        .{ .literal = "#" },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                            } },
+                        } },
+                    } },
+                    // Matches literal `#`, escapes named syntax.
+                    .{ "%%", .anon, &.{
+                        .{ .literal = "%" },
+                    } },
+                    //   LocalVar   ::= %\"[^\"]*\"
+                    //   LocalVar   ::= %[-a-zA-Z$._][-a-zA-Z$._0-9]*
+                    //   LocalVarID ::= %[0-9]+
+                    .{ "%", .{ .name = &id }, &.{
+                        .{ .literal = "%" },
+                        .{ .@"|" = &.{ &.{
+                            .{ .literal = "\"" },
+                            .{ .@"*" = &.{
+                                .{ .none = &.{
+                                    .{ '\"', '\"' },
+                                } },
+                            } },
+                            .{ .literal = "\"" },
+                        }, &.{
+                            .{ .any = &.{
+                                .{ '-', '-' },
+                                .{ 'a', 'z' },
+                                .{ 'A', 'Z' },
+                                .{ '$', '$' },
+                                .{ '.', '.' },
+                                .{ '_', '_' },
+                            } },
+                            .{ .@"*" = &.{
+                                .{ .any = &.{
+                                    .{ '-', '-' },
+                                    .{ 'a', 'z' },
+                                    .{ 'A', 'Z' },
+                                    .{ '$', '$' },
+                                    .{ '.', '.' },
+                                    .{ '_', '_' },
+                                    .{ '0', '9' },
+                                } },
+                            } },
+                        }, &.{
+                            .{ .@"+" = &.{
+                                .{ .any = &.{
+                                    .{ '0', '9' },
+                                } },
+                            } },
+                        } } },
+                    } },
+                    // Matches literal `^`, escapes named syntax.
+                    .{ "^^", .anon, &.{
+                        .{ .literal = "^" },
+                    } },
+                    //    SummaryID ::= ^[0-9]+
+                    .{ "^", .{ .name = &id }, &.{
+                        .{ .literal = "^" },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                            } },
+                        } },
+                    } },
+                });
             },
             .gdb => {
                 const script_path = tmp_dir_path ++ std.Io.Dir.path.sep_str ++ "gdb";
-                argv.appendSliceAssumeCapacity(&.{ "gdb", "--batch", "--command", script_path, "--args" });
+                argv.appendSliceAssumeCapacity(&.{
+                    "gdb",
+                    "--batch",
+                    "--command",
+                    script_path,
+                    "--args",
+                });
                 const script_file =
                     update.src_dir.createFile(io, script_path, .{}) catch |err| switch (err) {
                         error.Canceled => |e| return e,
@@ -1999,7 +2422,13 @@ const Compiler = struct {
                         "debugging {q} failed with code {d}",
                         .{ emit_path, code },
                     );
-                    try update.checkMatches("stdout", expected, result.stdout);
+                    try update.checkPattern(runner, "stdout", expected, result.stdout, &.{
+                        .{ "#...", .anon, &.{
+                            .{ .@"*" = &.{
+                                .{ .none = &.{} },
+                            } },
+                        } },
+                    });
                 },
             },
             .signal => |sig| return update.fail(
