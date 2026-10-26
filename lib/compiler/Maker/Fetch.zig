@@ -290,7 +290,7 @@ pub const JobQueue = struct {
             return createEmptyDependenciesSource(w);
         }
 
-        try w.writeAll("pub const packages = struct {\n");
+        try w.writeAll("pub const Dep = struct { []const u8, []const u8 };\npub const packages = struct {\n");
 
         // Ensure the generated .zig file is deterministic.
         jq.table.sortUnstable(@as(struct {
@@ -366,7 +366,7 @@ pub const JobQueue = struct {
             if (fetch.have_manifest) {
                 const manifest = &fetch.manifest;
                 try w.writeAll(
-                    \\        pub const deps: []const struct { []const u8, []const u8 } = &.{
+                    \\        pub const deps: []const Dep = &.{
                     \\
                 );
                 for (manifest.dependencies.keys(), manifest.dependencies.values()) |name, *dep| {
@@ -390,7 +390,7 @@ pub const JobQueue = struct {
         try w.writeAll(
             \\};
             \\
-            \\pub const root_deps: []const struct { []const u8, []const u8 } = &.{
+            \\pub const root_deps: []const Dep = &.{
             \\
         );
 
@@ -410,8 +410,9 @@ pub const JobQueue = struct {
 
     pub fn createEmptyDependenciesSource(w: *Io.Writer) Io.Writer.Error!void {
         try w.writeAll(
+            \\pub const Dep = struct { []const u8, []const u8 };
             \\pub const packages = struct {};
-            \\pub const root_deps: []const struct { []const u8, []const u8 } = &.{};
+            \\pub const root_deps: []const Dep = &.{};
             \\
         );
     }
