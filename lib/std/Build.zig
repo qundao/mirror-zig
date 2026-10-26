@@ -90,10 +90,11 @@ pub const Graph = struct {
     host: ResolvedTarget,
 
     /// Maps project id to package instance. This is the one used for packages in the dependency
-    /// tree that will be deduplicated based on their project id.
+    /// tree that will be deduplicated based on their project id. It uses the void,void
+    /// array_hash_map trick, indexing into `package_instances`.
     deduplicated_dependencies: DeduplicatedPackageMap = .empty,
-    /// Maps full package hash and provided options to package instance. This one is used for
-    /// naked packages and project ids that have been marked with unversioned = true
+    /// Maps full package hash and provided options to package instance. All package instances go
+    /// into this map regardless of whether they are deduplicated.
     package_instances: PackageInstanceMap = .empty,
 
     allow_so_scripts: ?bool = null,
@@ -252,22 +253,24 @@ pub const SystemLibraryMode = enum {
     declared_enabled,
 };
 
-const DeduplicatedPackageMap = std.array_hash_map.Custom(PackageInstance, *Dependency, struct {
-    pub fn hash(_: @This(), k: PackageInstance) u32 {
-        const package_hash: Package.Hash = .fromSlice(k.pkg_hash);
-        const project_id = package_hash.projectIdOptional() orelse
-            return @truncate(std.hash.Wyhash.hash(0, k.pkg_hash));
+const DeduplicatedPackageMap = std.array_hash_map.Custom(void, void, std.array_hash_map.AutoContext(void), false);
+
+/// Maps null ProjectId to undefined
+const ProjectIdAdapter = struct {
+    instances: *const PackageInstanceMap,
+
+    pub fn hash(_: @This(), opt_project_id: ?Package.ProjectId) u32 {
+        const project_id = opt_project_id orelse return 0;
         return @truncate(project_id.hash());
     }
 
-    pub fn eql(_: @This(), a: PackageInstance, b: PackageInstance, _: usize) bool {
-        const a_package_hash: Package.Hash = .fromSlice(a.pkg_hash);
-        const b_package_hash: Package.Hash = .fromSlice(b.pkg_hash);
-        const a_project_id = a_package_hash.projectIdOptional() orelse return mem.eql(u8, a.pkg_hash, b.pkg_hash);
+    pub fn eql(this: @This(), a_opt_project_id: ?Package.ProjectId, _: void, b_index: usize) bool {
+        const a_project_id = a_opt_project_id orelse return true;
+        const b_package_hash: Package.Hash = .fromSlice(this.instances.keys()[b_index].pkg_hash);
         const b_project_id = b_package_hash.projectIdOptional() orelse return false;
         return a_project_id.eql(&b_project_id);
     }
-}, false);
+};
 
 const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, *Dependency, struct {
     pub fn hash(_: @This(), k: PackageInstance) u32 {
@@ -2269,47 +2272,47 @@ fn dependencyResolved(
         .options = package_options,
     };
     const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{ b.dep_prefix, name }) catch @panic("OOM");
+    const new_package_path = child_dep_prefix[0 .. child_dep_prefix.len - 1];
+    const project_id_adapter: ProjectIdAdapter = .{ .instances = &graph.package_instances };
 
-    const dedup = if (graph.deduplicated_dependencies.getEntry(package_instance)) |kv| dedup: {
-        const dep_dependency = kv.value_ptr.*;
-        const dep_pkg_hash = kv.key_ptr.pkg_hash;
-        const dep_options = kv.key_ptr.options;
-        const old_dep_prefix = dep_dependency.builder.dep_prefix[0 .. dep_dependency.builder.dep_prefix.len - 1];
-        const new_dep_prefix = child_dep_prefix[0 .. child_dep_prefix.len - 1];
+    // Check `deduplicated_dependencies` first because it is cheaper. However if the package is
+    // exempt from version management, then we skip straight to using `package_instances`.
+    const versioned: ?Package.ProjectId = versioned: {
+        if (!instance_map.has(new_package_path)) {
+            const package_hash: Package.Hash = .fromSlice(package_instance.pkg_hash);
+            if (package_hash.projectIdOptional()) |project_id| {
+                if (graph.deduplicated_dependencies.getIndexAdapted(project_id, project_id_adapter)) |i| {
+                    const found_package_instance = &graph.package_instances.keys()[i];
+                    const found_dependency = graph.package_instances.values()[i];
+                    const found_options = found_package_instance.options;
+                    const found_pkg_hash = found_package_instance.pkg_hash;
+                    const found_dep_prefix = found_dependency.builder.dep_prefix;
+                    const old_package_path = found_dep_prefix[0 .. found_dep_prefix.len - 1];
 
-        log.debug("checking {q} and {q}", .{ old_dep_prefix, new_dep_prefix });
-
-        if (kv.key_ptr.unversioned or entry.unversioned or
-            instance_map.has(old_dep_prefix) or
-            instance_map.has(new_dep_prefix))
-        {
-            // Opting out of version conflict resolution. Use the other map instead. We only
-            // bother to populate the other map if this one doesn't contain it however.
-            if (mem.eql(u8, dep_pkg_hash, entry.hash) and PackageOptions.eql(dep_options, package_options)) {
-                return dep_dependency;
+                    if (!mem.eql(u8, found_pkg_hash, entry.hash)) {
+                        log.err("package version conflict: {s} ({s})", .{ found_pkg_hash, old_package_path });
+                        log.err("package version conflict: {s} ({s})", .{ entry.hash, new_package_path });
+                        std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                        process.exit(1);
+                    }
+                    if (!PackageOptions.eql(found_options, package_options)) {
+                        log.err("package {s} ({s} vs {s}) reinstantiated with non-matching options", .{
+                            found_pkg_hash, old_package_path, new_package_path,
+                        });
+                        PackageOptions.logDifferences(found_options, package_options);
+                        std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                        process.exit(1);
+                    }
+                    return found_dependency;
+                }
+                break :versioned project_id;
             }
-            if (graph.package_instances.get(package_instance)) |dep| {
-                return dep;
-            }
-            break :dedup false;
         }
-
-        if (!mem.eql(u8, dep_pkg_hash, entry.hash)) {
-            log.err("package version conflict: {s} ({s})", .{ dep_pkg_hash, old_dep_prefix });
-            log.err("package version conflict: {s} ({s})", .{ entry.hash, new_dep_prefix });
-            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-            process.exit(1);
+        if (graph.package_instances.get(package_instance)) |found_dependency| {
+            return found_dependency;
         }
-        if (!PackageOptions.eql(dep_options, package_options)) {
-            log.err("package {s} ({s} vs {s}) reinstantiated with non-matching options", .{
-                dep_pkg_hash, old_dep_prefix, new_dep_prefix,
-            });
-            PackageOptions.logDifferences(dep_options, package_options);
-            std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-            process.exit(1);
-        }
-        return dep_dependency;
-    } else true;
+        break :versioned null;
+    };
 
     const dep_root: Cache.Path = .{
         .root_dir = .{
@@ -2337,11 +2340,11 @@ fn dependencyResolved(
         .unversioned = entry.unversioned,
         .options = &sub_builder.user_input_options,
     };
-    if (dedup) {
-        graph.deduplicated_dependencies.put(arena, updated_package_instance, dep) catch @panic("OOM");
-    } else {
-        graph.package_instances.put(arena, updated_package_instance, dep) catch @panic("OOM");
-    }
+    graph.package_instances.put(arena, updated_package_instance, dep) catch @panic("OOM");
+    // If `versioned` is `null` here, a dummy entry is inserted into `deduplicated_dependencies`,
+    // and we avoid querying this dummy entry above.
+    _ = graph.deduplicated_dependencies.getOrPutAdapted(arena, versioned, project_id_adapter) catch @panic("OOM");
+    assert(graph.package_instances.count() == graph.deduplicated_dependencies.count());
     return dep;
 }
 
