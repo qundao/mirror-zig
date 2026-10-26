@@ -2956,9 +2956,10 @@ pub fn serializeConfigurationExiting(b: *Build) noreturn {
 test {
     _ = Cache;
     _ = Configuration;
-    _ = Module;
-    _ = Step;
     _ = Configuration;
-    _ = &findProgram;
+    _ = Module;
+    _ = Package;
+    _ = Step;
     _ = abi;
+    _ = &findProgram;
 }

@@ -34,11 +34,12 @@ pub const Fingerprint = packed struct(u64) {
 /// The hash is not only to prevent collisions but must resist attacks where the adversary fully
 /// controls the contents being hashed. Thus, it contains a full SHA-256 digest.
 ///
-/// There's also a third way this structure is used. When using path rather than hash, a unique hash
-/// is still needed, so one is computed based on the path.
+/// There's also a third way this structure is used. When using path rather than hash, a unique,
+/// valid `Hash` is still needed, so one is computed based on the path. In this case, name and
+/// version are each set to "P", size encodes another 4 bytes of the digest, and project id is set
+/// to `0xffff`.
 pub const Hash = struct {
-    /// Maximum size of a package hash. Unused bytes at the end are
-    /// filled with zeroes.
+    /// Maximum size of a package hash. Unused bytes at the end are filled with zeroes.
     ///
     /// Assumed to be already validated.
     bytes: [max_len]u8,
@@ -112,30 +113,32 @@ pub const Hash = struct {
         return result;
     }
 
-    /// Produces a unique hash based on the path provided. The result should
-    /// not be user-visible.
+    /// Produces a unique, valid hash based on the path provided. The hash contains the name,
+    /// version, and project id, but size is unknown so the field is used to encode 4 more bytes of
+    /// the hash digest.
     pub fn initPath(sub_path: []const u8, is_global: bool) Hash {
-        var result: Hash = .{ .bytes = @splat(0) };
-        var i: usize = 0;
-        if (is_global) {
-            result.bytes[0] = '/';
-            i += 1;
-        }
-        if (i + sub_path.len <= result.bytes.len) {
-            @memcpy(result.bytes[i..][0..sub_path.len], sub_path);
-            return result;
-        }
-        var bin_digest: [Algo.digest_length]u8 = undefined;
-        Algo.hash(sub_path, &bin_digest, .{});
-        _ = std.mem.print(result.bytes[i..], "{x}", .{&bin_digest}) catch unreachable;
-        return result;
+        var digest: Digest = undefined;
+        var hasher = Algo.init(.{});
+        hasher.update(sub_path);
+        hasher.update(&.{@intFromBool(is_global)});
+        hasher.final(&digest);
+        const size: u32 = @bitCast(digest[25..][0..4].*);
+        return init(digest, "P", "P", ProjectId.no_fingerprint, size);
     }
 
     pub fn version(hash: *const Hash) std.SemanticVersion {
+        return std.SemanticVersion.parse(versionText(hash)) catch unreachable;
+    }
+
+    pub fn versionText(hash: *const Hash) []const u8 {
         const bytes = hash.toSlice();
         const pos = std.mem.findScalar(u8, bytes, '-').? + 1;
-        const text = std.mem.sliceTo(bytes[pos..], '-');
-        return std.SemanticVersion.parse(text) catch unreachable;
+        return bytes[pos .. bytes.len - 45];
+    }
+
+    test versionText {
+        const hash: Hash = .fromSlice("pulseaudio-16.1.1-9-mk_62MZkNwBaFwiZ7ZVrYRIf_3dTqqJR5PbMRCJzSuLw");
+        try std.testing.expectEqualStrings("16.1.1-9", hash.versionText());
     }
 
     pub fn projectId(hash: *const Hash) ProjectId {
