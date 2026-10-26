@@ -29,6 +29,8 @@ pub const Dependency = struct {
     paths_tok: Ast.OptionalTokenIndex,
     version: std.SemanticVersion,
     version_tok: Ast.OptionalTokenIndex,
+    instances: std.array_hash_map.String(void),
+    instances_tok: Ast.OptionalTokenIndex,
 
     pub const Location = union(enum) {
         url: []const u8,
@@ -294,6 +296,8 @@ const Parse = struct {
             .paths_tok = .none,
             .version = undefined,
             .version_tok = .none,
+            .instances = .empty,
+            .instances_tok = .none,
         };
         var has_location = false;
 
@@ -350,6 +354,9 @@ const Parse = struct {
             } else if (mem.eql(u8, field_name, "paths")) {
                 dep.paths_tok = .fromToken(name_token);
                 try parseIncludedPaths(p, &dep.paths, field_init);
+            } else if (mem.eql(u8, field_name, "instances")) {
+                dep.instances_tok = .fromToken(name_token);
+                try parseStringSet(p, &dep.instances, field_init);
             } else if (mem.eql(u8, field_name, "version")) {
                 if (parseVersion(p, field_init)) |v| {
                     dep.version = v;
@@ -371,6 +378,25 @@ const Parse = struct {
         return dep;
     }
 
+    fn parseStringSet(p: *Parse, set: *std.array_hash_map.String(void), node: Ast.Node.Index) !void {
+        const ast = p.ast;
+
+        var buf: [2]Ast.Node.Index = undefined;
+        const array_init = ast.fullArrayInit(&buf, node) orelse {
+            const tok = ast.nodeMainToken(node);
+            return fail(p, tok, "expected a list of strings", .{});
+        };
+
+        try set.ensureUnusedCapacity(p.gpa, array_init.ast.elements.len);
+
+        for (array_init.ast.elements) |elem_node| {
+            const elem = try parseString(p, elem_node);
+            if (set.fetchPutAssumeCapacity(elem, {})) |_| {
+                return fail(p, ast.nodeMainToken(elem_node), "element {q} appears twice in the list", .{elem});
+            }
+        }
+    }
+
     fn parseIncludedPaths(p: *Parse, paths: *std.array_hash_map.String(void), node: Ast.Node.Index) !void {
         const ast = p.ast;
 
@@ -380,12 +406,14 @@ const Parse = struct {
             return fail(p, tok, "expected paths expression to be a list of strings", .{});
         };
 
+        try paths.ensureUnusedCapacity(p.gpa, array_init.ast.elements.len);
+
         for (array_init.ast.elements) |elem_node| {
             const path_string = try parseString(p, elem_node);
             // This is normalized so that it can be used in string comparisons
             // against file system paths.
             const normalized = try std.fs.path.resolve(p.arena, &.{path_string});
-            if (try paths.fetchPut(p.gpa, normalized, {})) |kv| {
+            if (paths.fetchPutAssumeCapacity(normalized, {})) |kv| {
                 return fail(p, ast.nodeMainToken(elem_node), "path {q} already included as {q}", .{
                     normalized, kv.key,
                 });

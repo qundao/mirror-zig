@@ -130,3 +130,10 @@ Paths are relative to the build root. Use the empty string (`""`) to refer to
 the build root itself.
 
 Only files included in the package are used to compute a package's `hash`.
+
+### `instances`
+
+List. Required.
+
+Specifies a set of packages in the dependency subtree that are exempt from the default rule that
+prevents a package from being instantiated multiple times with different options.
