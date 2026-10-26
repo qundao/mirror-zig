@@ -112,15 +112,6 @@ Boolean. Default is `false`.
 When this is set to `true`, a package is declared to be lazily fetched. This
 makes the dependency only get fetched if it is actually used.
 
-#### `unversioned`
-
-Boolean. Default is `false`.
-
-* `false`: in the dependency subtree, this dependency is substituted any time a matching project id
-  (`name`, `fingerprint`) is encountered.
-* `true`: in the dependency subtree, packages with matching project id are used as-is, without
-  deduplication.
-
 ### `paths`
 
 List. Required.
