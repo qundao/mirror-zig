@@ -238,12 +238,12 @@ pub fn main(init: process.Init.Minimal) !void {
 
     const cwd: Dir = .cwd();
 
-    const zig_lib_directory: Cache.Directory = if (std.mem.eql(u8, zig_lib_arg, ".")) .cwd() else .{
+    const zig_lib_directory: Cache.Directory = if (mem.eql(u8, zig_lib_arg, ".")) .cwd() else .{
         .path = zig_lib_arg,
         .handle = try cwd.openDir(io, zig_lib_arg, .{}),
     };
 
-    const global_cache_directory: Cache.Directory = if (std.mem.eql(u8, global_cache_arg, ".")) .cwd() else .{
+    const global_cache_directory: Cache.Directory = if (mem.eql(u8, global_cache_arg, ".")) .cwd() else .{
         .path = global_cache_arg,
         .handle = try cwd.createDirPathOpen(io, global_cache_arg, .{}),
     };
@@ -439,14 +439,14 @@ pub fn main(init: process.Init.Minimal) !void {
                     .{ "hour", std.time.ns_per_hour },
                 };
                 const timeout_str = nextArgOrFatal(args, &arg_i);
-                const num_end_idx = std.mem.findLastNone(u8, timeout_str, "abcdefghijklmnopqrstuvwxyz") orelse fatal(
+                const num_end_idx = mem.findLastNone(u8, timeout_str, "abcdefghijklmnopqrstuvwxyz") orelse fatal(
                     "invalid timeout {q}: expected unit (ns, us, ms, s, m, h)",
                     .{timeout_str},
                 );
                 const num_str = timeout_str[0 .. num_end_idx + 1];
                 const unit_str = timeout_str[num_end_idx + 1 ..];
                 const unit_factor: f64 = for (units) |unit_and_factor| {
-                    if (std.mem.eql(u8, unit_str, unit_and_factor[0])) {
+                    if (mem.eql(u8, unit_str, unit_and_factor[0])) {
                         break @floatFromInt(unit_and_factor[1]);
                     }
                 } else fatal(
@@ -487,7 +487,7 @@ pub fn main(init: process.Init.Minimal) !void {
                 if (webui_listen == null) webui_listen = .{ .ip6 = .loopback(0) };
             } else if (mem.startsWith(u8, arg, "--webui=")) {
                 const addr_str = arg["--webui=".len..];
-                if (std.mem.eql(u8, addr_str, "-")) fatal("web interface cannot listen on stdio", .{});
+                if (mem.eql(u8, addr_str, "-")) fatal("web interface cannot listen on stdio", .{});
                 webui_listen = Io.net.IpAddress.parseLiteral(addr_str) catch |err| {
                     fatal("invalid web UI address {q}: {t}", .{ addr_str, err });
                 };
@@ -1057,7 +1057,7 @@ pub fn main(init: process.Init.Minimal) !void {
                 // trigger a rebuild on all steps with modified inputs, as well as their
                 // recursive dependants.
                 var caption_buf: [std.Progress.Node.max_name_len]u8 = undefined;
-                const caption = std.mem.print(&caption_buf, "watching {d} directories, {d} processes", .{
+                const caption = mem.print(&caption_buf, "watching {d} directories, {d} processes", .{
                     w.dir_count, countSubProcesses(&maker),
                 }) catch &caption_buf;
                 var debouncing_node = main_progress_node.start(caption, 0);
@@ -1441,6 +1441,7 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
 
                 try validateFingerprints(gpa, &job_queue, &fork_set);
                 try validateVersionSelections(gpa, &job_queue, &fork_set, &fetch, graph.global_cache_root);
+                try validateInstances(&job_queue, &fetch);
 
                 // Create the dependencies.zig file for configurer to
                 // obtain via `@import("@dependencies")`.
@@ -1986,6 +1987,28 @@ const ValidatePkgTree = struct {
     }
 };
 
+fn validateInstances(
+    job_queue: *const Fetch.JobQueue,
+    root_fetch: *const Fetch,
+) error{FailedButCacheIntact}!void {
+    instance: for (job_queue.instances.keys()) |pkg_path| {
+        var cur: *const Fetch = root_fetch;
+        var it = mem.splitScalar(u8, pkg_path, '.');
+        while (it.next()) |component| {
+            if (!cur.have_manifest) {
+                log.err("invalid package path: {q}: {s} has no manifest", .{ pkg_path, cur.name });
+                return error.FailedButCacheIntact;
+            }
+            const dep = cur.manifest.dependencies.getPtr(component) orelse {
+                log.err("invalid package path: {q}: {s} has no dependency {q}", .{ pkg_path, cur.name, component });
+                return error.FailedButCacheIntact;
+            };
+            const selected_hash = cur.selectDep(dep) orelse continue :instance;
+            cur = job_queue.table.get(selected_hash) orelse continue :instance;
+        }
+    }
+}
+
 fn printPkgTree(
     terminal: Io.Terminal,
     arena: Allocator,
@@ -2319,7 +2342,7 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
             const target_ref = try fragment.toRawMaybeAlloc(arena);
 
             // the refspec may already be fully resolved
-            if (std.mem.eql(u8, target_ref, latest_commit_hex)) break :resolved;
+            if (mem.eql(u8, target_ref, latest_commit_hex)) break :resolved;
 
             log.info("resolved ref {q} to commit {s}", .{ target_ref, latest_commit_hex });
 
@@ -3852,11 +3875,11 @@ pub fn printErrorMessages(
         try stderr.setColor(.red);
         try writer.writeAll("error:");
         try stderr.setColor(.reset);
-        if (std.mem.findScalar(u8, msg, '\n') == null) {
+        if (mem.findScalar(u8, msg, '\n') == null) {
             try writer.print(" {s}\n", .{msg});
         } else switch (multiline_errors) {
             .indent => {
-                var it = std.mem.splitScalar(u8, msg, '\n');
+                var it = mem.splitScalar(u8, msg, '\n');
                 try writer.print(" {s}\n", .{it.first()});
                 while (it.next()) |line| {
                     try writer.print("       {s}\n", .{line});
@@ -4846,15 +4869,15 @@ const Templates = struct {
             if (contents[i] == '_' or contents[i] == '.') {
                 // Both '_' and '.' are allowed because depending on the context
                 // one prefix will be valid, while the other might not.
-                if (std.mem.startsWith(u8, contents[i + 1 ..], "NAME")) {
+                if (mem.startsWith(u8, contents[i + 1 ..], "NAME")) {
                     try templates.buffer.appendSlice(gpa, root_name);
                     i += "_NAME".len;
                     continue;
-                } else if (std.mem.startsWith(u8, contents[i + 1 ..], "FINGERPRINT")) {
+                } else if (mem.startsWith(u8, contents[i + 1 ..], "FINGERPRINT")) {
                     try templates.buffer.print(gpa, "0x{x}", .{fingerprint.int()});
                     i += "_FINGERPRINT".len;
                     continue;
-                } else if (std.mem.startsWith(u8, contents[i + 1 ..], "ZIGVER")) {
+                } else if (mem.startsWith(u8, contents[i + 1 ..], "ZIGVER")) {
                     try templates.buffer.appendSlice(gpa, builtin.zig_version_string);
                     i += "_ZIGVER".len;
                     continue;
