@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documentation - The Zig Programming Language</title>
+    <title>Zig Programming Language Reference</title>
     <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAgklEQVR4AWMYWuD7EllJIM4G4g4g5oIJ/odhOJ8wToOxSTXgNxDHoeiBMfA4+wGShjyYOCkG/IGqWQziEzYAoUAeiF9D5U+DxEg14DRU7jWIT5IBIOdCxf+A+CQZAAoopEB7QJwBCBwHiip8UYmRdrAlDpIMgApwQZNnNii5Dq0MBgCxxycBnwEd+wAAAABJRU5ErkJggg==">
     <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNTMgMTQwIj48ZyBmaWxsPSIjRjdBNDFEIj48Zz48cG9seWdvbiBwb2ludHM9IjQ2LDIyIDI4LDQ0IDE5LDMwIi8+PHBvbHlnb24gcG9pbnRzPSI0NiwyMiAzMywzMyAyOCw0NCAyMiw0NCAyMiw5NSAzMSw5NSAyMCwxMDAgMTIsMTE3IDAsMTE3IDAsMjIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMzEsOTUgMTIsMTE3IDQsMTA2Ii8+PC9nPjxnPjxwb2x5Z29uIHBvaW50cz0iNTYsMjIgNjIsMzYgMzcsNDQiLz48cG9seWdvbiBwb2ludHM9IjU2LDIyIDExMSwyMiAxMTEsNDQgMzcsNDQgNTYsMzIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTE2LDk1IDk3LDExNyA5MCwxMDQiLz48cG9seWdvbiBwb2ludHM9IjExNiw5NSAxMDAsMTA0IDk3LDExNyA0MiwxMTcgNDIsOTUiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTUwLDAgNTIsMTE3IDMsMTQwIDEwMSwyMiIvPjwvZz48Zz48cG9seWdvbiBwb2ludHM9IjE0MSwyMiAxNDAsNDAgMTIyLDQ1Ii8+PHBvbHlnb24gcG9pbnRzPSIxNTMsMjIgMTUzLDExNyAxMDYsMTE3IDEyMCwxMDUgMTI1LDk1IDEzMSw5NSAxMzEsNDUgMTIyLDQ1IDEzMiwzNiAxNDEsMjIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTI1LDk1IDEzMCwxMTAgMTA2LDExNyIvPjwvZz48L2c+PC9zdmc+">
     <style>
@@ -298,7 +298,7 @@
     </style>
 </head>
 <body>
-  <header><h1>Zig Language Reference</h1></header>
+  <header><h1>Zig Programming Language Reference</h1></header>
   <div id="main-wrapper">
       <div id="navigation">
         <nav aria-labelledby="zig-version">
@@ -328,6 +328,13 @@
         </nav>
       </div>
       <div id="contents-wrapper"><main id="contents">
+      {#header_open|Related Documentation#}
+      <ul>
+        <li>Language Reference (this document)</li>
+        <li><a href="/documentation/master/std/">Standard Module Documentation</a></li>
+        <li><a href="/documentation/master/build/">Build System</a></li>
+      </ul>
+      {#header_close#}
       {#header_open|Introduction#}
       <p>
       <a href="https://ziglang.org">Zig</a> is a general-purpose programming language and toolchain for maintaining
@@ -355,19 +362,12 @@
       </p>
       {#header_close#}
 
-      {#header_open|Zig Standard Library#}
-      <p>
-        The <a href="https://ziglang.org/documentation/master/std/">Zig Standard Library</a> has its own documentation.
-      </p>
-      <p>
-        Zig's Standard Library contains commonly used algorithms, data structures, and definitions to help you build programs or libraries.
-        You will see many examples of Zig's Standard Library used in this documentation. To learn more about the Zig Standard Library,
-        visit the link above.
-      </p>
-      <p>
-        Alternatively, the Zig Standard Library documentation is provided with each Zig distribution. It can be rendered via a local webserver with:
-      </p>
+      {#header_open|Zig Standard Module#}
+      <p>Zig is distributed with commonly used algorithms, data structures, and definitions that are always
+      available using {#syntax#}@import("std"){#endsyntax#}.</p>
+      <p>Standard module documentation can be viewed via:</p>
       {#shell_samp#}zig std{#end_shell_samp#}
+      {#see_also|@import#}
       {#header_close#}
 
       {#header_open|Hello World#}
