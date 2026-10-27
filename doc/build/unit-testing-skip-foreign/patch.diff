@@ -1,0 +1,10 @@
+--- a/build.zig
++++ b/build.zig
+@@ -23,6 +23,7 @@
+         });
+ 
+         const run_unit_tests = b.addRunArtifact(unit_tests);
++        run_unit_tests.skip_foreign_checks = true;
+         test_step.dependOn(&amp;run_unit_tests.step);
+     }
+ }

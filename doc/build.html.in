@@ -185,6 +185,16 @@ th pre code {
     background: none;
 }
 
+.diff-sub {
+  background-color: #ffaeae;
+}
+.diff-add {
+  background-color: #bfb;
+}
+.diff-at {
+  color: #6a4a00;
+}
+
 @media (prefers-color-scheme: dark) {
   body{
       background:#121212;
@@ -265,6 +275,15 @@ th pre code {
   figcaption.shell-cap {
     background: #2a2a2a;
     color: #fff;
+  }
+  .diff-sub {
+    background-color: #410000;
+  }
+  .diff-add {
+    background-color: #002d00;
+  }
+  .diff-at {
+    color: yellow;
   }
 }
   </style>
@@ -498,7 +517,29 @@ th pre code {
     {#header_close#}
 
     {#header_open|Testing#}
-    <p>TODO documentation</p>
+    <p>Individual files can be tested directly with <code>zig test foo.zig</code>, however, more
+    complex use cases can be solved by orchestrating testing via the build script.</p>
+    <p>When using the build script, unit tests are broken into two different steps in
+    the build graph, the {#link|Compile#} step and the {#link|Run#} step. Without a call to
+    {#syntax#}addRunArtifact{#endsyntax#}, which establishes a dependency edge between these two steps,
+    the unit tests will not be executed.</p>
+    <p>The <em>Compile</em> step can be configured the same as any executable, library, or object
+    file, for example by {#link|Linking to System Libraries#}, setting target options, or adding
+    additional compilation units.</p>
+    <p>The <em>Run</em> step can be configured the same as any Run step, for example by skipping
+    execution when the host is not capable of executing the binary.</p>
+    <p>When using the build system to run unit tests, the build runner and the test runner
+    communicate via <em>stdin</em> and <em>stdout</em> in order to run multiple unit test suites
+    concurrently, and report test failures in a meaningful way without having their output jumbled
+    together. This is one reason why writing to <em>standard out</em> in unit tests is problematic</a> -
+    it interferes with this communication channel. On the flip side, this mechanism enables useful
+    features such as crash handling and unit test timeouts.</p>
+    {#code|unit-testing/main.zig#}
+    {#code|unit-testing/build.zig#}
+    <p>In this case it might be a nice adjustment to enable <code>skip_foreign_checks</code> for
+    the unit tests:</p>
+    {#code|unit-testing-skip-foreign/patch.diff#}
+    {#code|unit-testing-skip-foreign/build.zig#}
     {#header_close#}
 
     {#header_open|Linking to System Libraries#}
