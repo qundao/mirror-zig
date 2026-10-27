@@ -387,6 +387,152 @@ run success
     {#end_shell_samp#}
     {#header_close#}
     {#header_close#}
+
+    {#header_open|The Basics#}
+
+    {#header_open|User-Provided Options#}
+    {#header_close#}
+    {#header_open|Standard Configuration Options#}
+    {#header_close#}
+    {#header_open|Options for Conditional Compilation#}
+    {#header_close#}
+    {#header_open|Static Library#}
+    {#header_close#}
+    {#header_open|Dynamic Library#}
+    {#header_close#}
+    {#header_open|Testing#}
+    {#header_close#}
+    {#header_open|Linking to System Libraries#}
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|Generating Files#}
+
+    {#header_open|Running System Tools#}
+    {#header_close#}
+    {#header_open|Running the Project’s Tools#}
+    {#header_close#}
+    {#header_open|Producing Assets for @embedFile#}
+    {#header_close#}
+    {#header_open|Generating Zig Source Code#}
+    {#header_close#}
+    {#header_open|Dealing With One or More Generated Files#}
+    {#header_close#}
+    {#header_open|Mutating Source Files in Place#}
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|Package Management#}
+    {#header_close#}
+
+    {#header_open|Handy Examples#}
+    {#header_open|Build for multiple targets to make a release#}
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|Build Manifest File Reference (build.zig.zon)#}
+    <p><code>build.zig.zon</code> is the <strong>manifest file</strong> for <code>build.zig</code> scripts.</p>
+    It is named <code>build.zig.zon</code> in order to make it clear that it is metadata specifically pertaining
+    to <code>build.zig</code>.</p>
+    <p><strong>build root</strong> - the directory that contains <code>build.zig</code>.</p>
+    {#header_open|Top-Level Field: name#}
+    <p>Enum literal. Required.</p>
+    <p>This is the default name used by packages depending on this one. For example,
+    when a user runs <code>zig fetch --save &lt;url&gt;</code>, this field is used as the key in the
+    {#link|dependencies|Top Level Field: dependencies#} table. Although the user can choose a different name, most users
+    will stick with this provided value.</p>
+    <p>It is redundant to include &quot;zig&quot; in this name because it is already within the
+    Zig package namespace.</p>
+    <p>Must be a valid bare Zig identifier (don&#39;t <code>@</code> me), limited to 32 bytes.</p>
+    <p>Together with <code>fingerprint</code>, this represents a globally unique package identifier.</p>
+    {#header_close#}
+
+    {#header_open|Top Level Field: fingerprint#}
+    <p>Together with <code>name</code>, this represents a globally unique package identifier. This
+    field is auto-initialized by the toolchain when the package is first created,
+    and then <em>never changes</em>. This allows Zig to unambiguously detect when one
+    package is an updated version of another.</p>
+    <p>When forking a Zig project, this fingerprint should be regenerated if the upstream
+    project is still maintained. Otherwise, the fork is <em>hostile</em>, attempting to
+    take control over the original project&#39;s identity. The fingerprint can be regenerated
+    by deleting the field and running <code>zig build</code>.</p>
+    <p>This 64-bit integer is the combination of a 32-bit id component and a 32-bit
+    checksum.</p>
+    <p>The id component within the fingerprint has these restrictions:</p>
+    <p><code>0x00000000</code> is reserved for legacy packages.</p>
+    <p><code>0xffffffff</code> is reserved to represent &quot;naked&quot; packages.</p>
+    <p>The checksum is computed from <code>name</code> and serves to protect Zig users from
+    accidental id collisions.</p>
+    {#header_close#}
+
+    {#header_open|Top Level Field: version#}
+    <p>String. Required.</p>
+    <p><a href="https://semver.org/">semver</a></p>
+    <p>Limited to 32 bytes.</p>
+    <h3 id="minimum_zig_version"><code>minimum_zig_version</code></h3>
+    <p>String. Optional.</p>
+    <p><a href="https://semver.org/">semver</a></p>
+    <p>This is currently advisory only; the compiler does not yet do anything
+    with this version.</p>
+    {#header_close#}
+
+    {#header_open|Top Level Field: dependencies#}
+    <p>Struct.</p>
+    <p>Each dependency must either provide a <code>url</code> and <code>hash</code>, or a <code>path</code>.</p>
+    <p>May also include {#link|paths|Top Level Field: paths#} and {#link|version|Top Level Field: version#}
+    which provides those values in the case that the package lacks a <code>build.zig.zon</code> file.</p>
+
+    {#header_open|url#}
+    <p>String. </p>
+    <p>When updating this field to a new URL, be sure to delete the corresponding
+    <code>hash</code>, otherwise you are communicating that you expect to find the old hash at
+    the new URL. If the contents of a URL change this will result in a hash mismatch
+    which will prevent zig from using it.</p>
+    {#header_close#}
+
+    {#header_open|hash#}
+    <p>String.</p>
+    <p>This is computed from the file contents of the directory of files that is
+    obtained after fetching <code>url</code> and applying the inclusion rules given by
+    <code>paths</code>.</p>
+    <p>This field is the source of truth; packages do not come from a <code>url</code>; they
+    come from a <code>hash</code>. <code>url</code> is just one of many possible mirrors for how to
+    obtain a package matching this <code>hash</code>.</p>
+    {#header_close#}
+
+    {#header_open|path#}
+    <p>String.</p>
+    <p>When this is provided, the package is found in a directory relative to the
+    build root. In this case the package&#39;s hash is irrelevant and therefore not
+    computed. This field and <code>url</code> are mutually exclusive.</p>
+    {#header_close#}
+
+    {#header_open|lazy#}
+    <p>Boolean. Default is <code>false</code>.</p>
+    <p>When this is set to <code>true</code>, a package is declared to be lazily fetched. This
+    makes the dependency only get fetched if it is actually used.</p>
+    {#header_close#}
+
+    {#header_open|instances#}
+    <p>List. Required.</p>
+    <p>Specifies a set of packages in the dependency subtree that are exempt from the default rule that
+    prevents a package from being instantiated multiple times with different options.</p>
+    <p>Example:</p>
+    <pre><code>.instances = .{
+    "foo.bar",
+    "baz",
+},</code></pre>
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|Top Level Field: paths#}
+    <p>List. Required.</p>
+    <p>Specifies the set of files and directories that are included in this package.
+    Paths are relative to the build root. Use the empty string (<code>&quot;&quot;</code>) to refer to
+    the build root itself.</p>
+    <p>Only files included in the package are used to compute a package&#39;s <code>hash</code>.</p>
+    {#header_close#}
+    {#header_close#}
   </main>
 </body>
 </html>
