@@ -37,22 +37,39 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run all the tests");
     const skip_install_lib_files = b.option(bool, "no-lib", "skip copying of lib/ files and langref to installation prefix. Useful for development") orelse only_c;
     const skip_install_langref = b.option(bool, "no-langref", "skip copying of langref to the installation prefix") orelse skip_install_lib_files;
+    const skip_install_buildref = b.option(bool, "no-buildref", "skip copying of buildref to the installation prefix") orelse skip_install_lib_files;
     const std_docs = b.option(bool, "std-docs", "include standard library autodocs") orelse false;
     const no_bin = b.option(bool, "no-bin", "skip emitting compiler binary") orelse false;
     const enable_superhtml = b.option(bool, "enable-superhtml", "Check langref output HTML validity") orelse false;
 
-    const langref_file = try generateLangRef(b);
+    const doctest_exe = b.addExecutable(.{
+        .name = "doctest",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/doctest.zig"),
+            .target = b.graph.host,
+            .optimize = .debug,
+        }),
+    });
+
+    const langref_file = try generateLangRef(b, doctest_exe, "doc/langref");
+    const buildref_file = try generateLangRef(b, doctest_exe, "doc/build");
     const install_langref = b.addInstallFileWithDir(langref_file, .prefix, "doc/langref.html");
+    const install_buildref = b.addInstallFileWithDir(buildref_file, .prefix, "doc/build.html");
     const check_langref = superHtmlCheck(b, langref_file);
+    const check_buildref = superHtmlCheck(b, buildref_file);
     if (enable_superhtml) install_langref.step.dependOn(check_langref);
 
     const check_autodocs = superHtmlCheck(b, b.path("lib/docs/index.html"));
     if (enable_superhtml) {
         test_step.dependOn(check_langref);
+        test_step.dependOn(check_buildref);
         test_step.dependOn(check_autodocs);
     }
     if (!skip_install_langref) {
         b.getInstallStep().dependOn(&install_langref.step);
+    }
+    if (!skip_install_buildref) {
+        b.getInstallStep().dependOn(&install_buildref.step);
     }
 
     const autodoc_test = b.addObject(.{
@@ -99,11 +116,15 @@ pub fn build(b: *std.Build) !void {
     const langref_step = b.step("langref", "Build and install the language reference");
     langref_step.dependOn(&install_langref.step);
 
-    const std_docs_step = b.step("std-docs", "Build and install the standard library documentation");
+    const buildref_step = b.step("buildref", "Build and install the build system documentation");
+    buildref_step.dependOn(&install_buildref.step);
+
+    const std_docs_step = b.step("std-docs", "Build and install the standard module documentation");
     std_docs_step.dependOn(&install_std_docs.step);
 
     const docs_step = b.step("docs", "Build and install documentation");
     docs_step.dependOn(langref_step);
+    docs_step.dependOn(buildref_step);
     docs_step.dependOn(std_docs_step);
 
     const update_cpu_features_step = b.step("update-cpu-features", "Update CPU Features");
@@ -1632,27 +1653,18 @@ const llvm_libs_xtensa = [_][]const u8{
     "LLVMXtensaInfo",
 };
 
-fn generateLangRef(b: *std.Build) !std.Build.LazyPath {
+fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_path: []const u8) !std.Build.LazyPath {
     const io = b.graph.io;
     const arena = b.graph.arena;
 
-    const doctest_exe = b.addExecutable(.{
-        .name = "doctest",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("tools/doctest.zig"),
-            .target = b.graph.host,
-            .optimize = .debug,
-        }),
-    });
+    const langref_path = try b.root.join(arena, doc_dir_path);
 
-    const langref_path = try b.root.join(arena, "doc/langref");
-
+    b.dependOnDirectoryContents(b.path(doc_dir_path));
     var dir = langref_path.root_dir.handle.openDir(io, langref_path.sub_path, .{ .iterate = true }) catch |err|
         std.debug.panic("unable to open directory {f}: {t}", .{ langref_path, err });
     defer dir.close(io);
 
     var wf = b.addWriteFiles();
-    b.step("test-docs", "Test code snippets from the docs").dependOn(&wf.step);
 
     var it = dir.iterateAssumeFirstIteration();
     while (it.next(io) catch @panic("failed to read dir")) |entry| {
@@ -1673,7 +1685,7 @@ fn generateLangRef(b: *std.Build) !std.Build.LazyPath {
         cmd.addDirectoryArg(.zig_lib);
 
         cmd.addArg("-i");
-        cmd.addFileArg(b.path(b.fmt("doc/langref/{s}", .{entry.name})));
+        cmd.addFileArg(b.path(b.fmt("{s}/{s}", .{ doc_dir_path, entry.name })));
 
         cmd.addArg("-o");
         _ = wf.addCopyFile(cmd.addOutputFileArg(out_basename), out_basename);
@@ -1694,8 +1706,8 @@ fn generateLangRef(b: *std.Build) !std.Build.LazyPath {
     docgen_cmd.addArgs(&.{"--grammar"});
     docgen_cmd.addFileArg(b.path("doc/langref/grammar.peg"));
 
-    docgen_cmd.addFileArg(b.path("doc/langref.html.in"));
-    return docgen_cmd.addOutputFileArg("langref.html");
+    docgen_cmd.addFileArg(b.path(b.fmt("{s}.html.in", .{doc_dir_path})));
+    return docgen_cmd.addOutputFileArg(b.fmt("{s}.html", .{fs.path.basename(doc_dir_path)}));
 }
 
 fn superHtmlCheck(b: *std.Build, html_file: std.Build.LazyPath) *std.Build.Step {
