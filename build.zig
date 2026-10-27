@@ -312,7 +312,7 @@ pub fn build(b: *std.Build) !void {
             b.dependOnFileContents(b.path(".git"));
             var line_buffer: ["gitdir: ".len + std.Io.Dir.max_path_bytes + 1]u8 = undefined;
             var git_file_reader = git_file.reader(io, &line_buffer);
-            if (std.mem.cutPrefix(u8, std.mem.trimEnd(u8, try git_file_reader.interface.allocRemaining(
+            if (mem.cutPrefix(u8, mem.trimEnd(u8, try git_file_reader.interface.allocRemaining(
                 arena,
                 .limited("gitdir: ".len + std.Io.Dir.max_path_bytes + "\r\n".len),
             ), "\r\n"), "gitdir: ")) |git_dir| {
@@ -1138,7 +1138,7 @@ fn addCxxKnownPath(
     const path_padded = run: {
         var args: std.ArrayList([]const u8) = .empty;
         try args.append(arena, ctx.cxx_compiler);
-        var it = std.mem.tokenizeAny(u8, ctx.cxx_compiler_arg1, &std.ascii.whitespace);
+        var it = mem.tokenizeAny(u8, ctx.cxx_compiler_arg1, &std.ascii.whitespace);
         while (it.next()) |arg| try args.append(arena, arg);
         try args.append(arena, b.fmt("-print-file-name={s}", .{objname}));
         break :run b.run(args.items);
@@ -1204,7 +1204,7 @@ const CMakeConfig = struct {
 
 const max_config_h_bytes = 1 * 1024 * 1024;
 
-fn findConfigH(b: *std.Build, config_h_path_option: ?[]const u8) std.mem.Allocator.Error!?[]const u8 {
+fn findConfigH(b: *std.Build, config_h_path_option: ?[]const u8) mem.Allocator.Error!?[]const u8 {
     const arena = b.graph.arena;
     const io = b.graph.io;
     const cwd: Io.Dir = .cwd();
@@ -1668,7 +1668,7 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
 
     var it = try dir.walkSelectively(arena);
     while (it.next(io) catch @panic("failed to read dir")) |entry| {
-        if (std.mem.startsWith(u8, entry.basename, ".")) continue;
+        if (mem.startsWith(u8, entry.basename, ".")) continue;
 
         switch (entry.kind) {
             .file => {},
@@ -1679,7 +1679,11 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
             else => continue,
         }
 
-        if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
+        if (!mem.endsWith(u8, entry.basename, ".zig") and
+            !mem.endsWith(u8, entry.basename, ".diff"))
+        {
+            continue;
+        }
 
         const out_sub_path = b.fmt("{s}.out", .{
             entry.path[0 .. entry.path.len - fs.path.extension(entry.path).len],
