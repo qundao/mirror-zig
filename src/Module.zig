@@ -377,7 +377,7 @@ pub fn create(arena: Allocator, options: CreateOptions) !*Module {
         }
 
         if (target.cpu.arch == .x86c16) {
-            try buf.appendSlice("+16bit-mode,-32bit-mode,");
+            try buf.appendSlice(arena, "+16bit-mode,-32bit-mode,");
         }
 
         if (target.cpu.arch.isXtensa()) {
