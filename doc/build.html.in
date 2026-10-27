@@ -527,8 +527,49 @@ Advanced Options:
     can discover configuration options of the build script this way.</p>
 
     {#header_close#}
+
     {#header_open|Standard Configuration Options#}
+    <p>Previously, we used a boolean flag to indicate building for Windows. However, we can do
+    better.</p>
+    <p>Most projects want to provide the ability to change the target and optimization settings.
+    In order to encourage standard naming conventions for these options, Zig provides the
+    helper functions, <code>standardTargetOptions</code> and <code>standardOptimizeOption</code>.</p>
+    <p>Standard target options allows the person running <code>zig build</code> to choose what
+    target to build for. By default, any target is allowed, and no choice means to
+    target the host system. Other options for restricting supported target set are
+    available.</p>
+    <p>Standard optimization options allow the person running <code>zig build</code> to select
+    between <code>debug</code>, <code>safe</code>, <code>fast</code>, and <code>small</code>. By
+    default none of the release options are considered the preferable choice by the build script,
+    and the user must make a decision in order to create a release build.</p>
+    {#code|standard-config-options/hello.zig#}
+    {#code|standard-config-options/build.zig#}
+    {#shell_samp#}
+$ zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSmall --summary all
+Build Summary: 3/3 steps succeeded
+install success
++- install hello success
+   +- compile exe hello small x86_64-windows success 3s MaxRSS:168M
+    {#end_shell_samp#}
+<p>Now, our <code>--help</code> menu contains more items:</p>
+<pre><code>Project-Specific Options:
+  -Dtarget=[string]            The CPU architecture, OS, and ABI to build for
+  -Dcpu=[string]               Target CPU features to add or subtract
+  -Doptimize=[enum]            Prioritize performance, safety, or binary size
+                                 Supported Values:
+                                   debug
+                                   safe
+                                   fast
+                                   small</code></pre>
+    <p>It is entirely possible to create these options via <code>b.option</code> directly, but this
+    API provides a commonly used naming convention for these frequently used settings.</p>
+    <p>In our terminal output, observe that we passed <code>-Dtarget=x86_64-windows -Doptimize=ReleaseSmall</code>.
+    Compared to the first example, now we see different files in the installation prefix:</p>
+    <pre><code>zig-out/
+└── bin
+    └── hello.exe</code></pre>
     {#header_close#}
+
     {#header_open|Options for Conditional Compilation#}
     {#header_close#}
     {#header_open|Static Library#}
