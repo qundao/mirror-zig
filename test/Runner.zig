@@ -1,3 +1,222 @@
+//! # Introduction
+//! This is a test harness that should be used for tests that involve invoking the compiler to
+//! compile code and checking how the compiler behaves.  This is different from unit tests which
+//! test how code behaves thereby indirectly checking the compiler behavior.  Compiler CLI tests are
+//! also currently excluded because this file exclusively uses the compiler protocol for invoking
+//! the compiler, but that is a feature that could be added here if the build system becomes
+//! insufficient for running these tests.
+//!
+//! # Anatomy of a Test Suite
+//! At the top level, the `test` directory of this repo contains a set of tests suites that make use
+//! of this runner.  The main thing that distinguishes one test suite from another is the
+//! `test/<suite>/matrix.zon` file which determines the set of "targets" on which each test in the
+//! suite is run.  Note that in this case, target refers to more than just what is given to the
+//! `-target` command line argument, but also any command line option that is desirable to test
+//! different variations of in the same concrete test.
+//!
+//! Within a test suite, there are a collection of test cases.  Each file or directory inside the
+//! test suite directory, ignoring `matrix.zon` and various editor temporary files, represents a
+//! separate test case.  The main description of a test case resides within the manifest file, which
+//! is located at either `test/<suite>/<case>` or `test/<suite>/<case>/manifest`, referred to as
+//! file cases and directory cases respectively.  File cases are entirely self-contained within a
+//! single file and will be more amenable to direct fuzzing of that file in the future.  Directory
+//! cases have the same syntax as file cases, with an additional feature that allows splitting the
+//! information about the test case among multiple files, all under the directory representing the
+//! test case.  This is useful if those files are large or otherwise more difficult to understand
+//! when embedded inside the manifest.  This gives us immediate `zig fmt` and editor highlighting
+//! support of these separate files, although that benefit need not preclude adding support for
+//! having these features for the manifest file format itself, for example with a tool that passes
+//! fragments of the file to `zig fmt` and reassembles the results or with editor highlighting
+//! support that uses different sub-highlighters for different regions of the file.
+//!
+//! # Format of the Test Manifest
+//! The test manifest is an imperative sequence of instructions for this runner to execute.  This
+//! makes it simple to conceptualize what exactly the runner is doing when reading a manifest file.
+//! The outermost format of the file is a sequence of empty lines and commands.  Each command has
+//! the format `#<cmd> <arg> <contents>`, where the line begins with a literal `#` character,
+//! followed by `<cmd>`, the name of the command, followed by two optional space-separated
+//! arguments.  The interpretation of `<arg>`, the first argument, depends on the command in
+//! question. That, and whether it is required present, required absent, or optional, is documented
+//! with each separate command.  Finally `<contents>`, the second argument, has a common syntax
+//! shared with every command, and does not require `<arg>` to be present.  The syntax of
+//! `<contents>` has 4 possible forms:
+//!
+//! 1. Empty: When missing it represents an empty file.
+//! 2. String: When it is a valid zig string literal it represents a file with the contents of that
+//!    string.
+//! 3. Inline: When it matches `{`, it represents the rest of the manifest up to the next occurance
+//!    of `#}`.  Newlines are manditory after the braces, and a newline before the `#}` indicates
+//!    whether the represented file ends with a newline.
+//! 4. File: When it uses the syntax `@path/to/file`, it requires a directory case and represents
+//!    the file identified by the path which is interpreted relative to the directory representing
+//!    the case.
+//!
+//! Here are some equivalent examples of a command having empty contents:
+//!
+//!     #cmd
+//!
+//!     #cmd ""
+//!
+//!     #cmd {
+//!     #}
+//!
+//!     #cmd @empty
+//!
+//! Where the final example depends on the file created by the shell command
+//! `truncate --size=0 empty` in the case directory.  The first example shows the preferred form for
+//! representing empty contents.
+//!
+//! Here are some equivalent examples that represent `Hello, world!` without any newlines:
+//!
+//!     #cmd "Hello, world!"
+//!
+//!     #cmd {
+//!     Hello, world!}#
+//!
+//!     #cmd @hello.txt
+//!
+//! Where the final example depends on the file created by the shell command
+//! `printf %s "Hello, world!" > hello.txt` in the case directory.  The first example shows the
+//! preferred form for representing short contents with no newlines.
+//!
+//! Here are some equivalent examples that represent 5 lines, with each line containing a sequence
+//! of integers starting at 1:
+//!
+//!     #cmd {
+//!     1
+//!     2
+//!     3
+//!     4
+//!     5
+//!     #}
+//!
+//!     #cmd "1\n2\n3\n4\n5\n"
+//!
+//!     #cmd @numbers.seq
+//!
+//! Where the final example depends on the file created by the shell command `seq 5 > numbers.seq`
+//! in the case directory.  The first example shows the preferred form for representing short to
+//! medium contents containing newlines.
+//!
+//! Finally, the file form is preferred for representing long contents.
+//!
+//! # Manifest Command List
+//! Manifests support the following commands:
+//!
+//! The todo command allows including comments about other commands in the manifest, for example:
+//!
+//!     #todo "the following targets are skipped until feature X is implemented"
+//!
+//! The skip command allows skipping a given target in the test matrix for the current case. These
+//! must appear at the top of the file before any non-comment commands, for example:
+//!
+//!     #skip x86_64-linux-none-baseline-whole-selfhosted-new-pic
+//!
+//! The exe, lib, and obj commands defines compiler command line arguments that are specific to this
+//! case, correspond to `zig build-exe`, `zig build-lib`, and `zig build-obj`, respectively, and can
+//! override options selected by the target, for example:
+//!
+//!     #exe {
+//!     --name name -fomit-frame-pointer
+//!     --dep mod1 -Mroot=root.zig
+//!     --dep mod2 -Mmod1=mod1.zig
+//!     -Mmod2=mod2.zig
+//!     #}
+//!
+//! The write command creates a file in a per-case per-target temporary directory that is used as
+//! the compiler process working directory, and so can be referenced by the commiler command line,
+//! for example:
+//!
+//!     #write hello.zig {
+//!     const std = @import("std");
+//!
+//!     pub fn main() void {
+//!         std.debug.print("Hello, World!\n");
+//!     }
+//!     #}
+//!
+//! The delete command deletes a previously written file, which is different from writing an empty
+//! file, for example:
+//!
+//!     #delete maybe_exists.zig
+//!
+//! The update command runs a compiler update with the current state of the written source files,
+//! where the contents are an informative string shown by progress reporting and error messages,
+//! for example:
+//!
+//!     #update "decl deleted"
+//!
+//! Finally, the check command actually tests the compiler behavior in some way, where the command
+//! argument chooses what kind of check to run, for example:
+//!
+//!     #check errors {
+//!     test.zig:4:5: error: use of undeclared identifier 'foo'
+//!     test.zig:7:17: error: expected type 'type', found 'comptime_int'
+//!     #}
+//!
+//! # Available checks
+//! The errors check succeeds when the compiler produces the given compiler errors.  The contents
+//! are an exact match to the printed compile errors, with source lines, span, and reference trace
+//! omitted.  Empty contents succeed when the compiler produces no compile errors.
+//!
+//! The stdout check succeeds when running the binary produced by the compiler, possibly with an
+//! executor like qemu, exits with exit code 0 and produces the standard output given in contents.
+//!
+//! The exit check succeeds when running the binary as the stdout check does exits with the given
+//! exit code.  The contents are the decimal exit code in ascii with no trailing newline.
+//!
+//! The llvm check succeeds when the llvm backend produces the given LLVM IR.  The contents support
+//! a variety of useful patterns that are not matched exactly:
+//! * `...` at the end of a line matches any possibly empty sequence of lines.
+//! * `... ` matches a possibly empty sequence of attributes.
+//! * `..., ` matches a possibly empty sequence of parameters or operands.
+//! * `  ...` at the end of a line matches any possibly empty sequence of lines not starting with
+//!   `}`, which avoids accidentally escaping the current function.
+//! * `, !...` at the end of a line matches any possibly empty sequence of of debug attachments of
+//!   the form `, !name !0`.
+//! * `?` matches an unknown integer constant.
+//! * `isize` matches any of the llvm types that Zig's `usize`/`isize` can lower to.
+//! * `!!` matches a literal `!`.
+//! * `!<id>` matches anything of the form `!0` the first time that id is used.  Later uses of
+//!   the same id match exactly what the first id matched.
+//! * `%%` matches a literal `%`.
+//! * `%<id>` matches anything of the form `%"quoted name"` or `%name` or `%0 the first time that
+//!   id is used.  Later uses of the same id match exactly what the first id matched.
+//! * `^^` matches a literal `^`.
+//! * `^<id>` matches anything of the form `^0` the first time that id is used.  Later uses of
+//!   the same id match exactly what the first id matched.
+//!
+//! The gdb and lldb checks succeed when running the binary under a debugger produces the given
+//! standard output.  The contents are a sequence of matches separated by `#...` that are expected
+//! to appear in the order given, separated by artibtrary text.  The commands to be executed by the
+//! debugger are extracted from the contents by looking for lines starting with `(gdb) ` or
+//! `(lldb) ` respectively.
+//!
+//! # Running a Case Individually and Other Tricks
+//! This runner is primarily intended to be invoked by the build system, and uses the test protocol
+//! for scheduling test runs and communicating test results.  However, sometimes it is much easier
+//! to debug a failing test if it did not depend on the entire build system, and so the binary
+//! compiled from this file can also be invoked directly, for example:
+//!
+//!    $ ./.zig-cache/o/$HASH/runner --zig=path/to/zig --lib=path/to/lib --keep-src -fqemu \
+//!    --target aarch64-linux-none-baseline-whole-llvm-lld-pic \
+//!    --target aarch64-linux-gnu-baseline-whole-llvm-lld-pic path/to/case
+//!
+//! Don't forget to specify at least one target or it has nothing to do.  The compiler can be
+//! debugged (even with incremental targets!) by running the above command in lldb and using the
+//! following commands:
+//!
+//!     (lldb) settings set target.process.follow-fork-mode child
+//!     (lldb) process launch
+//!     * thread #2, name = 'runner', stop reason = exec
+//!     (lldb) settings set target.process.follow-fork-mode parent
+//!     (lldb) breakpoint set -n interestingFunction
+//!     (lldb) process continue
+//!
+//! The resulting binary can be examined or debugged by locating it in a `src_*` directory in the
+//! current working directory after passing `--keep-src`.  Note also that when using the build
+//! system, `-Dtest-filter` filters the case name and `-Dtest-target-filter` filters the target.
+
 const assert = std.debug.assert;
 const builtin = @import("builtin");
 const std = @import("std");
@@ -5,11 +224,6 @@ const Runner = @This();
 const Pattern = @import("Runner/match.zig").Pattern;
 
 /// These are passed as `<target>-<cache_mode>-<backend>-<linker>-<pic>` strings.
-///
-/// If only one specific test is failing on a target, instead of entirely disabling the target here, you
-/// can skip the target for that specific test only by adding a line like this to top of the manifest:
-///
-///     #skip x86_64-linux-none-baseline-whole-selfhosted-new-pic
 pub const Target = struct {
     cpu: Cpu = .{ .native = .{} },
     os: Os = .native,
