@@ -56,6 +56,9 @@ named_lazy_paths: std.array_hash_map.String(LazyPath),
 pkg_hash: []const u8,
 /// A mapping from dependency names to package hashes.
 available_deps: AvailableDeps,
+/// Indexes of `Graph.deduplicated_dependencies` that should be downgraded to non-canonical after
+/// build.zig finishes running.
+pushed_canonical_instances: std.ArrayList(u32) = .empty,
 
 pub const ConfigureDependency = struct {
     lazy_path: LazyPath,
@@ -2242,8 +2245,8 @@ pub const package_map: std.StaticStringMap(PackageEntry) = map: {
             .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
             .naked = !@hasDecl(pkg, "deps"),
             .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
-                fn run(sb: *Build) void {
-                    sb.runPackageScript(pkg.build_zig);
+                fn run(b: *Build) void {
+                    b.runPackageScript(pkg.build_zig);
                 }
             }.run else null,
         } };
@@ -2424,9 +2427,15 @@ fn dependencyResolved(
         .options = &sub_builder.user_input_options,
     }, dep) catch @panic("OOM");
     if (versioned) {
-        graph.deduplicated_dependencies.putContext(arena, @intCast(graph.package_instances.count() - 1), canonical, .{
+        const key: u32 = @intCast(graph.package_instances.count() - 1);
+        graph.deduplicated_dependencies.putContext(arena, key, canonical, .{
             .instances = &graph.package_instances,
         }) catch @panic("OOM");
+        if (canonical) {
+            // Canonical options should affect children only, not siblings.
+            const index: u32 = @intCast(graph.deduplicated_dependencies.count() - 1);
+            b.pushed_canonical_instances.append(arena, index) catch @panic("OOM");
+        }
     }
 
     return dep;
@@ -2434,9 +2443,13 @@ fn dependencyResolved(
 
 /// Build system implementation detail.
 pub inline fn runPackageScript(b: *Build, comptime build_zig: anytype) void {
-    const result: anyerror!void = build_zig.build(b);
+    handleResult(b, build_zig.build(b));
+}
+
+fn handleResult(b: *Build, result: anyerror!void) void {
+    const graph = b.graph;
     result catch |err| switch (err) {
-        error.LazyDependencyNeeded => assert(b.graph.unlazy_deps.count() != 0),
+        error.LazyDependencyNeeded => assert(graph.unlazy_deps.count() != 0),
         else => {
             if (b.dep_prefix.len == 0) {
                 log.err("package {q} configuration failed: {t}", .{ b.dep_prefix, err });
@@ -2444,11 +2457,17 @@ pub inline fn runPackageScript(b: *Build, comptime build_zig: anytype) void {
                 log.err("configuration failed: {t}", .{err});
             }
             if (@errorReturnTrace()) |trace| std.debug.dumpErrorReturnTrace(trace);
-            const lazy_count = b.graph.unlazy_deps.count();
+            const lazy_count = graph.unlazy_deps.count();
             if (lazy_count == 0) process.exit(1);
             log.info("{d} lazy dependencies detected; fetching and retrying configuration", .{lazy_count});
         },
     };
+
+    // Package instances marked "canonical" lose their canonicalness when they become siblings
+    // rather than parents.
+    for (b.pushed_canonical_instances.items) |index| {
+        graph.deduplicated_dependencies.values()[index] = false;
+    }
 }
 
 // dirnameAllowEmpty is a variant of fs.path.dirname
