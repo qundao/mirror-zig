@@ -1666,16 +1666,19 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
 
     var wf = b.addWriteFiles();
 
-    var it = try dir.walk(arena);
+    var it = try dir.walkSelectively(arena);
     while (it.next(io) catch @panic("failed to read dir")) |entry| {
+        if (std.mem.startsWith(u8, entry.basename, ".")) continue;
+
         switch (entry.kind) {
             .file => {},
             .directory => {
                 b.dependOnDirectoryContents(b.path(try fs.path.join(arena, &.{ doc_dir_path, entry.path })));
+                try it.enter(io, entry);
             },
             else => continue,
         }
-        if (std.mem.startsWith(u8, entry.basename, ".")) continue;
+
         if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
 
         const out_sub_path = b.fmt("{s}.out", .{
