@@ -150,9 +150,8 @@ fn printOutput(
 
     switch (code.id) {
         .exe => |exe| code_block: {
-            var build_args = std.array_list.Managed([]const u8).init(arena);
-            defer build_args.deinit();
-            try build_args.appendSlice(&[_][]const u8{
+            var build_args: std.ArrayList([]const u8) = .empty;
+            try build_args.appendSlice(arena, &[_][]const u8{
                 zig_exe,    "build-exe",
                 "--name",   code_name,
                 "--color",  "on",
@@ -187,10 +186,10 @@ fn printOutput(
             }
             if (code.use_llvm) |use_llvm| {
                 if (use_llvm) {
-                    try build_args.append("-fllvm");
+                    try build_args.append(arena, "-fllvm");
                     try shell_out.print("-fllvm ", .{});
                 } else {
-                    try build_args.append("-fno-llvm");
+                    try build_args.append(arena, "-fno-llvm");
                     try shell_out.print("-fno-llvm ", .{});
                 }
             }
@@ -340,10 +339,10 @@ fn printOutput(
             }
             if (code.use_llvm) |use_llvm| {
                 if (use_llvm) {
-                    try test_args.append("-fllvm");
+                    try test_args.append(arena, "-fllvm");
                     try shell_out.print("-fllvm ", .{});
                 } else {
-                    try test_args.append("-fno-llvm");
+                    try test_args.append(arena, "-fno-llvm");
                     try shell_out.print("-fno-llvm ", .{});
                 }
             }
@@ -570,13 +569,13 @@ fn printOutput(
             defer build_args.deinit(arena);
 
             if (code.just_check_syntax) {
-                try build_args.appendSlice(&[_][]const u8{
+                try build_args.appendSlice(arena, &[_][]const u8{
                     zig_exe,    "fmt",
                     "--color",  "on",
                     input_path,
                 });
             } else {
-                try build_args.appendSlice(&[_][]const u8{
+                try build_args.appendSlice(arena, &[_][]const u8{
                     zig_exe,    "build-obj",
                     "--color",  "on",
                     "--name",   code_name,
@@ -584,7 +583,7 @@ fn printOutput(
                 });
             }
             if (!code.just_check_syntax) if (opt_zig_lib_dir) |zig_lib_dir| {
-                try build_args.appendSlice(&.{ "--zig-lib-dir", zig_lib_dir });
+                try build_args.appendSlice(arena, &.{ "--zig-lib-dir", zig_lib_dir });
             };
 
             try shell_out.print("$ zig build-obj {s}.zig ", .{code_name});
@@ -603,10 +602,10 @@ fn printOutput(
             }
             if (code.use_llvm) |use_llvm| {
                 if (use_llvm) {
-                    try build_args.append("-fllvm");
+                    try build_args.append(arena, "-fllvm");
                     try shell_out.print("-fllvm ", .{});
                 } else {
-                    try build_args.append("-fno-llvm");
+                    try build_args.append(arena, "-fno-llvm");
                     try shell_out.print("-fno-llvm ", .{});
                 }
             }
@@ -682,10 +681,10 @@ fn printOutput(
             }
             if (code.use_llvm) |use_llvm| {
                 if (use_llvm) {
-                    try test_args.append("-fllvm");
+                    try test_args.append(arena, "-fllvm");
                     try shell_out.print("-fllvm ", .{});
                 } else {
-                    try test_args.append("-fno-llvm");
+                    try test_args.append(arena, "-fno-llvm");
                     try shell_out.print("-fno-llvm ", .{});
                 }
             }
@@ -1323,7 +1322,7 @@ fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
             },
         }
     }
-    return try buf.toOwnedSlice(allocator);
+    return try buf.toOwnedSlice();
 }
 
 // Returns true if number is in slice.
