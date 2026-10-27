@@ -286,7 +286,7 @@ fn parseError(tokenizer: *Tokenizer, token: Token, comptime fmt: []const u8, arg
 
 fn assertToken(tokenizer: *Tokenizer, token: Token, id: Token.Id) !void {
     if (token.id != id) {
-        return parseError(tokenizer, token, "expected {s}, found {s}", .{ @tagName(id), @tagName(token.id) });
+        return parseError(tokenizer, token, "expected {t}, found {t}", .{ id, token.id });
     }
 }
 
@@ -1062,9 +1062,8 @@ fn genHtml(
                 try printSourceBlock(allocator, tokenizer, out, syntax_block, null);
             },
             .Code => |code| {
-                const out_basename = try std.fmt.allocPrint(allocator, "{s}.out", .{
-                    Dir.path.stem(code.name),
-                });
+                const without_ext = code.name[0 .. code.name.len - Dir.path.extension(code.name).len];
+                const out_basename = try std.fmt.allocPrint(allocator, "{s}.out", .{without_ext});
                 defer allocator.free(out_basename);
 
                 const out_path: Path = .{
