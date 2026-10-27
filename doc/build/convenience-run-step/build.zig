@@ -17,4 +17,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_exe.step);
 }
 
-// syntax
+// build=succeed
+// additional_option=run
+// additional_option=--summary
+// additional_option=all

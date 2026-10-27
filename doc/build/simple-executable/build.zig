@@ -12,4 +12,6 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 }
 
-// syntax
+// build=succeed
+// additional_option=--summary
+// additional_option=all
