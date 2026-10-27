@@ -1666,13 +1666,22 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
 
     var wf = b.addWriteFiles();
 
-    var it = dir.iterateAssumeFirstIteration();
+    var it = try dir.walk(arena);
     while (it.next(io) catch @panic("failed to read dir")) |entry| {
-        if (entry.kind != .file) continue;
-        if (std.mem.startsWith(u8, entry.name, ".")) continue;
-        if (!std.mem.endsWith(u8, entry.name, ".zig")) continue;
+        switch (entry.kind) {
+            .file => {},
+            .directory => {
+                b.dependOnDirectoryContents(b.path(try fs.path.join(arena, &.{ doc_dir_path, entry.path })));
+            },
+            else => continue,
+        }
+        if (std.mem.startsWith(u8, entry.basename, ".")) continue;
+        if (!std.mem.endsWith(u8, entry.basename, ".zig")) continue;
 
-        const out_basename = b.fmt("{s}.out", .{std.fs.path.stem(entry.name)});
+        const out_sub_path = b.fmt("{s}.out", .{
+            entry.path[0 .. entry.path.len - fs.path.extension(entry.path).len],
+        });
+        std.log.debug("out_sub_path: {q}", .{out_sub_path});
         const cmd = b.addRunArtifact(doctest_exe);
 
         cmd.addArg("--zig");
@@ -1685,10 +1694,10 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
         cmd.addDirectoryArg(.zig_lib);
 
         cmd.addArg("-i");
-        cmd.addFileArg(b.path(b.fmt("{s}/{s}", .{ doc_dir_path, entry.name })));
+        cmd.addFileArg(b.path(b.fmt("{s}/{s}", .{ doc_dir_path, entry.path })));
 
         cmd.addArg("-o");
-        _ = wf.addCopyFile(cmd.addOutputFileArg(out_basename), out_basename);
+        _ = wf.addCopyFile(cmd.addOutputFileArg(out_sub_path), out_sub_path);
     }
 
     const docgen_exe = b.addExecutable(.{

@@ -323,18 +323,67 @@ th pre code {
     {#header_close#}
 
     {#header_open|Getting Started#}
+
     {#header_open|Simple Executable#}
     <p>This build script creates an executable from a Zig file that contains a public
     {#syntax#}main{#endsyntax#} function definition.</p>
 
-    {#code|hello.zig#}
-    {#code|build.zig#}
+    {#code|simple-executable/hello.zig#}
+    {#code|simple-executable/build.zig#}
     {#shell_samp#}
 $ zig build --summary all
 Build Summary: 3/3 steps succeeded
 install success
 +- install hello success
    +- compile exe hello debug native success 818ms MaxRSS:151M
+    {#end_shell_samp#}
+    {#header_close#}
+
+    {#header_open|Installing Build Artifacts#}
+    <p>The Zig Build System is based on modeling the project as a directed acyclic graph (DAG) of
+    steps, which are independently and concurrently run.</p>
+
+    <p>By default, the main step in the graph is the <strong>Install</strong> step, whose purpose is to copy
+    build artifacts into their final resting place. The Install step starts with no dependencies,
+    and therefore nothing will happen when <code>zig build</code> is run. A project's build script must add to
+    the set of things to install, which is what the <code>installArtifact</code> function call does above.</p>
+
+    <p>Output:</p>
+    <pre><code>├── build.zig
+├── hello.zig
+├── .zig-cache
+└── zig-out
+    └── bin
+        └── hello</code></pre>
+
+    <p>There are two generated directories in this output: <code>.zig-cache</code> and
+    <code>zig-out</code>. The first one
+    contains files that will make subsequent builds faster, but these files are not intended to be
+    checked into source control and this directory can be completely deleted at any time with no
+    meaningful consequences.</p>
+
+    <p>The second one, <code>zig-out</code>, is an "installation prefix". This maps to the standard
+    file system hierarchy concept. This directory is not chosen by the project, but by the user of
+    <code>zig build</code> with the <code>--prefix</code> flag (<code>-p</code> for short).</p>
+
+    <p>You, as the project maintainer, pick what gets put in this directory, but the user chooses where
+    to install it in their system. The build script cannot hardcode output paths because this would
+    break caching, concurrency, and composability, as well as annoy the final user.</p>
+    {#header_close#}
+
+    {#header_open|Adding a Convenience Step for Running the Application#}
+    <p>It is common to add a <strong>Run</strong> step to provide a way to run one's main application directly
+    from the build command.</p>
+
+    {#code|convenience-run-step/hello.zig#}
+    {#code|convenience-run-step/build.zig#}
+    {#shell_samp#}
+$ zig build run --summary all
+Hello World!
+Build Summary: 3/3 steps succeeded
+run success
++- run exe hello success 4ms
+   +- compile exe hello debug native success 758ms MaxRSS:150M
     {#end_shell_samp#}
     {#header_close#}
     {#header_close#}
