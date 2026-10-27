@@ -291,9 +291,9 @@
     .{ .cpu = .{ .ve = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
     .{ .cpu = .{ .ve = .{} }, .os = .{ .linux = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
 
-    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .emscripten = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
-    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
-    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .wasi = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
+    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .emscripten = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .old, .pic = .pic },
+    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .old, .pic = .pic },
+    .{ .cpu = .{ .wasm32 = .{} }, .os = .{ .wasi = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .old, .pic = .pic },
 
     .{ .cpu = .{ .wasm64 = .{} }, .os = .{ .emscripten = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },
     .{ .cpu = .{ .wasm64 = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld, .pic = .pic },

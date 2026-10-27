@@ -835,6 +835,10 @@ pub fn build(b: *std.Build) !void {
     try tests.addRunnerTests(b, runner, test_llvm_step, "test/llvm", @import("test/llvm/matrix.zon"), runner_opts);
     test_step.dependOn(test_llvm_step);
 
+    const test_safety_step = b.step("test-safety", "Run the safety check tests");
+    try tests.addRunnerTests(b, runner, test_safety_step, "test/safety", @import("test/safety/matrix.zon"), runner_opts);
+    test_step.dependOn(test_safety_step);
+
     // Provide steps for manually building commands which are usually JIT-compiled. This can be
     // useful during development, e.g. for using incremental compilation.
     {
