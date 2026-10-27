@@ -37,6 +37,7 @@ pub fn main(init: process.Init) !void {
     const cwd_path = try process.currentPathAlloc(io, arena);
 
     try environ_map.put("CLICOLOR_FORCE", "1");
+    _ = environ_map.swapRemove("NO_COLOR");
 
     var args_it = try init.minimal.args.iterateAllocator(arena);
     if (!args_it.skip()) fatal("missing argv[0]", .{});
@@ -448,8 +449,9 @@ fn printOutput(
             }
 
             const escaped_stderr = try escapeHtml(arena, result.stderr);
+            const colored_stderr = try termColor(arena, escaped_stderr);
             const escaped_stdout = try escapeHtml(arena, result.stdout);
-            try shell_out.print("\n{s}{s}\n", .{ escaped_stderr, escaped_stdout });
+            try shell_out.print("\n{s}{s}\n", .{ colored_stderr, escaped_stdout });
         },
         .test_error => |error_match| {
             var test_args: std.ArrayList([]const u8) = .empty;
@@ -1173,6 +1175,17 @@ fn writeEscaped(w: *Writer, input: []const u8) Writer.Error!void {
     };
 }
 
+const patterns: []const Pattern = &.{
+    .{ .match = "\x1B\x28\x30\x74\x71\x1B\x28\x42", .sub = "├─" },
+    .{ .match = "\x1B\x28\x30\x78\x1B\x28\x42", .sub = "─" },
+    .{ .match = "\x1B\x28\x30\x6d\x71\x1B\x28\x42", .sub = "└─" },
+};
+
+const Pattern = struct {
+    match: []const u8,
+    sub: []const u8,
+};
+
 fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
     // The SRG sequences generates by the Zig compiler are in the format:
     //   ESC [ <foreground-color> ; <n> m
@@ -1213,7 +1226,17 @@ fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
         const c = input[i];
         switch (state) {
             .start => switch (c) {
-                '\x1b' => state = .escape,
+                '\x1b' => {
+                    for (patterns) |pat| {
+                        if (mem.startsWith(u8, input[i..], pat.match)) {
+                            try out.writeAll(pat.sub);
+                            i += pat.match.len - 1;
+                            break;
+                        }
+                    } else {
+                        state = .escape;
+                    }
+                },
                 '\n' => {
                     try out.writeByte(c);
                     last_new_line = buf.writer.end;
@@ -1222,7 +1245,11 @@ fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
             },
             .escape => switch (c) {
                 '[' => state = .lbracket,
-                else => return error.UnsupportedEscape,
+                else => {
+                    //try out.print("{q}", .{input[i..]});
+                    //return buf.toOwnedSlice();
+                    return error.UnsupportedEscape;
+                },
             },
             .lbracket => switch (c) {
                 '0'...'9' => {
