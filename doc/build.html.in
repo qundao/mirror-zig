@@ -436,11 +436,65 @@ th pre code {
     {#header_close#}
 
     {#header_open|Static Library#}
-    <p>TODO documentation</p>
+    <p>This build script creates a static library from Zig code, and then also an executable from
+    other Zig code that consumes it.</p>
+    {#code|simple-static-library/fizzbuzz.zig#}
+    {#code|simple-static-library/demo.zig#}
+    {#code|simple-static-library/build.zig#}
+
+    <p>In this case, only the static library ends up being installed:</p>
+    <pre><code>zig-out/
+└── lib
+    └── libfizzbuzz.a</code></pre>
+    <p>However, if you look closely, the build script contains an option to also install the demo.
+    If we additionally pass <code>-Denable-demo</code>, then we see this in the installation prefix:</p>
+<pre><code>zig-out/
+├── bin
+│   └── demo
+└── lib
+    └── libfizzbuzz.a</code></pre>
+    <p>Note that despite the unconditional call to <code>addExecutable</code>, the build system in
+    fact does not waste any time building the <code>demo</code> executable unless it is requested
+    with <code>-Denable-demo</code>, because the build system is based on a Directed Acyclic Graph
+    with dependency edges.</p>
     {#header_close#}
 
     {#header_open|Dynamic Library#}
-    <p>TODO documentation</p>
+    <p>Here we keep all the files the same from the {#link|Static Library#} example, except
+    the <code>build.zig</code> file is changed.</p>
+    {#code|dynamic-library/build.zig#}
+    <p>Output:</p>
+<pre><code>zig-out
+└── lib
+    ├── libfizzbuzz.so -&gt; libfizzbuzz.so.1
+    ├── libfizzbuzz.so.1 -&gt; libfizzbuzz.so.1.2.3
+    └── libfizzbuzz.so.1.2.3</code></pre>
+    <p>As in the static library example, to make an executable link against it, use code like this:
+    {#syntax#}exe.linkLibrary(libfizzbuzz);{#endsyntax#}</p>
+    {#header_close#}
+
+    {#header_open|Configuring a Module#}
+    <p><strong>Modules</strong> are attached to {#link|Compile#} steps and are typically
+    used via {#syntax#}@import{#endsyntax#} from Zig code, however in the build system they have
+    utility beyond this use case. Modules can be configured in many ways:</p>
+    <ul>
+      <li>Attaching Zig source code, which makes the module provide code that can be used with {#syntax#}@import{#endsyntax#}.</li>
+      <li>Attaching C/C++ source files and related configuration such as macros, flags, include
+      directories, and library directories, which will be compiled and included in any
+      {#link|Compile#} steps that the module is attached to.</li>
+      <li>Per-module compilation options such as optimization mode, strip, pic, stack protector,
+      single-threaded, etc. See {#syntax#}std.Build.Module.CreateOptions{#endsyntax#} for the full list.</li>
+      <li>Linking them against {#link|static libraries|Static Library#} or
+      {#link|dynamic libraries|Dynamic Library#}, transitively linking any {#link|Compile#} step
+      when the module is attached.</li>
+    </ul>
+    <p>There are two ways to create a module:</p>
+    <ul>
+      <li>{#syntax#}b.createModule{#endsyntax#} - creates a private module, to be used
+      by the current package, but not exposed to other packages depending on this one.</li>
+      <li>{#syntax#}b.addModule{#endsyntax#} - creates a module exposed to
+      {#link|Package Management#}.</li>
+    </ul>
     {#header_close#}
 
     {#header_open|Testing#}

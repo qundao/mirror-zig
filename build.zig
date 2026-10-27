@@ -1684,7 +1684,6 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
         const out_sub_path = b.fmt("{s}.out", .{
             entry.path[0 .. entry.path.len - fs.path.extension(entry.path).len],
         });
-        std.log.debug("out_sub_path: {q}", .{out_sub_path});
         const cmd = b.addRunArtifact(doctest_exe);
 
         cmd.addArg("--zig");
