@@ -571,7 +571,17 @@ install success
     {#header_close#}
 
     {#header_open|Options for Conditional Compilation#}
+    <p>To pass options from the build script and into the project's Zig code, use the
+    {#link|Options#} step.</p>
+    {#code|conditional-compilation/app.zig#}
+    {#code|conditional-compilation/build.zig#}
+    <p>In this example, the data provided by <code>@import(&quot;config&quot;)</code> is comptime-known,
+    preventing the <code>@compileError</code> from triggering. If we had passed <code>-Dversion=0.2.3</code>
+    or omitted the option, then we would have seen the compilation of <code>app.zig</code> fail with
+    the &quot;too old&quot; error.</p>
+
     {#header_close#}
+
     {#header_open|Static Library#}
     {#header_close#}
     {#header_open|Dynamic Library#}
