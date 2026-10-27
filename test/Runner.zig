@@ -112,11 +112,11 @@
 //!
 //!     #skip x86_64-linux-none-baseline-whole-selfhosted-new-pic
 //!
-//! The exe, lib, and obj commands defines compiler command line arguments that are specific to this
-//! case, correspond to `zig build-exe`, `zig build-lib`, and `zig build-obj`, respectively, and can
-//! override options selected by the target, for example:
+//! The zig command defines the compiler command line arguments that are specific to this case,
+//! where the command argument chooses the compiler sub-command and the contents contains options
+//! that can override options selected by the target, for example:
 //!
-//!     #exe {
+//!     #zig build-exe {
 //!     --name name -fomit-frame-pointer
 //!     --dep mod1 -Mroot=root.zig
 //!     --dep mod2 -Mmod1=mod1.zig
@@ -156,7 +156,10 @@
 //!
 //! # Available checks
 //! The errors check succeeds when the compiler produces the given compiler errors.  The contents
-//! are an exact match to the printed compile errors, with source lines, span, and reference trace
+//! suppport some patterns that are not matched exactly:
+//! * `builtin.zig:?:?:` matches a path to a builtin source file and any line or column number.
+//! * `lib/std/**.zig:?:?:` matches a path to a source file located in the standard library and any
+//!   line or column number.
 //! omitted.  Empty contents succeed when the compiler produces no compile errors.
 //!
 //! The stdout check succeeds when running the binary produced by the compiler, possibly with an
@@ -198,7 +201,7 @@
 //! to debug a failing test if it did not depend on the entire build system, and so the binary
 //! compiled from this file can also be invoked directly, for example:
 //!
-//!    $ ./.zig-cache/o/$HASH/runner --zig=path/to/zig --lib=path/to/lib --keep-src -fqemu \
+//!    $ ./runner --zig=path/to/zig --lib=path/to/lib --keep-src -fqemu \
 //!    --target aarch64-linux-none-baseline-whole-llvm-lld-pic \
 //!    --target aarch64-linux-gnu-baseline-whole-llvm-lld-pic path/to/case
 //!
@@ -231,10 +234,10 @@ pub const Target = struct {
     ofmt: ObjectFormat = .default,
     dynamic_linker: DynamicLinker = .default,
 
-    cache_mode: enum { whole, incremental },
-    backend: enum { selfhosted, llvm, cbe },
-    linker: enum { lld, old, new },
-    pic: enum { nopic, pic, pie },
+    cache_mode: CacheMode,
+    backend: Backend,
+    linker: Linker,
+    pic: Pic,
 
     pub const Cpu = Cpu: {
         @setEvalBranchQuota(4_000);
@@ -463,6 +466,21 @@ pub const Target = struct {
             target.pic,
         });
     }
+
+    pub const CacheMode = enum { whole, incremental };
+    pub const Backend = enum {
+        /// Use the self-hosted code generation backend for this target.
+        /// Corresponds to `-fno-llvm -fno-lld`.
+        selfhosted,
+        /// Use the LLVM backend.
+        /// Corresponds to `-fllvm -flld`.
+        llvm,
+        /// Use the C backend. The output is compiled with `zig cc`.
+        /// Corresponds to `-ofmt=c`.
+        cbe,
+    };
+    pub const Linker = enum { lld, old, new };
+    pub const Pic = enum { nopic, pic, pie };
 };
 
 gpa: std.mem.Allocator,
@@ -1324,8 +1342,8 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
             return update.manifest_sr.fail(cmd_src_loc, "unknown command", .{});
 
         const arg = switch (cmd) {
-            .todo, .exe, .lib, .obj, .update => null,
-            .skip, .write, .delete, .check => line_it.next() orelse
+            .todo, .update => null,
+            .skip, .zig, .write, .delete, .check => line_it.next() orelse
                 return update.manifest_sr.fail(line_it.rest()[0..0], "missing argument", .{}),
         };
 
@@ -1352,12 +1370,10 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                 break :contents_r &contents_impl.r;
             }
             switch (cmd) {
-                .skip, .delete => return update.manifest_sr.fail(
+                .todo, .zig, .write, .update, .check => {},
+                .skip, .delete => return update.manifest_sr.fail(contents, "unexpected contents {q}", .{
                     contents,
-                    "unexpected argument {q}",
-                    .{contents},
-                ),
-                else => {},
+                }),
             }
             contents: switch (contents[0]) {
                 else => return update.manifest_sr.fail(contents, "invalid contents syntax", .{}),
@@ -1412,7 +1428,6 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                         .{},
                     );
                     const contents_path = contents[1..];
-                    try runner.discoverInput(args_test.input_dir, contents_path);
 
                     update.contents_src_loc = .{
                         .path = try update.manifest_sr.eb_wip.addString(contents_path),
@@ -1429,6 +1444,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                             .{e},
                         ),
                     };
+                    try runner.discoverInput(args_test.input_dir, contents_path);
                     contents_impl = .{ .fr = contents_file.?.reader(runner.io, &contents_buffer) };
                     break :contents_r &contents_impl.fr.interface;
                 },
@@ -1480,7 +1496,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
         try comp.exit();
     }
 }
-const Command = enum { todo, skip, exe, lib, obj, write, delete, update, check };
+const Command = enum { todo, skip, zig, write, delete, update, check };
 fn handleCommand(
     runner: *Runner,
     update: *Update,
@@ -1504,109 +1520,111 @@ fn handleCommand(
             "\"#skip\" must appear before other commands",
             .{},
         ) else if (std.mem.eql(u8, update.target_query, arg.?)) return error.SkipTest,
-        .exe, .lib, .obj => runner.spawnCompiler(&update.compiler, update.src_dir, switch (cmd) {
-            else => unreachable,
-            .exe => .Exe,
-            .lib => .Lib,
-            .obj => .Obj,
-        }, contents_r, target: {
-            var component_it = std.mem.splitBackwardsScalar(u8, update.target_query, '-');
-            const pic_str = component_it.next() orelse
-                return update.fail("target {q} missing pic", .{update.target_query});
-            const pic = std.meta.stringToEnum(Compiler.Target.Pic, pic_str) orelse
-                return update.fail("target {q} unknown pic {q}", .{ update.target_query, pic_str });
-            const linker_str = component_it.next() orelse
-                return update.fail("target {q} missing linker", .{update.target_query});
-            const linker = std.meta.stringToEnum(Compiler.Target.Linker, linker_str) orelse
-                return update.fail("target {q} unknown linker {q}", .{
-                    update.target_query, linker_str,
-                });
-            const backend_str = component_it.next() orelse
-                return update.fail("target {q} missing backend", .{update.target_query});
-            const backend = std.meta.stringToEnum(Compiler.Target.Backend, backend_str) orelse
-                return update.fail("target {q} unknown backend {q}", .{
-                    update.target_query, backend_str,
-                });
-            const cache_mode_str = component_it.next() orelse
-                return update.fail("target {q} missing cache mode", .{update.target_query});
-            const cache_mode = std.meta.stringToEnum(Compiler.Target.CacheMode, cache_mode_str) orelse
-                return update.fail("target {q} unknown cache mode {q}", .{
-                    update.target_query, cache_mode_str,
-                });
-            const triple_cpu = component_it.rest();
-            var triple_len: usize = 0;
-            for (0..3) |_| {
-                const component_start = triple_len;
-                triple_len = if (std.mem.findScalarPos(u8, triple_cpu, triple_len, '-')) |dash_pos|
-                    dash_pos + 1
-                else
-                    return update.fail("target {q} missing cpu", .{update.target_query});
-                if (std.mem.eql(u8, triple_cpu[component_start..triple_len], "native-")) break;
-            }
-            const triple = triple_cpu[0 .. triple_len - 1];
-            const cpu = triple_cpu[triple_len..];
-            var query_parse_diags: std.Target.Query.ParseOptions.Diagnostics = undefined;
-            break :target .{
-                .triple = triple,
-                .resolved = std.zig.system.resolveTargetQuery(
-                    runner.io,
-                    std.Target.Query.parse(.{
-                        .arch_os_abi = triple,
-                        .cpu_features = cpu,
-                        .object_format = switch (backend) {
-                            .sema, .selfhosted, .llvm => null,
-                            .cbe => "c",
+        .zig => runner.spawnCompiler(
+            &update.compiler,
+            update.src_dir,
+            std.meta.stringToEnum(Compiler.Command, arg.?) orelse
+                return update.manifest_sr.fail(arg.?, "unknown compiler command", .{}),
+            contents_r,
+            target: {
+                var component_it = std.mem.splitBackwardsScalar(u8, update.target_query, '-');
+                const pic_str = component_it.next() orelse
+                    return update.fail("target {q} missing pic", .{update.target_query});
+                const pic = std.meta.stringToEnum(Target.Pic, pic_str) orelse
+                    return update.fail("target {q} unknown pic {q}", .{ update.target_query, pic_str });
+                const linker_str = component_it.next() orelse
+                    return update.fail("target {q} missing linker", .{update.target_query});
+                const linker = std.meta.stringToEnum(Target.Linker, linker_str) orelse
+                    return update.fail("target {q} unknown linker {q}", .{
+                        update.target_query, linker_str,
+                    });
+                const backend_str = component_it.next() orelse
+                    return update.fail("target {q} missing backend", .{update.target_query});
+                const backend = std.meta.stringToEnum(Target.Backend, backend_str) orelse
+                    return update.fail("target {q} unknown backend {q}", .{
+                        update.target_query, backend_str,
+                    });
+                const cache_mode_str = component_it.next() orelse
+                    return update.fail("target {q} missing cache mode", .{update.target_query});
+                const cache_mode = std.meta.stringToEnum(Target.CacheMode, cache_mode_str) orelse
+                    return update.fail("target {q} unknown cache mode {q}", .{
+                        update.target_query, cache_mode_str,
+                    });
+                const triple_cpu = component_it.rest();
+                var triple_len: usize = 0;
+                for (0..3) |_| {
+                    const component_start = triple_len;
+                    triple_len = if (std.mem.findScalarPos(u8, triple_cpu, triple_len, '-')) |dash_pos|
+                        dash_pos + 1
+                    else
+                        return update.fail("target {q} missing cpu", .{update.target_query});
+                    if (std.mem.eql(u8, triple_cpu[component_start..triple_len], "native-")) break;
+                }
+                const triple = triple_cpu[0 .. triple_len - 1];
+                const cpu = triple_cpu[triple_len..];
+                var query_parse_diags: std.Target.Query.ParseOptions.Diagnostics = undefined;
+                break :target .{
+                    .triple = triple,
+                    .resolved = std.zig.system.resolveTargetQuery(
+                        runner.io,
+                        std.Target.Query.parse(.{
+                            .arch_os_abi = triple,
+                            .cpu_features = cpu,
+                            .object_format = switch (backend) {
+                                .selfhosted, .llvm => null,
+                                .cbe => "c",
+                            },
+                            .diagnostics = &query_parse_diags,
+                        }) catch |err| switch (err) {
+                            error.UnknownArchitecture => return update.fail(
+                                "unable to resolve target {q}: unknown architecture: {q}",
+                                .{ update.target_query, query_parse_diags.unknown_architecture_name.? },
+                            ),
+                            error.MissingOperatingSystem => return update.fail(
+                                "unable to resolve target {q}: missing operating system",
+                                .{update.target_query},
+                            ),
+                            error.UnknownOperatingSystem => return update.fail(
+                                "unable to resolve target {q}: unknown operating system: {q}",
+                                .{ update.target_query, query_parse_diags.os_name.? },
+                            ),
+                            error.InvalidOperatingSystemVersion => return update.fail(
+                                "unable to resolve target {q}: invalid operating system version",
+                                .{update.target_query},
+                            ),
+                            error.UnknownApplicationBinaryInterface => return update.fail(
+                                "unable to resolve target {q}: unknown abi",
+                                .{update.target_query},
+                            ),
+                            error.InvalidAbiVersion => return update.fail(
+                                "unable to resolve target {q}: invalid abi version",
+                                .{update.target_query},
+                            ),
+                            error.UnexpectedExtraField => unreachable, // validated above
+                            error.UnknownCpuModel => return update.fail(
+                                "unable to resolve target {q}: unknown cpu: {q}",
+                                .{ update.target_query, query_parse_diags.cpu_name.? },
+                            ),
+                            error.UnknownCpuFeature => return update.fail(
+                                "unable to resolve target {q}: unknown cpu feature: {q}",
+                                .{ update.target_query, query_parse_diags.unknown_feature_name.? },
+                            ),
+                            error.UnknownObjectFormat => return update.fail(
+                                "unable to resolve target {q}: unknown object format",
+                                .{update.target_query},
+                            ),
                         },
-                        .diagnostics = &query_parse_diags,
-                    }) catch |err| switch (err) {
-                        error.UnknownArchitecture => return update.fail(
-                            "unable to resolve target {q}: unknown architecture: {q}",
-                            .{ update.target_query, query_parse_diags.unknown_architecture_name.? },
-                        ),
-                        error.MissingOperatingSystem => return update.fail(
-                            "unable to resolve target {q}: missing operating system",
-                            .{update.target_query},
-                        ),
-                        error.UnknownOperatingSystem => return update.fail(
-                            "unable to resolve target {q}: unknown operating system: {q}",
-                            .{ update.target_query, query_parse_diags.os_name.? },
-                        ),
-                        error.InvalidOperatingSystemVersion => return update.fail(
-                            "unable to resolve target {q}: invalid operating system version",
-                            .{update.target_query},
-                        ),
-                        error.UnknownApplicationBinaryInterface => return update.fail(
-                            "unable to resolve target {q}: unknown abi",
-                            .{update.target_query},
-                        ),
-                        error.InvalidAbiVersion => return update.fail(
-                            "unable to resolve target {q}: invalid abi version",
-                            .{update.target_query},
-                        ),
-                        error.UnexpectedExtraField => unreachable, // validated above
-                        error.UnknownCpuModel => return update.fail(
-                            "unable to resolve target {q}: unknown cpu: {q}",
-                            .{ update.target_query, query_parse_diags.cpu_name.? },
-                        ),
-                        error.UnknownCpuFeature => return update.fail(
-                            "unable to resolve target {q}: unknown cpu feature: {q}",
-                            .{ update.target_query, query_parse_diags.unknown_feature_name.? },
-                        ),
-                        error.UnknownObjectFormat => return update.fail(
-                            "unable to resolve target {q}: unknown object format",
-                            .{update.target_query},
-                        ),
+                    ) catch |err| switch (err) {
+                        error.Canceled => |e| return e,
+                        else => |e| return update.fail("unable to resolve target {q}: {t}", .{ triple, e }),
                     },
-                ) catch |err| switch (err) {
-                    error.Canceled => |e| return e,
-                    else => |e| return update.fail("unable to resolve target {q}: {t}", .{ triple, e }),
-                },
-                .cache_mode = cache_mode,
-                .backend = backend,
-                .linker = linker,
-                .pic = pic,
-            };
-        }) catch |err| switch (err) {
+                    .cache_mode = cache_mode,
+                    .backend = backend,
+                    .linker = linker,
+                    .pic = pic,
+                };
+            },
+        ) catch |err| switch (err) {
             error.Canceled, error.OutOfMemory, error.AlreadyReported, error.SkipTest => |e| return e,
             error.ReadFailed => return error.ContentsReadFailed,
         },
@@ -1656,7 +1674,7 @@ fn handleCommand(
             update.src_loc = update.cmd_src_loc;
             const comp = &(update.compiler orelse return update.manifest_sr.fail(
                 cmd_src_loc,
-                "missing \"#exe\", \"#lib\", or \"#obj\"",
+                "missing \"#zig\" command",
                 .{},
             ));
             update.prog_node.end();
@@ -1699,7 +1717,7 @@ fn handleCommand(
 
             const comp = &(update.compiler orelse return update.manifest_sr.fail(
                 cmd_src_loc,
-                "missing \"#exe\", \"#lib\", or \"#obj\"",
+                "missing \"#zig\" command",
                 .{},
             ));
             if (comp.state != .update)
@@ -1739,14 +1757,102 @@ fn handleCommand(
                             }, &error_aw.writer) catch |err| switch (err) {
                                 error.WriteFailed => return error.OutOfMemory,
                             };
-                            const actual = error_aw.written();
-                            std.mem.replaceScalar(u8, actual, '\\', '/');
-                            std.testing.expectEqualStrings(expected, actual) catch |err| switch (err) {
-                                error.TestExpectedEqual => return update.fail(
-                                    "errors did not match expected",
-                                    .{},
-                                ),
-                            };
+                            try update.checkPattern(runner, "errors", expected, error_aw.written(), &.{
+                                .{ "builtin.zig:?:?:", .anon, &.{
+                                    .{ .@"?" = &.{
+                                        .{ .none = &.{
+                                            .{ '\n', '\n' },
+                                            .{ '\r', '\r' },
+                                            .{ ' ', ' ' },
+                                            .{ ':', ':' },
+                                        } },
+                                        .{ .@"*" = &.{
+                                            .{ .none = &.{
+                                                .{ '\n', '\n' },
+                                                .{ '\r', '\r' },
+                                            } },
+                                        } },
+                                    } },
+                                    .{ .any = &.{
+                                        .{ '/', '/' },
+                                        .{ '\\', '\\' },
+                                    } },
+                                    .{ .literal = "b" },
+                                    .{ .any = &.{
+                                        .{ '/', '/' },
+                                        .{ '\\', '\\' },
+                                    } },
+                                    .{ .@"+" = &.{
+                                        .{ .any = &.{
+                                            .{ '0', '9' },
+                                            .{ 'a', 'f' },
+                                        } },
+                                    } },
+                                    .{ .any = &.{
+                                        .{ '/', '/' },
+                                        .{ '\\', '\\' },
+                                    } },
+                                    .{ .literal = "builtin.zig:" },
+                                    .{ .@"+" = &.{
+                                        .{ .any = &.{
+                                            .{ '0', '9' },
+                                        } },
+                                    } },
+                                    .{ .literal = ":" },
+                                    .{ .@"+" = &.{
+                                        .{ .any = &.{
+                                            .{ '0', '9' },
+                                        } },
+                                    } },
+                                    .{ .literal = ":" },
+                                } },
+                                .{ "lib/std/**.zig:?:?:", .anon, &.{
+                                    .{ .@"?" = &.{
+                                        .{ .none = &.{
+                                            .{ '\n', '\n' },
+                                            .{ '\r', '\r' },
+                                            .{ ' ', ' ' },
+                                            .{ ':', ':' },
+                                        } },
+                                        .{ .@"*" = &.{
+                                            .{ .none = &.{
+                                                .{ '\n', '\n' },
+                                                .{ '\r', '\r' },
+                                            } },
+                                        } },
+                                    } },
+                                    .{ .literal = "lib" },
+                                    .{ .any = &.{
+                                        .{ '/', '/' },
+                                        .{ '\\', '\\' },
+                                    } },
+                                    .{ .literal = "std" },
+                                    .{ .any = &.{
+                                        .{ '/', '/' },
+                                        .{ '\\', '\\' },
+                                    } },
+                                    .{ .@"+" = &.{
+                                        .{ .none = &.{
+                                            .{ '\n', '\n' },
+                                            .{ '\r', '\r' },
+                                            .{ ':', ':' },
+                                        } },
+                                    } },
+                                    .{ .literal = ".zig:" },
+                                    .{ .@"+" = &.{
+                                        .{ .any = &.{
+                                            .{ '0', '9' },
+                                        } },
+                                    } },
+                                    .{ .literal = ":" },
+                                    .{ .@"+" = &.{
+                                        .{ .any = &.{
+                                            .{ '0', '9' },
+                                        } },
+                                    } },
+                                    .{ .literal = ":" },
+                                } },
+                            });
                         },
                         .stdout, .exit, .llvm, .gdb, .lldb => if (eb.errorMessageCount() > 0) {
                             eb.renderToStderr(runner.io, .{}, .auto) catch |err| switch (err) {
@@ -1784,7 +1890,7 @@ fn spawnCompiler(
     runner: *Runner,
     compiler: *?Compiler,
     src_dir: std.Io.Dir,
-    output_mode: std.lang.OutputMode,
+    command: Compiler.Command,
     args_r: *std.Io.Reader,
     target: Compiler.Target,
 ) (std.Io.Reader.ShortError || TestError)!void {
@@ -1799,7 +1905,7 @@ fn spawnCompiler(
     compiler.* = .{
         .runner = runner,
         .allow_compiler_stderr = true,
-        .output_mode = output_mode,
+        .command = command,
         .state = .idle,
         .child = undefined,
         .fw = undefined,
@@ -1817,11 +1923,7 @@ fn spawnCompiler(
     defer argv.deinit(gpa);
     try argv.appendSlice(gpa, &.{
         "zig",
-        switch (output_mode) {
-            .Obj => "build-obj",
-            .Exe => "build-exe",
-            .Lib => "build-lib",
-        },
+        @tagName(command),
         "-target",
         comp.target.triple,
         "--cache-dir",
@@ -1833,7 +1935,6 @@ fn spawnCompiler(
     }
     var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     if (comp.target.backend) |b| switch (b) {
-        .sema => try argv.append(gpa, "-fno-emit-bin"),
         .selfhosted => try argv.append(gpa, "-fno-llvm"),
         .llvm => try argv.append(gpa, "-fllvm"),
         .cbe => try argv.append(gpa, "-ofmt=c"),
@@ -1930,7 +2031,7 @@ fn spawnCompiler(
         .os_tag = comp.target.resolved.os.tag,
         .ofmt = comp.target.resolved.ofmt,
         .abi = comp.target.resolved.abi,
-        .output_mode = output_mode,
+        .output_mode = comp.command.outputMode(),
     }) else null;
 
     var name_buffer: [std.Progress.Node.max_name_len]u8 = undefined;
@@ -1962,7 +2063,7 @@ fn spawnCompiler(
 const Compiler = struct {
     runner: *Runner,
     allow_compiler_stderr: bool,
-    output_mode: std.lang.OutputMode,
+    command: Compiler.Command,
     state: enum { idle, update },
     child: std.process.Child,
     fw: std.Io.File.Writer,
@@ -1974,34 +2075,28 @@ const Compiler = struct {
     prog_node: std.Progress.Node,
     config: ?std.zig.Server.Message.Config,
 
+    const Command = enum {
+        @"build-obj",
+        @"build-exe",
+        @"build-lib",
+        @"test",
+        @"test-obj",
+
+        fn outputMode(cmd: Compiler.Command) std.lang.OutputMode {
+            return switch (cmd) {
+                .@"build-obj", .@"test-obj" => .Obj,
+                .@"build-exe", .@"test" => .Exe,
+                .@"build-lib" => .Lib,
+            };
+        }
+    };
     const Target = struct {
         triple: []const u8,
         resolved: std.Target,
-        cache_mode: CacheMode,
-        backend: ?Backend,
-        linker: Linker,
-        pic: Pic,
-
-        const CacheMode = enum { whole, incremental };
-
-        const Backend = enum {
-            /// Run semantic analysis only. Runtime output will not be tested, but we still verify
-            /// that compilation succeeds. Corresponds to `-fno-emit-bin`.
-            sema,
-            /// Use the self-hosted code generation backend for this target.
-            /// Corresponds to `-fno-llvm -fno-lld`.
-            selfhosted,
-            /// Use the LLVM backend.
-            /// Corresponds to `-fllvm -flld`.
-            llvm,
-            /// Use the C backend. The output is compiled with `zig cc`.
-            /// Corresponds to `-ofmt=c`.
-            cbe,
-        };
-
-        const Linker = enum { old, new, lld };
-
-        const Pic = enum { nopic, pic, pie };
+        cache_mode: Runner.Target.CacheMode,
+        backend: ?Runner.Target.Backend,
+        linker: Runner.Target.Linker,
+        pic: Runner.Target.Pic,
     };
 
     fn deinit(comp: *Compiler) void {
@@ -2076,7 +2171,6 @@ const Compiler = struct {
             const emit_path =
                 try std.Io.Dir.path.join(arena, &.{ emit_dir_path, emit_name });
             break :emit_path switch (comp.target.backend.?) {
-                .sema => return,
                 .selfhosted, .llvm => emit_path,
                 .cbe => try comp.compileC(update.src_dir, emit_path),
             };
@@ -2669,8 +2763,11 @@ const Compiler = struct {
         const runner = parent_comp.runner;
         const arena = runner.arena.allocator();
         var compiler: ?Compiler = null;
-        var args_r: std.Io.Reader = .fixed(c_path);
-        parent_comp.runner.spawnCompiler(&compiler, src_dir, parent_comp.output_mode, &args_r, .{
+        var args_r: std.Io.Reader = .fixed(if (parent_comp.emit_name) |emit_name|
+            try arena.print("--name {s} {s}", .{ emit_name, c_path })
+        else
+            c_path);
+        parent_comp.runner.spawnCompiler(&compiler, src_dir, parent_comp.command, &args_r, .{
             .triple = parent_comp.target.triple,
             .resolved = resolved: {
                 var resolved = parent_comp.target.resolved;

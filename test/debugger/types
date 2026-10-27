@@ -1,4 +1,4 @@
-#exe {
+#zig build-exe {
 --name types
 -Mroot=types.zig
 #}

@@ -823,6 +823,10 @@ pub fn build(b: *std.Build) !void {
         test_step.dependOn(test_debugger_step);
     } else test_debugger_step.dependOn(&b.addFail("test-debugger requires -Dgdb and/or -Dlldb").step);
 
+    const test_errors_step = b.step("test-errors", "Run the compile error tests");
+    try tests.addRunnerTests(b, runner, test_errors_step, "test/errors", @import("test/errors/matrix.zon"), runner_opts);
+    test_step.dependOn(test_errors_step);
+
     const test_incremental_step = b.step("test-incremental", "Run the incremental compilation tests");
     try tests.addRunnerTests(b, runner, test_incremental_step, "test/incremental", @import("test/incremental/matrix.zon"), runner_opts);
     test_step.dependOn(test_incremental_step);

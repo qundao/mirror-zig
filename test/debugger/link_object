@@ -1,4 +1,4 @@
-#exe {
+#zig build-exe {
 --name link_object
 -Mroot=main.zig
 #}

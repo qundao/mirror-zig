@@ -2,7 +2,7 @@
 #skip x86_64-linux-none-baseline-incremental-selfhosted-new-nopic
 #skip x86_64-linux-none-baseline-incremental-selfhosted-new-pic
 
-#exe {
+#zig build-exe {
 --name inline_call
 --dep module -Mroot=root0.zig
 -Mmodule=mod0.zig

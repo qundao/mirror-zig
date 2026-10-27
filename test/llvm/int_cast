@@ -8,7 +8,7 @@
 #skip nvptx64-cuda-none-baseline-whole-llvm-lld-pic
 #skip nvptx64-nvcl-none-baseline-whole-llvm-lld-pic
 
-#obj {
+#zig build-obj {
 --name test -fno-lld -fno-new-linker -ofmt=llvmir
 -Mroot=test.zig
 #}

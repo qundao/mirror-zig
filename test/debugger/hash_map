@@ -1,4 +1,4 @@
-#exe {
+#zig build-exe {
 --name hash_map
 -Mroot=main.zig
 #}

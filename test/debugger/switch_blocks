@@ -1,4 +1,4 @@
-#exe {
+#zig build-exe {
 --name switch_blocks
 -Mroot=switch_blocks.zig
 #}

@@ -36,7 +36,7 @@
 #skip spirv64-opencl-none-baseline-whole-llvm-lld-pic
 #skip spirv64-vulkan-none-baseline-whole-llvm-lld-pic
 
-#obj {
+#zig build-obj {
 --name test
 -Mroot=test.zig
 -fno-emit-asm -fno-emit-bin

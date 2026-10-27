@@ -41,7 +41,7 @@
 #skip xtensa-linux-call0-baseline-whole-llvm-lld-pic
 #skip xtensa-linux-none-baseline-whole-llvm-lld-pic
 
-#obj {
+#zig build-obj {
 --name test
 -Mroot=test.zig
 -femit-asm -fno-emit-bin

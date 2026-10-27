@@ -1,4 +1,4 @@
-#exe {
+#zig build-exe {
 --name optionals
 -Mroot=optionals.zig
 #}

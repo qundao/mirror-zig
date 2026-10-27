@@ -1,0 +1,17 @@
+.{
+    .{
+        .cache_mode = .whole,
+        .backend = .selfhosted,
+        .linker = .old,
+        .pic = .nopic,
+    },
+    .{
+        .cpu = .{ .x86_64 = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .none = .{} },
+        .cache_mode = .incremental,
+        .backend = .selfhosted,
+        .linker = .new,
+        .pic = .nopic,
+    },
+}

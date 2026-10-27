@@ -17,7 +17,7 @@
 #skip x86_64-linux-muslx32-baseline-whole-llvm-new-pic
 #skip x86_64-linux-x32-baseline-whole-llvm-new-pic
 
-#obj {
+#zig build-obj {
 --name test -fno-lld -fno-new-linker -ofmt=llvmir
 -Mroot=test.zig
 #}

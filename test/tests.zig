@@ -3165,7 +3165,6 @@ pub fn addCases(
     defer dir.close(io);
 
     cases.addFromDir(dir, "test/cases", b);
-    try @import("cases.zig").addCases(&cases, b);
 
     cases.lowerToBuildSteps(
         b,
