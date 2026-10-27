@@ -91,7 +91,7 @@ pub const Graph = struct {
 
     /// Maps project id to package instance. This is the one used for packages in the dependency
     /// tree that will be deduplicated based on their project id. The key is the index into
-    /// `package_instances`.
+    /// `package_instances`. Value is `canonical`.
     deduplicated_dependencies: DeduplicatedPackageMap = .empty,
     /// Maps full package hash and provided options to package instance. All package instances go
     /// into this map regardless of whether they are deduplicated.
@@ -253,7 +253,7 @@ pub const SystemLibraryMode = enum {
     declared_enabled,
 };
 
-const DeduplicatedPackageMap = std.array_hash_map.Custom(u32, void, struct {
+const DeduplicatedPackageMap = std.array_hash_map.Custom(u32, bool, struct {
     instances: *const PackageInstanceMap,
 
     pub fn hash(this: @This(), index: u32) u32 {
@@ -2071,6 +2071,50 @@ pub fn declareDependencyStep(b: *Build, s: *Step, name: []const u8) void {
     s.unlazy_deps.put(graph.arena, interned_hash, {}) catch @panic("OOM");
 }
 
+/// Declares that the current configuration does in fact require a potentially
+/// lazy dependency.
+///
+/// If the dependency is already fetched, it is returned. Otherwise, exits the
+/// configuration phase with intent to fetch the lazy dependency and rerun the
+/// configuration script.
+///
+/// If it is known to the caller at this point that additional lazy
+/// dependencies are also required, it would save time to call `dependencyLazy`
+/// instead, handling `error.LazyDependencyNeeded` in a way that marks multiple
+/// potentially lazy dependencies as required before eventually returning
+/// that error from the top level build function.
+///
+/// Related:
+/// * `dependencyCanonical`
+/// * `dependencyStep`
+/// * `dependencyLazy`
+pub fn dependency(b: *Build, name: []const u8, args: anytype) *Dependency {
+    return dependencyAdvanced(b, name, @returnAddress(), .{}, args) catch |err| switch (err) {
+        error.LazyDependencyNeeded => {
+            assert(b.graph.unlazy_deps.count() != 0);
+            serializeConfigurationExiting(b);
+        },
+    };
+}
+
+/// Equivalent to `dependency` but also declares that this set of options shall be used for all
+/// packages with matching fingerprints in the dependency subtree.
+///
+/// Related:
+/// * `dependency`
+/// * `dependencyStepCanonical`
+/// * `dependencyLazyCanonical`
+pub fn dependencyCanonical(b: *Build, name: []const u8, args: anytype) *Dependency {
+    return dependencyAdvanced(b, name, @returnAddress(), .{
+        .canonical = true,
+    }, args) catch |err| switch (err) {
+        error.LazyDependencyNeeded => {
+            assert(b.graph.unlazy_deps.count() != 0);
+            serializeConfigurationExiting(b);
+        },
+    };
+}
+
 /// Indicates that the current configuration needs a potentially lazy dependency for the provided `Step`.
 ///
 /// If the dependency is already fetched, it is returned, otherwise `null` is returned. After configuration
@@ -2079,23 +2123,33 @@ pub fn declareDependencyStep(b: *Build, s: *Step, name: []const u8) void {
 /// For non-lazy dependencies, this never returns `null`.
 ///
 /// Related:
+/// * `dependencyStepCanonical`
 /// * `dependency`
 /// * `dependencyLazy`
 /// * `declareDependency`
 /// * `declareDependencyStep`
 pub fn dependencyStep(b: *Build, s: *Step, name: []const u8, args: anytype) ?*Dependency {
-    const pkg_hash = findPkgHashOrFatal(b, name);
-    const graph = b.graph;
-    const arena = graph.arena;
-    const entry = package_map.get(pkg_hash).?;
-    if (!entry.available) {
-        const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
-        s.unlazy_deps.put(arena, interned_hash, {}) catch @panic("OOM");
-        return null;
-    }
-    var map: PackageOptions.Map = .empty;
-    PackageOptions.fromArgs(arena, &map, args);
-    return dependencyResolved(b, name, entry, &map, @returnAddress());
+    return dependencyAdvanced(b, name, @returnAddress(), .{
+        .step = s,
+    }, args) catch |err| switch (err) {
+        error.LazyDependencyNeeded => return null,
+    };
+}
+
+/// Equivalent to `dependencyStep` but also declares that this set of options shall be used for all
+/// packages with matching fingerprints in the dependency subtree.
+///
+/// Related:
+/// * `dependencyStep`
+/// * `dependencyCanonical`
+/// * `dependencyLazyCanonical`
+pub fn dependencyStepCanonical(b: *Build, s: *Step, name: []const u8, args: anytype) ?*Dependency {
+    return dependencyAdvanced(b, name, @returnAddress(), .{
+        .step = s,
+        .canonical = true,
+    }, args) catch |err| switch (err) {
+        error.LazyDependencyNeeded => return null,
+    };
 }
 
 /// Declares that the current configuration does in fact require a potentially lazy dependency.
@@ -2116,15 +2170,51 @@ pub fn dependencyStep(b: *Build, s: *Step, name: []const u8, args: anytype) ?*De
 /// * `declareDependency`
 /// * `declareDependencyStep`
 pub fn dependencyLazy(b: *Build, name: []const u8, args: anytype) error{LazyDependencyNeeded}!*Dependency {
+    return dependencyAdvanced(b, name, @returnAddress(), .{}, args);
+}
+
+/// Equivalent to `dependencyLazy` but also declares that this set of options shall be used for all
+/// packages with matching fingerprints in the dependency subtree.
+///
+/// Related:
+/// * `dependencyLazy`
+/// * `dependencyStepCanonical`
+pub fn dependencyLazyCanonical(b: *Build, name: []const u8, args: anytype) error{LazyDependencyNeeded}!*Dependency {
+    return dependencyAdvanced(b, name, @returnAddress(), .{ .canonical = true }, args);
+}
+
+pub const DependencyAdvancedOptions = struct {
+    /// Indicates that the current configuration needs a potentially lazy dependency for the
+    /// provided `Step`.
+    step: ?*Step = null,
+    /// Declares that this set of options shall be used for all packages with matching fingerprints
+    /// in the dependency subtree.
+    canonical: bool = false,
+};
+
+pub fn dependencyAdvanced(
+    b: *Build,
+    name: []const u8,
+    return_address: usize,
+    options: DependencyAdvancedOptions,
+    args: anytype,
+) error{LazyDependencyNeeded}!*Dependency {
+    const graph = b.graph;
+    const arena = graph.arena;
     const pkg_hash = findPkgHashOrFatal(b, name);
-    const entry = package_map.get(pkg_hash) orelse unreachable;
+    const entry = package_map.get(pkg_hash).?;
     if (!entry.available) {
-        markNeededLazyDep(b, pkg_hash);
+        const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
+        if (options.step) |s| {
+            s.unlazy_deps.put(arena, interned_hash, {}) catch @panic("OOM");
+        } else {
+            graph.unlazy_deps.put(arena, interned_hash, {}) catch @panic("OOM");
+        }
         return error.LazyDependencyNeeded;
     }
     var map: PackageOptions.Map = .empty;
-    PackageOptions.fromArgs(b.graph.arena, &map, args);
-    return dependencyResolved(b, name, entry, &map, @returnAddress());
+    PackageOptions.fromArgs(arena, &map, args);
+    return dependencyResolved(b, name, entry, &map, options.canonical, return_address);
 }
 
 pub const PackageEntry = struct {
@@ -2141,7 +2231,7 @@ pub const package_map: std.StaticStringMap(PackageEntry) = map: {
     const deps = @import("root").dependencies;
     const decl_names = @typeInfo(deps.packages).@"struct".decl_names;
     var kvs: [decl_names.len]struct { []const u8, PackageEntry } = undefined;
-    @setEvalBranchQuota(decl_names.len + 1);
+    @setEvalBranchQuota(decl_names.len + 100);
     for (decl_names, &kvs) |decl_name, *kv| {
         const pkg = @field(deps.packages, decl_name);
         const available = !@hasDecl(pkg, "available") or pkg.available;
@@ -2165,32 +2255,11 @@ pub const package_map: std.StaticStringMap(PackageEntry) = map: {
 pub const instance_map: std.StaticStringMap(void) = map: {
     const instances = @import("root").dependencies.instances;
     var kvs: [instances.len]struct { []const u8 } = undefined;
-    @setEvalBranchQuota(instances.len + 1);
+    @setEvalBranchQuota(instances.len + 100);
     for (&kvs, instances) |*kv, pkg_path| kv.* = .{pkg_path};
     const frozen = kvs;
     break :map .initComptime(&frozen);
 };
-
-/// Declares that the current configuration does in fact require a potentially
-/// lazy dependency.
-///
-/// If the dependency is already fetched, it is returned. Otherwise, exits the
-/// configuration phase with intent to fetch the lazy dependency and rerun the
-/// configuration script.
-///
-/// If it is known to the caller at this point that additional lazy
-/// dependencies are also required, it would save time to call `dependencyLazy`
-/// instead, handling `error.LazyDependencyNeeded` in a way that marks multiple
-/// potentially lazy dependencies as required before eventually returning
-/// that error from the top level build function.
-pub fn dependency(b: *Build, name: []const u8, args: anytype) *Dependency {
-    return dependencyLazy(b, name, args) catch |err| switch (err) {
-        error.LazyDependencyNeeded => {
-            assert(b.graph.unlazy_deps.count() != 0);
-            serializeConfigurationExiting(b);
-        },
-    };
-}
 
 /// In a build.zig file, this function is to `@import` what `lazyDependency` is to `dependency`.
 /// If the dependency is lazy and has not yet been fetched, it instructs the parent process to fetch
@@ -2255,7 +2324,7 @@ pub fn dependencyFromBuildZig(
         const entry = package_map.get(pkg_hash) orelse break :find_dep;
         var map: PackageOptions.Map = .empty;
         PackageOptions.fromArgs(arena, &map, args);
-        return dependencyResolved(b, dep_name, entry, &map, @returnAddress());
+        return dependencyResolved(b, dep_name, entry, &map, false, @returnAddress());
     }
 
     const full_path = b.root.join(arena, "build.zig.zon") catch @panic("OOM");
@@ -2268,6 +2337,7 @@ fn dependencyResolved(
     name: []const u8,
     entry: PackageEntry,
     package_options: *PackageOptions.Map,
+    canonical: bool,
     first_return_address: usize,
 ) *Dependency {
     const graph = b.graph;
@@ -2276,10 +2346,6 @@ fn dependencyResolved(
 
     PackageOptions.sort(package_options);
 
-    const package_instance: PackageInstance = .{
-        .pkg_hash = entry.hash,
-        .options = package_options,
-    };
     const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{ b.dep_prefix, name }) catch @panic("OOM");
     const new_package_path = child_dep_prefix[0 .. child_dep_prefix.len - 1];
 
@@ -2287,13 +2353,18 @@ fn dependencyResolved(
     // exempt from version management, then we skip straight to using `package_instances`.
     const versioned: bool = versioned: {
         if (!instance_map.has(new_package_path)) {
-            const package_hash: Package.Hash = .fromSlice(package_instance.pkg_hash);
+            const package_hash: Package.Hash = .fromSlice(entry.hash);
             if (package_hash.projectIdOptional()) |project_id| {
-                if (graph.deduplicated_dependencies.getKeyAdapted(project_id, @as(ProjectIdAdapter, .{
+                if (graph.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
                     .instances = &graph.package_instances,
-                }))) |i| {
-                    const found_package_instance = &graph.package_instances.keys()[i];
-                    const found_dependency = graph.package_instances.values()[i];
+                }))) |kv| {
+                    const index = kv.key_ptr.*;
+                    const found_canonical = kv.value_ptr.*;
+                    const found_dependency = graph.package_instances.values()[index];
+
+                    if (found_canonical) return found_dependency;
+
+                    const found_package_instance = &graph.package_instances.keys()[index];
                     const found_options = found_package_instance.options;
                     const found_pkg_hash = found_package_instance.pkg_hash;
                     const found_dep_prefix = found_dependency.builder.dep_prefix;
@@ -2318,7 +2389,10 @@ fn dependencyResolved(
                 break :versioned true;
             }
         }
-        if (graph.package_instances.get(package_instance)) |found_dependency| {
+        if (graph.package_instances.get(.{
+            .pkg_hash = entry.hash,
+            .options = package_options,
+        })) |found_dependency| {
             return found_dependency;
         }
         break :versioned false;
@@ -2345,16 +2419,16 @@ fn dependencyResolved(
     const dep = graph.create(Dependency);
     dep.* = .{ .builder = sub_builder };
 
-    const updated_package_instance: PackageInstance = .{
+    graph.package_instances.put(arena, .{
         .pkg_hash = entry.hash,
         .options = &sub_builder.user_input_options,
-    };
-    graph.package_instances.put(arena, updated_package_instance, dep) catch @panic("OOM");
+    }, dep) catch @panic("OOM");
     if (versioned) {
-        graph.deduplicated_dependencies.putContext(arena, @intCast(graph.package_instances.count() - 1), {}, .{
+        graph.deduplicated_dependencies.putContext(arena, @intCast(graph.package_instances.count() - 1), canonical, .{
             .instances = &graph.package_instances,
         }) catch @panic("OOM");
     }
+
     return dep;
 }
 
