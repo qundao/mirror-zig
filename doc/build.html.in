@@ -436,41 +436,132 @@ th pre code {
     {#header_close#}
 
     {#header_open|Static Library#}
+    <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Dynamic Library#}
+    <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Testing#}
+    <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Linking to System Libraries#}
+    <p>TODO documentation</p>
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|Intermediate Concepts#}
+    {#header_open|Configuration Phase#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Make Phase#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|The Cache System#}
+    {#header_open|Cache Poisoning#}
+    <p>TODO documentation</p>
+    {#header_close#}
+    {#header_close#}
+
+    {#header_open|System Integration#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_close#}
 
     {#header_open|Generating Files#}
 
     {#header_open|Running System Tools#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_open|Running the Project’s Tools#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_open|Producing Assets for @embedFile#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_open|Generating Zig Source Code#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_open|Dealing With One or More Generated Files#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_open|Mutating Source Files in Place#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_close#}
 
     {#header_open|Package Management#}
     {#header_open|Adding a Dependency#}
+    <p>TODO documentation</p>
     {#header_close#}
-    {#header_open|Fingerprint: The Project Identity#}
+
+    {#header_open|Package Identity: Fingerprint#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Dependency Tree Visualization#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Lazy Dependencies#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Forking#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Version Conflicts#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Package Configuration Options Conflicts#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Conflict Resolution via Selection#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Conflict Resolution via Instances#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Recommended Release Workflow#}
+    <p>TODO documentation</p>
     {#header_close#}
     {#header_close#}
 
-    {#header_open|Examples#}
-    {#header_open|Build for multiple targets to make a release#}
+    {#header_open|File System Watching#}
+    <p>TODO documentation</p>
     {#header_close#}
+
+    {#header_open|Web Interface#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Fuzzing#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Build Server Protocol#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+
+    {#header_open|Recipes#}
+    {#header_open|Build for multiple targets to make a release#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Walking a directory during configuration#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
     {#header_close#}
 
     {#header_open|Step Reference#}
@@ -566,7 +657,9 @@ th pre code {
     <p>String. Required.</p>
     <p><a href="https://semver.org/">semver</a></p>
     <p>Limited to 32 bytes.</p>
-    <h3 id="minimum_zig_version"><code>minimum_zig_version</code></h3>
+    {#header_close#}
+
+    {#header_open|Top Level Field: minimum_zig_version#}
     <p>String. Optional.</p>
     <p><a href="https://semver.org/">semver</a></p>
     <p>This is currently advisory only; the compiler does not yet do anything
@@ -630,6 +723,7 @@ th pre code {
     <p>Only files included in the package are used to compute a package&#39;s <code>hash</code>.</p>
     {#header_close#}
     {#header_close#}
+
   </main>
 </body>
 </html>
