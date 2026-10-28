@@ -57,7 +57,7 @@ errors: []ErrorMessage,
 arena_state: std.heap.ArenaAllocator.State,
 
 pub const ParseOptions = struct {
-    allow_missing_paths_field: bool = false,
+    allow_missing_package_fields: bool = false,
 };
 
 pub const Error = Allocator.Error;
@@ -81,7 +81,7 @@ pub fn parse(gpa: Allocator, ast: *const Ast, rng: std.Random, options: ParseOpt
         .dependencies = .{},
         .dependencies_node = .none,
         .paths = .empty,
-        .allow_missing_paths_field = options.allow_missing_paths_field,
+        .allow_missing_package_fields = options.allow_missing_package_fields,
         .minimum_zig_version = null,
         .buf = .empty,
     };
@@ -153,7 +153,7 @@ const Parse = struct {
     dependencies: std.array_hash_map.String(Dependency),
     dependencies_node: Ast.Node.OptionalIndex,
     paths: std.array_hash_map.String(void),
-    allow_missing_paths_field: bool,
+    allow_missing_package_fields: bool,
     minimum_zig_version: ?std.SemanticVersion,
 
     const InnerError = error{ ParseFailure, OutOfMemory };
@@ -211,7 +211,9 @@ const Parse = struct {
         }
 
         if (!have_name) {
-            try appendError(p, main_token, "missing top-level 'name' field", .{});
+            if (!p.allow_missing_package_fields) {
+                try appendError(p, main_token, "missing top-level \"name\" field", .{});
+            }
         } else {
             if (fingerprint) |n| {
                 if (!n.validate(p.name)) {
@@ -221,21 +223,21 @@ const Parse = struct {
                 }
                 p.id = n.id;
             } else {
-                try appendError(p, main_token, "missing top-level 'fingerprint' field; suggested value: 0x{x}", .{
+                try appendError(p, main_token, "missing top-level \"fingerprint\" field; suggested value: 0x{x}", .{
                     Package.Fingerprint.generate(rng, p.name).int(),
                 });
             }
         }
 
         if (!have_version) {
-            try appendError(p, main_token, "missing top-level 'version' field", .{});
+            if (!p.allow_missing_package_fields) {
+                try appendError(p, main_token, "missing top-level \"version\" field", .{});
+            }
         }
 
         if (!have_included_paths) {
-            if (p.allow_missing_paths_field) {
-                try p.paths.put(p.gpa, "", {});
-            } else {
-                try appendError(p, main_token, "missing top-level 'paths' field", .{});
+            if (!p.allow_missing_package_fields) {
+                try appendError(p, main_token, "missing top-level \"paths\" field", .{});
             }
         }
     }
@@ -570,7 +572,7 @@ pub fn load(
     ast: *std.zig.Ast,
     error_bundle: *std.zig.ErrorBundle.Wip,
     manifest: *Manifest,
-    allow_missing_paths_field: bool,
+    allow_missing_package_fields: bool,
 ) !void {
     const manifest_bytes = try manifest_path.root_dir.handle.readFileAllocOptions(
         io,
@@ -592,7 +594,7 @@ pub fn load(
     const rng: std.Random.IoSource = .{ .io = io };
 
     manifest.* = try parse(arena, ast, rng.interface(), .{
-        .allow_missing_paths_field = allow_missing_paths_field,
+        .allow_missing_package_fields = allow_missing_package_fields,
     });
 
     if (manifest.errors.len > 0) {
