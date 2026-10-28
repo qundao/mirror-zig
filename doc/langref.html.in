@@ -43,8 +43,8 @@
         padding: 0.5em;
       }
       th[scope=row] {
-          text-align: left;
-          font-weight: normal;
+        text-align: left;
+        font-weight: normal;
       }
 
       @media screen and (min-width: 1025px) {
@@ -301,6 +301,27 @@
   <header><h1>Zig Programming Language Reference</h1></header>
   <div id="main-wrapper">
       <div id="navigation">
+        <nav aria-labelledby="related-documentation">
+          <h2 id="related-documentation">Related Documentation</h2>
+          <table>
+          <tr>
+            <th>Resource</th>
+            <th>Command Line</th>
+          </tr>
+          <tr>
+            <td>Language Reference (this document)</td>
+            <td><code style="white-space: nowrap">zig doc langref</code></td>
+          </tr>
+          <tr>
+            <td><a href="/documentation/master/std/">Standard Module Documentation</a></td>
+            <td><code>zig doc std</code></td>
+          </tr>
+          <tr>
+            <td><a href="/documentation/master/build/">Build System</a></td>
+            <td><code>zig doc build</code></td>
+          </tr>
+          </table>
+        </nav>
         <nav aria-labelledby="zig-version">
           <h2 id="zig-version">Zig Version</h2>
           <a href="https://ziglang.org/documentation/0.1.1/">0.1.1</a> |
@@ -328,13 +349,6 @@
         </nav>
       </div>
       <div id="contents-wrapper"><main id="contents">
-      {#header_open|Related Documentation#}
-      <ul>
-        <li>Language Reference (this document)</li>
-        <li><a href="/documentation/master/std/">Standard Module Documentation</a></li>
-        <li><a href="/documentation/master/build/">Build System</a></li>
-      </ul>
-      {#header_close#}
       {#header_open|Introduction#}
       <p>
       <a href="https://ziglang.org">Zig</a> is a general-purpose programming language and toolchain for maintaining
@@ -852,13 +866,13 @@
       </p>
       <p>
         <kbd>zig test</kbd> is a tool that creates and runs a test build. By default, it builds and runs an
-        executable program using the <em>default test runner</em> provided by the {#link|Zig Standard Library#}
+        executable program using the <em>default test runner</em> provided by the {#link|Zig Standard Module#}
         as its main entry point. During the build, {#syntax#}test{#endsyntax#} declarations found while
         {#link|resolving|File and Declaration Discovery#} the given Zig source file are included for the default test runner
         to run and report on.
       </p>
       <aside>
-        This documentation discusses the features of the default test runner as provided by the Zig Standard Library.
+        This documentation discusses the features of the default test runner as provided by the Zig Standard Module.
         Its source code is located in <code class="file">lib/compiler/test_runner.zig</code>.
       </aside>
       <p>
@@ -941,7 +955,7 @@
 
       {#header_open|Report Memory Leaks#}
       <p>
-        When code allocates {#link|Memory#} using the {#link|Zig Standard Library#}'s testing allocator,
+        When code allocates {#link|Memory#} using the {#link|Zig Standard Module#}'s testing allocator,
         {#syntax#}std.testing.allocator{#endsyntax#}, the default test runner will report any leaks that are
         found from using the testing allocator:
       </p>
@@ -959,19 +973,19 @@
       {#header_close#}
       {#header_open|Test Output and Logging#}
       <p>
-        The default test runner and the Zig Standard Library's testing namespace output messages to standard error.
+        The default test runner and the Zig Standard Module's testing namespace output messages to standard error.
       </p>
       {#header_close#}
       {#header_open|The Testing Namespace#}
       <p>
-        The Zig Standard Library's <code>testing</code> namespace contains useful functions to help
+        The Zig Standard Module's <code>testing</code> namespace contains useful functions to help
         you create tests. In addition to the <code>expect</code> function, this document uses a couple of more functions
         as exemplified here:
       </p>
       {#code|testing_namespace.zig#}
 
-      <p>The Zig Standard Library also contains functions to compare {#link|Slices#}, strings, and more. See the rest of the
-        {#syntax#}std.testing{#endsyntax#} namespace in the {#link|Zig Standard Library#} for more available functions.</p>
+      <p>The Zig Standard Module also contains functions to compare {#link|Slices#}, strings, and more. See the rest of the
+        {#syntax#}std.testing{#endsyntax#} namespace in the {#link|Zig Standard Module#} for more available functions.</p>
       {#header_close#}
       {#header_open|Test Tool Documentation#}
       <p>
@@ -3293,7 +3307,7 @@ fn createFoo(param: i32) !Foo {
       </p>
       <p>
       This is especially useful for functions which return different error sets depending
-      on {#link|comptime#} branches. For example, the Zig standard library uses
+      on {#link|comptime#} branches. For example, the Zig Standard Module uses
       {#syntax#}LinuxFileOpenError || WindowsFileOpenError{#endsyntax#} for the error set of opening
       files.
       </p>
@@ -5141,7 +5155,7 @@ fn cmpxchgWeakButNotAtomic(comptime T: type, ptr: *T, expected_value: T, new_val
       if the builtin call was replaced by the ZON file contents.</p>
       <p>The following modules are always available for import:</p>
       <ul>
-          <li>{#syntax#}@import("std"){#endsyntax#} - Zig Standard Library</li>
+          <li>{#syntax#}@import("std"){#endsyntax#} - Zig Standard Module</li>
           <li>{#syntax#}@import("builtin"){#endsyntax#} - Target-specific information. The command <code>zig build-exe --show-builtin</code> outputs the source to stdout for reference.</li>
           <li>{#syntax#}@import("root"){#endsyntax#} - Alias for the root module. In typical project structures, this means it refers back to <code>src/main.zig</code>.
           </li>
@@ -6831,7 +6845,7 @@ const builtin = @import("builtin");
       {#header_close#}
       {#header_open|Panic Handler#}
       <p>
-      The Zig Standard Library looks for a declaration named {#syntax#}panic{#endsyntax#} in the root module's
+      The Zig Standard Module looks for a declaration named {#syntax#}panic{#endsyntax#} in the root module's
       root source file. If present, it is expected to be a {#link|Namespace#} with declarations
       providing different panic handlers.
       </p>
@@ -7131,7 +7145,7 @@ WebAssembly.instantiate(typedArray, {
 The result is 3{#end_shell_samp#}
       {#header_close#}
       {#header_open|WASI#}
-      <p>Zig standard library has first-class support for WebAssembly System Interface.</p>
+      <p>Zig Standard Module has first-class support for WebAssembly System Interface.</p>
       {#code|wasi_args.zig#}
 
       {#shell_samp#}$ wasmtime wasi_args.wasm 123 hello
@@ -7167,7 +7181,7 @@ The result is 3{#end_shell_samp#}
       needs to know about the target requirements via the <code>-target</code> option.
       </p>
       <p>
-      The Zig Standard Library ({#syntax#}@import("std"){#endsyntax#}) has
+      The Zig Standard Module ({#syntax#}@import("std"){#endsyntax#}) has
       cross-platform abstractions, making the same source code viable on many targets.
       Some code is more portable than other code. In general, Zig code is extremely
       portable compared to other programming languages.
@@ -7351,7 +7365,7 @@ const XmlParser = struct {
 fn readU32Be() u32 {}
       {#end_syntax_block#}
       <p>
-      See the {#link|Zig Standard Library#} for more examples.
+      See the {#link|Zig Standard Module#} for more examples.
       </p>
       {#header_close#}
       {#header_open|Doc Comment Guidance#}

@@ -314,7 +314,7 @@ th pre code {
     </nav>
     <nav>
       <h2 id="zig-version">Zig Version</h2>
-      master (this document)
+      master
     </nav>
     <nav>
       <h2 id="table-of-contents">Table of Contents</h2>
