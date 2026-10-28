@@ -66,6 +66,10 @@ job_queue: *JobQueue,
 /// If true, don't add an error for a missing hash. This flag is not passed
 /// down to recursive dependencies. It's intended to be used only be the CLI.
 omit_missing_hash_error: bool,
+/// If true, don't fail when a manifest file is missing `name`, `version`, `fingerprint`, or `paths`
+/// fields, this is generally true for the root package only, but also not allowed when using
+/// `zig fetch`.
+allow_missing_package_fields: bool,
 /// If true and URL points to a Git repository, will use the latest commit.
 use_latest_commit: bool,
 
@@ -948,7 +952,6 @@ fn loadManifest(f: *Fetch, pkg_root: Path) RunError!void {
     const eb = &f.error_bundle;
     const arena = f.arena.allocator();
     const manifest_path = try pkg_root.join(arena, Manifest.basename);
-    const allow_missing_package_fields = f.parent == null;
 
     Manifest.load(
         io,
@@ -957,7 +960,7 @@ fn loadManifest(f: *Fetch, pkg_root: Path) RunError!void {
         &f.manifest_ast,
         eb,
         &f.manifest,
-        allow_missing_package_fields,
+        f.allow_missing_package_fields,
     ) catch |err| switch (err) {
         error.FileNotFound => return,
         error.Canceled => |e| return e,
@@ -1107,6 +1110,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                 .prog_node = f.prog_node,
                 .job_queue = f.job_queue,
                 .omit_missing_hash_error = false,
+                .allow_missing_package_fields = false,
                 .use_latest_commit = false,
 
                 .package_root = undefined,
