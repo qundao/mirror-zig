@@ -2194,8 +2194,7 @@ fn hashTok(f: *const Fetch) ?std.zig.Ast.TokenIndex {
 }
 
 fn depName(f: *const Fetch) []const u8 {
-    const start = std.mem.findLastScalar(u8, f.name, '.') orelse 0;
-    return f.name[start..];
+    return if (std.mem.findLastScalar(u8, f.name, '.')) |start| f.name[start + 1 ..] else f.name;
 }
 
 // Detects executable header: ELF or Macho-O magic header or shebang line.
