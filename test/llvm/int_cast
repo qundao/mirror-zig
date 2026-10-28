@@ -1,12 +1,10 @@
-#skip amdgcn-amdhsa-none-baseline-whole-llvm-lld-pic
-#skip amdgcn-amdpal-none-baseline-whole-llvm-lld-pic
-#skip amdgcn-mesa3d-none-baseline-whole-llvm-lld-pic
+#skip amdgcn-amdhsa-none-baseline-whole-llvm-lld-default
 
-#skip nvptx-cuda-none-baseline-whole-llvm-lld-pic
-#skip nvptx-nvcl-none-baseline-whole-llvm-lld-pic
+#skip nvptx-cuda-none-baseline-whole-llvm-lld-default
+#skip nvptx-nvcl-none-baseline-whole-llvm-lld-default
 
-#skip nvptx64-cuda-none-baseline-whole-llvm-lld-pic
-#skip nvptx64-nvcl-none-baseline-whole-llvm-lld-pic
+#skip nvptx64-cuda-none-baseline-whole-llvm-lld-default
+#skip nvptx64-nvcl-none-baseline-whole-llvm-lld-default
 
 #zig build-obj {
 --name test -fno-lld -fno-new-linker -ofmt=llvmir

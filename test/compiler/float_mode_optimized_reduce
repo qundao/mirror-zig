@@ -1,4 +1,4 @@
-#skip wasm32-wasi-none-baseline-whole-selfhosted-old-nopic
+#skip wasm32-wasi-none-baseline-whole-selfhosted-default-default
 
 #zig build-exe {
 --name test

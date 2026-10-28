@@ -1,9 +1,7 @@
 .{
     .{
         .cache_mode = .whole,
-        .backend = .selfhosted,
-        .linker = .old,
-        .pic = .nopic,
+        .backend = .llvm,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -11,7 +9,5 @@
         .abi = .{ .none = .{} },
         .cache_mode = .incremental,
         .backend = .selfhosted,
-        .linker = .new,
-        .pic = .nopic,
     },
 }

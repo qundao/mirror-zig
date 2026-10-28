@@ -2641,6 +2641,96 @@ pub fn hotCodeSwap(
     try lf.makeExecutable();
 }
 
+fn reset(comp: *Compilation, arena: std.mem.Allocator) Allocator.Error!void {
+    const gpa = comp.gpa;
+    const io = comp.io;
+
+    comp.clearMiscFailures();
+    comp.last_update_was_cache_hit = false;
+    if (comp.time_report) |*tr| {
+        tr.deinit(gpa);
+        tr.* = .init;
+    }
+    if (comp.file_system_inputs) |file_system_inputs| file_system_inputs.clearRetainingCapacity();
+
+    if (comp.zcu) |zcu| {
+        zcu.skip_analysis_this_update = false;
+        if (zcu.generation > 0) return;
+        try zcu.reset(arena);
+    }
+
+    comp.windows_libs_num_done = 0;
+
+    {
+        var it = comp.crt_files.iterator();
+        while (it.next()) |entry| {
+            gpa.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(gpa, io);
+        }
+        comp.crt_files.clearRetainingCapacity();
+    }
+    if (comp.libcxx_static_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.libcxx_static_lib = null;
+    }
+    if (comp.libcxxabi_static_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.libcxxabi_static_lib = null;
+    }
+    if (comp.libunwind_static_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.libunwind_static_lib = null;
+    }
+    if (comp.tsan_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.tsan_lib = null;
+    }
+    if (comp.ubsan_rt_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.ubsan_rt_lib = null;
+    }
+    if (comp.ubsan_rt_obj) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.ubsan_rt_obj = null;
+    }
+    if (comp.zigc_static_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.zigc_static_lib = null;
+    }
+    if (comp.compiler_rt_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.compiler_rt_lib = null;
+    }
+    if (comp.compiler_rt_obj) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.compiler_rt_obj = null;
+    }
+    if (comp.fuzzer_lib) |*crt_file| {
+        crt_file.deinit(gpa, io);
+        comp.fuzzer_lib = null;
+    }
+    if (comp.glibc_so_files) |*glibc_file| {
+        glibc_file.deinit(gpa, io);
+        comp.glibc_so_files = null;
+    }
+    if (comp.freebsd_so_files) |*freebsd_file| {
+        freebsd_file.deinit(gpa, io);
+        comp.freebsd_so_files = null;
+    }
+    if (comp.netbsd_so_files) |*netbsd_file| {
+        netbsd_file.deinit(gpa, io);
+        comp.netbsd_so_files = null;
+    }
+    if (comp.openbsd_so_files) |*openbsd_file| {
+        openbsd_file.deinit(gpa, io);
+        comp.openbsd_so_files = null;
+    }
+    for (comp.failed_c_objects.values()) |bundle| bundle.destroy(comp.gpa);
+    comp.failed_c_objects.clearRetainingCapacity();
+    for (comp.failed_win32_resources.values()) |*bundle| bundle.deinit(comp.gpa);
+    comp.failed_win32_resources.clearRetainingCapacity();
+}
+
 fn cleanupAfterUpdate(comp: *Compilation, tmp_dir_rand_int: u64) void {
     const io = comp.io;
 
@@ -2728,25 +2818,7 @@ pub fn update(comp: *Compilation, main_progress_node: std.Progress.Node) UpdateE
     defer arena_allocator.deinit();
     const arena = arena_allocator.allocator();
 
-    reset: {
-        comp.clearMiscFailures();
-        comp.last_update_was_cache_hit = false;
-        if (comp.time_report) |*tr| {
-            tr.deinit(comp.gpa);
-            tr.* = .init;
-        }
-        if (comp.file_system_inputs) |file_system_inputs| file_system_inputs.clearRetainingCapacity();
-
-        if (comp.zcu) |zcu| {
-            zcu.skip_analysis_this_update = false;
-            if (zcu.generation > 0) break :reset;
-            try zcu.reset(arena);
-        }
-        for (comp.failed_c_objects.values()) |bundle| bundle.destroy(comp.gpa);
-        comp.failed_c_objects.clearRetainingCapacity();
-        for (comp.failed_win32_resources.values()) |*bundle| bundle.deinit(comp.gpa);
-        comp.failed_win32_resources.clearRetainingCapacity();
-    }
+    try comp.reset(arena);
 
     var tmp_dir_rand_int: u64 = undefined;
     var man: Cache.Manifest = undefined;
@@ -4413,7 +4485,7 @@ fn dispatchPrelinkWork(comp: *Compilation, main_progress_node: std.Progress.Node
     comp.queuePrelinkTasks(comp.oneshot_prelink_tasks.items) catch |err| switch (err) {
         error.Canceled => unreachable, // see swapCancelProtection above
     };
-    comp.oneshot_prelink_tasks.clearRetainingCapacity();
+    if (comp.config.incremental) comp.oneshot_prelink_tasks.clearRetainingCapacity();
 
     // In case it failed last time, try again. `clearMiscFailures` was already
     // called at the start of `update`.

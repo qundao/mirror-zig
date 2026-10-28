@@ -3212,43 +3212,49 @@ pub fn addRunnerTests(
         _ = run.addPrefixedOutputDirectoryArg("--src=", "src");
 
         for (matrix) |test_target| {
-            const resolved_target = b.resolveTargetQuery(test_target.toQuery());
-
-            if (options.skip_non_native and !std.zig.target.isNative(&resolved_target.query, &resolved_target.result, &b.graph.host.result))
-                continue;
-
-            const target = &resolved_target.result;
-
-            if (options.skip_wasm and target.cpu.arch.isWasm()) continue;
-
-            if (options.skip_freebsd and target.os.tag == .freebsd) continue;
-            if (options.skip_netbsd and target.os.tag == .netbsd) continue;
-            if (options.skip_openbsd and target.os.tag == .openbsd) continue;
-            if (options.skip_windows and target.os.tag == .windows) continue;
-            if (options.skip_darwin and target.os.tag.isDarwin()) continue;
-            if (options.skip_linux and target.os.tag == .linux) continue;
-
-            if (test_target.backend == .llvm) {
-                if (options.skip_llvm) continue;
-                switch (target.cpu.arch) {
-                    else => {},
-                    .m68k => if (!options.llvm_has_m68k) continue,
-                    .csky => if (!options.llvm_has_csky) continue,
-                    .arc => if (!options.llvm_has_arc) continue,
-                    .xtensa => if (!options.llvm_has_xtensa) continue,
-                }
-            }
-            if (test_target.backend == .cbe) {
-                if (options.skip_cbe) continue;
-            }
-
             const target_str = b.fmt("{f}", .{test_target});
 
-            for (options.test_target_filters) |filter| {
-                if (std.mem.find(u8, target_str, filter) != null) break;
-            } else if (options.test_target_filters.len > 0) continue;
+            const skip = skip: {
+                const resolved_target = b.resolveTargetQuery(test_target.toQuery());
 
-            run.addArgs(&.{ "--target", target_str });
+                if (options.skip_non_native and !std.zig.target.isNative(
+                    &resolved_target.query,
+                    &resolved_target.result,
+                    &b.graph.host.result,
+                )) break :skip true;
+
+                const target = &resolved_target.result;
+
+                if (options.skip_wasm and target.cpu.arch.isWasm()) break :skip true;
+
+                if (options.skip_freebsd and target.os.tag == .freebsd) break :skip true;
+                if (options.skip_netbsd and target.os.tag == .netbsd) break :skip true;
+                if (options.skip_openbsd and target.os.tag == .openbsd) break :skip true;
+                if (options.skip_windows and target.os.tag == .windows) break :skip true;
+                if (options.skip_darwin and target.os.tag.isDarwin()) break :skip true;
+                if (options.skip_linux and target.os.tag == .linux) break :skip true;
+
+                if (test_target.backend == .llvm) {
+                    if (options.skip_llvm) break :skip true;
+                    switch (target.cpu.arch) {
+                        else => {},
+                        .m68k => if (!options.llvm_has_m68k) break :skip true,
+                        .csky => if (!options.llvm_has_csky) break :skip true,
+                        .arc => if (!options.llvm_has_arc) break :skip true,
+                        .xtensa => if (!options.llvm_has_xtensa) break :skip true,
+                    }
+                }
+                if (test_target.backend == .cbe) {
+                    if (options.skip_cbe) break :skip true;
+                }
+
+                for (options.test_target_filters) |filter| {
+                    if (std.mem.find(u8, target_str, filter) != null) break;
+                } else if (options.test_target_filters.len > 0) break :skip true;
+                break :skip false;
+            };
+
+            run.addArgs(&.{ if (skip) "--skipped-target" else "--target", target_str });
         }
 
         run.addPrefixedDirectoryArg("--libc-runtimes=", .{ .relative = .{ .base = .libc_runtimes } });

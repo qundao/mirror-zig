@@ -5,8 +5,6 @@
         .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .selfhosted,
-        .linker = .new,
-        .pic = .nopic,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -14,8 +12,6 @@
         .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .selfhosted,
-        .linker = .old,
-        .pic = .pic,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -23,8 +19,6 @@
         .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .selfhosted,
-        .linker = .old,
-        .pic = .pic,
     },
     .{
         .cpu = .{ .wasm32 = .{} },
@@ -32,8 +26,6 @@
         .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .selfhosted,
-        .linker = .old,
-        .pic = .nopic,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -41,8 +33,6 @@
         .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .new,
-        .pic = .nopic,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -50,8 +40,6 @@
         .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .old,
-        .pic = .pic,
     },
     .{
         .cpu = .{ .x86_64 = .{} },
@@ -59,8 +47,6 @@
         .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .lld,
-        .pic = .pic,
     },
     .{
         .cpu = .{ .aarch64 = .{} },
@@ -68,8 +54,6 @@
         .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .old,
-        .pic = .nopic,
     },
     .{
         .cpu = .{ .aarch64 = .{} },
@@ -77,8 +61,6 @@
         .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .old,
-        .pic = .pic,
     },
     .{
         .cpu = .{ .wasm32 = .{} },
@@ -86,7 +68,5 @@
         .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
-        .linker = .old,
-        .pic = .nopic,
     },
 }

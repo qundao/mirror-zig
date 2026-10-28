@@ -11,5 +11,4 @@ fn main() void {}
 lib/std/**.zig:?:?: error: 'main' is not marked 'pub'
 test.zig:1:1: note: declared here
 lib/std/**.zig:?:?: note: called inline here
-lib/std/**.zig:?:?: note: called inline here
 #}
