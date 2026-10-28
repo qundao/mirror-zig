@@ -6303,6 +6303,7 @@ pub fn tmpFilePath(comp: Compilation, ally: Allocator, suffix: []const u8) error
 fn addCommonCCArgs(
     comp: *const Compilation,
     arena: Allocator,
+    /// Uses `arena` as its allocator
     argv: *std.ArrayList([]const u8),
     ext: FileExt,
     out_dep_path: ?[]const u8,
@@ -6662,6 +6663,7 @@ fn addCommonCCArgs(
 pub fn addCCArgs(
     comp: *const Compilation,
     arena: Allocator,
+    /// Uses `arena` as its allocator
     argv: *std.ArrayList([]const u8),
     ext: FileExt,
     out_dep_path: ?[]const u8,

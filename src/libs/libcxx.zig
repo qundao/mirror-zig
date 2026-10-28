@@ -462,6 +462,7 @@ pub fn buildLibCxxAbi(comp: *Compilation, prog_node: std.Progress.Node) BuildErr
 pub fn addCxxArgs(
     comp: *const Compilation,
     arena: Allocator,
+    /// Uses `arena` as its allocator
     cflags: *std.ArrayList([]const u8),
 ) Allocator.Error!void {
     const target = comp.getTarget();
