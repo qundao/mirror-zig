@@ -1365,7 +1365,6 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
                     .prog_node = fetch_prog_node,
                     .job_queue = &job_queue,
                     .omit_missing_hash_error = true,
-                    .allow_missing_paths_field = false,
                     .use_latest_commit = false,
 
                     .package_root = undefined,
@@ -1846,6 +1845,7 @@ fn validateFingerprints(
 
     for (job_queue.table.keys(), job_queue.table.values()) |pkg_hash, fetch| {
         if (!fetch.have_manifest) continue;
+        if (fetch.parent == null) continue; // root package exempt
 
         // Forked packages are exempt since they overide multiple package hashes to have the forked contents.
         const project_id: Package.ProjectId = .init(fetch.manifest.name, fetch.manifest.id);
@@ -2263,7 +2263,6 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
         .prog_node = root_prog_node,
         .job_queue = &job_queue,
         .omit_missing_hash_error = true,
-        .allow_missing_paths_field = false,
         .use_latest_commit = true,
 
         .package_root = undefined,
