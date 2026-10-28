@@ -461,7 +461,7 @@ pub fn initSymbolAliases(self: *SharedObject, elf_file: *Elf) !void {
 
     mem.sort(u32, aliases.items, SortAlias{ .so = self, .ef = elf_file }, SortAlias.lessThan);
 
-    self.aliases = aliases;
+    self.aliases = try aliases.clone(gpa);
 }
 
 pub fn symbolAliases(self: *SharedObject, index: u32, elf_file: *Elf) []const u32 {
