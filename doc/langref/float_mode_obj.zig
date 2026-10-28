@@ -11,5 +11,5 @@ export fn foo_optimized(x: f64) f64 {
 }
 
 // obj
-// optimize=ReleaseFast
+// optimize=fast
 // disable_cache
