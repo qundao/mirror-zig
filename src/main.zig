@@ -1502,9 +1502,9 @@ fn buildOutputType(
                     } else if (mem.eql(u8, arg, "-flegalize-all")) {
                         create_module.opts.legalize_all = true;
                     } else if (mem.eql(u8, arg, "-fPIC")) {
-                        mod_opts.pic = true;
+                        create_module.opts.pic = true;
                     } else if (mem.eql(u8, arg, "-fno-PIC")) {
-                        mod_opts.pic = false;
+                        create_module.opts.pic = false;
                     } else if (mem.eql(u8, arg, "-fPIE")) {
                         create_module.opts.pie = true;
                     } else if (mem.eql(u8, arg, "-fno-PIE")) {
@@ -2116,8 +2116,8 @@ fn buildOutputType(
                         // Never mind what we're doing, just pass the args directly. For example --help.
                         return process.exit(try clangMain(arena, all_args));
                     },
-                    .pic => mod_opts.pic = true,
-                    .no_pic => mod_opts.pic = false,
+                    .pic => create_module.opts.pic = true,
+                    .no_pic => create_module.opts.pic = false,
                     .pie => create_module.opts.pie = true,
                     .no_pie => create_module.opts.pie = false,
                     .lto => {
@@ -4317,6 +4317,9 @@ fn createModule(
             error.SharedLibrariesRequireDynamicLinking => fatal("using shared libraries requires dynamic linking", .{}),
             error.DynamicLinkingWithLldRequiresSharedLibraries => fatal("dynamic linking with lld requires at least one shared library", .{}),
             error.ExportMemoryAndDynamicIncompatible => fatal("exporting memory is incompatible with dynamic linking", .{}),
+            error.TargetRequiresPic => fatal("unable to create module {q}: the selected target requires position independent code", .{name}),
+            error.PieRequiresPic => fatal("unable to create module {q}: making a Position Independent Executable requires enabling Position Independent Code", .{name}),
+            error.DynamicLinkingRequiresPic => fatal("unable to create module {q}: dynamic linking requires enabling Position Independent Code", .{name}),
             error.DynamicLibraryPrecludesPie => fatal("dynamic libraries cannot be position independent executables", .{}),
             error.TargetRequiresPie => fatal("the specified target requires position independent executables", .{}),
             error.SanitizeThreadRequiresPie => fatal("thread sanitization requires position independent executables", .{}),
@@ -4350,9 +4353,6 @@ fn createModule(
         error.ValgrindUnsupportedOnTarget => fatal("unable to create module {q}: valgrind does not support the selected target CPU architecture", .{name}),
         error.TargetRequiresSingleThreaded => fatal("unable to create module {q}: the selected target does not support multithreading", .{name}),
         error.BackendRequiresSingleThreaded => fatal("unable to create module {q}: the selected machine code backend is limited to single-threaded applications", .{name}),
-        error.TargetRequiresPic => fatal("unable to create module {q}: the selected target requires position independent code", .{name}),
-        error.PieRequiresPic => fatal("unable to create module {q}: making a Position Independent Executable requires enabling Position Independent Code", .{name}),
-        error.DynamicLinkingRequiresPic => fatal("unable to create module {q}: dynamic linking requires enabling Position Independent Code", .{name}),
         error.TargetHasNoRedZone => fatal("unable to create module {q}: the selected target does not have a red zone", .{name}),
         error.StackCheckUnsupportedByTarget => fatal("unable to create module {q}: the selected target does not support stack checking", .{name}),
         error.StackProtectorUnsupportedByTarget => fatal("unable to create module {q}: the selected target does not support stack protection", .{name}),
@@ -4403,13 +4403,16 @@ fn serve(
     try server.serveStringMessage(.zig_version, build_options.version);
 
     try server.serveConfig(.{ .flags = .{
-        .output_mode = comp.config.output_mode,
         .link_mode = comp.config.link_mode,
         .link_libc = comp.config.link_libc,
         .link_libcpp = comp.config.link_libcpp,
         .link_libunwind = comp.config.link_libunwind,
+        .use_llvm = comp.config.use_llvm,
+        .use_lld = comp.config.use_lld,
+        .use_new_linker = comp.config.use_new_linker,
+        .pic = comp.config.pic,
         .pie = comp.config.pie,
-    } });
+    } }, comp.root_name);
 
     var child_pid: ?std.process.Child.Id = null;
 

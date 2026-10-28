@@ -8522,7 +8522,7 @@ pub fn handleExternLibName(
                 .{lib_name},
             );
         }
-        if (!block.ownerModule().pic and target_util.requiresPicForDynamicLink(target, comp.config.output_mode)) {
+        if (!comp.config.pic and target_util.requiresPicForDynamicLink(target, comp.config.output_mode)) {
             return sema.fail(
                 block,
                 src_loc,
@@ -8951,7 +8951,7 @@ fn checkMergeAllowed(sema: *Sema, block: *Block, src: LazySrcLoc, peer_ty: Type)
         const runtime_src = block.runtime_cond orelse block.runtime_loop.?;
         try sema.errNote(runtime_src, msg, "runtime control flow here", .{});
 
-        const backend = target_util.zigBackend(target, zcu.comp.config.use_llvm);
+        const backend = std.zig.compilerBackend(target, zcu.comp.config.use_llvm);
         try sema.errNote(src, msg, "pointers with address space '{s}' cannot be returned from a branch on target '{s}-{s}' by compiler backend '{s}'", .{
             @tagName(as),
             @tagName(target.cpu.arch.family()),

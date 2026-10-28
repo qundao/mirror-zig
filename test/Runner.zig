@@ -796,16 +796,11 @@ pub fn runServer(runner: *Runner) ProtocolError {
                     state = .positional;
                 }
             },
-            .query_test_metadata => {
-                const expected_panic_msgs = try arena.alloc(u32, runner.args.targets.items.len);
-                @memset(expected_panic_msgs, 0);
-                runner.server.serveTestMetadata(.{
-                    .names = runner.args.targets.items,
-                    .expected_panic_msgs = expected_panic_msgs,
-                    .string_bytes = runner.args.target_bytes.items,
-                }) catch |err| switch (err) {
-                    error.WriteFailed => return error.ServerWriteFailed,
-                };
+            .query_test_metadata => runner.server.serveTestMetadata(.{
+                .names = runner.args.targets.keys(),
+                .string_bytes = runner.args.target_bytes.items,
+            }) catch |err| switch (err) {
+                error.WriteFailed => return error.ServerWriteFailed,
             },
             .run_test => {
                 const test_index = runner.server.receiveBody_u32() catch unreachable;

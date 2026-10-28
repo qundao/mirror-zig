@@ -1256,7 +1256,6 @@ pub const cache_helpers = struct {
         hh.add(mod.single_threaded);
         hh.add(mod.error_tracing);
         hh.add(mod.valgrind);
-        hh.add(mod.pic);
         hh.add(mod.strip);
         hh.add(mod.omit_frame_pointer);
         hh.add(mod.stack_check);
@@ -1779,9 +1778,6 @@ pub fn create(gpa: Allocator, arena: Allocator, io: Io, diag: *CreateDiagnostic,
                 error.ValgrindUnsupportedOnTarget => unreachable,
                 error.TargetRequiresSingleThreaded => unreachable,
                 error.BackendRequiresSingleThreaded => unreachable,
-                error.TargetRequiresPic => unreachable,
-                error.PieRequiresPic => unreachable,
-                error.DynamicLinkingRequiresPic => unreachable,
                 error.TargetHasNoRedZone => unreachable,
                 error.PatchableFunctionEntryUnsupportedByBackend => unreachable,
                 // These are not possible because are explicitly *not* requesting these things.
@@ -1838,9 +1834,6 @@ pub fn create(gpa: Allocator, arena: Allocator, io: Io, diag: *CreateDiagnostic,
                 error.ValgrindUnsupportedOnTarget => unreachable,
                 error.TargetRequiresSingleThreaded => unreachable,
                 error.BackendRequiresSingleThreaded => unreachable,
-                error.TargetRequiresPic => unreachable,
-                error.PieRequiresPic => unreachable,
-                error.DynamicLinkingRequiresPic => unreachable,
                 error.TargetHasNoRedZone => unreachable,
                 error.StackCheckUnsupportedByTarget => unreachable,
                 error.StackProtectorUnsupportedByTarget => unreachable,
@@ -1884,9 +1877,6 @@ pub fn create(gpa: Allocator, arena: Allocator, io: Io, diag: *CreateDiagnostic,
                 error.ValgrindUnsupportedOnTarget => unreachable,
                 error.TargetRequiresSingleThreaded => unreachable,
                 error.BackendRequiresSingleThreaded => unreachable,
-                error.TargetRequiresPic => unreachable,
-                error.PieRequiresPic => unreachable,
-                error.DynamicLinkingRequiresPic => unreachable,
                 error.TargetHasNoRedZone => unreachable,
                 error.StackCheckUnsupportedByTarget => unreachable,
                 error.StackProtectorUnsupportedByTarget => unreachable,
@@ -1932,6 +1922,7 @@ pub fn create(gpa: Allocator, arena: Allocator, io: Io, diag: *CreateDiagnostic,
         // This is shared hasher state common to zig source and all C source files.
         cache.hash.addBytes(build_options.version);
         cache.hash.add(builtin.zig_backend);
+        cache.hash.add(options.config.pic);
         cache.hash.add(options.config.pie);
         cache.hash.add(options.config.lto);
         cache.hash.add(options.config.link_mode);
@@ -2002,9 +1993,6 @@ pub fn create(gpa: Allocator, arena: Allocator, io: Io, diag: *CreateDiagnostic,
                 error.ValgrindUnsupportedOnTarget => unreachable,
                 error.TargetRequiresSingleThreaded => unreachable,
                 error.BackendRequiresSingleThreaded => unreachable,
-                error.TargetRequiresPic => unreachable,
-                error.PieRequiresPic => unreachable,
-                error.DynamicLinkingRequiresPic => unreachable,
                 error.TargetHasNoRedZone => unreachable,
                 error.StackCheckUnsupportedByTarget => unreachable,
                 error.StackProtectorUnsupportedByTarget => unreachable,
@@ -6258,7 +6246,7 @@ fn addCommonCCArgs(
         // PIE needs to go before PIC because Clang interprets `-fno-PIE` to imply `-fno-PIC`, which
         // we don't necessarily want.
         try argv.append(if (comp.config.pie) "-fPIE" else "-fno-PIE");
-        try argv.append(if (mod.pic) "-fPIC" else "-fno-PIC");
+        try argv.append(if (comp.config.pic) "-fPIC" else "-fno-PIC");
     }
 
     switch (target.os.tag) {
@@ -6704,7 +6692,7 @@ pub fn addCCArgs(
     }
 
     if (target.cpu.arch.isMips()) {
-        try argv.append(if (mod.pic) "-mabicalls" else "-mno-abicalls");
+        try argv.append(if (comp.config.pic) "-mabicalls" else "-mno-abicalls");
     }
 
     try comp.addCommonCCArgs(arena, argv, ext, out_dep_path, mod, comp.config.c_frontend);
@@ -6720,7 +6708,7 @@ pub fn addCCArgs(
             try argv.appendSlice(&.{ "-Xclang", "-msoft-float" });
         }
 
-        if (target.cpu.arch.isMips() and !mod.pic) {
+        if (target.cpu.arch.isMips() and !comp.config.pic) {
             try argv.append("-mno-gpopt");
         }
 
@@ -7321,7 +7309,7 @@ fn dumpArgvWriter(w: *Io.Writer, argv: []const []const u8) Io.Writer.Error!void 
 
 pub fn getZigBackend(comp: Compilation) std.lang.CompilerBackend {
     const target = &comp.root_mod.resolved_target.result;
-    return target_util.zigBackend(target, comp.config.use_llvm);
+    return std.zig.compilerBackend(target, comp.config.use_llvm);
 }
 
 pub const SubUpdateError = UpdateError || error{AlreadyReported};
@@ -7395,6 +7383,7 @@ fn buildOutputFromZig(
         .any_unwind_tables = comp.root_mod.unwind_tables != .none,
         .any_error_tracing = false,
         .root_error_tracing = false,
+        .pic = comp.config.pic,
         .lto = if (options.allow_lto) comp.config.lto else .none,
         .function_sections = true,
         .data_sections = true,
@@ -7417,7 +7406,6 @@ fn buildOutputFromZig(
             .red_zone = comp.root_mod.red_zone,
             .omit_frame_pointer = comp.root_mod.omit_frame_pointer,
             .unwind_tables = comp.root_mod.unwind_tables,
-            .pic = comp.root_mod.pic,
             .optimize_mode = optimize_mode,
             .no_builtin = true,
             .code_model = comp.root_mod.code_model,
@@ -7532,6 +7520,8 @@ pub fn build_crt_file(
         .root_strip = comp.compilerRtStrip(),
         .link_libc = false,
         .any_unwind_tables = comp.root_mod.unwind_tables != .none,
+        // Some CRT objects (e.g. musl's rcrt1.o and Scrt1.o) are opinionated about PIC.
+        .pic = options.pic orelse comp.config.pic,
         .lto = switch (output_mode) {
             .Lib => if (options.allow_lto) comp.config.lto else .none,
             .Obj, .Exe => .none,
@@ -7559,8 +7549,6 @@ pub fn build_crt_file(
             .omit_frame_pointer = comp.root_mod.omit_frame_pointer,
             .valgrind = false,
             .unwind_tables = comp.root_mod.unwind_tables,
-            // Some CRT objects (e.g. musl's rcrt1.o and Scrt1.o) are opinionated about PIC.
-            .pic = options.pic orelse comp.root_mod.pic,
             .optimize_mode = comp.compilerRtOptMode(),
             // Some libcs (e.g. musl) are opinionated about -fno-builtin.
             .no_builtin = options.no_builtin orelse comp.root_mod.no_builtin,

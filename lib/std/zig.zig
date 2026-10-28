@@ -2056,6 +2056,25 @@ pub fn buildExeSubprocess(
     };
 }
 
+pub fn compilerBackend(t: *const std.Target, use_llvm: bool) std.lang.CompilerBackend {
+    if (use_llvm) return .stage2_llvm;
+    if (t.ofmt == .c) return .stage2_c;
+    return switch (t.cpu.arch) {
+        .aarch64, .aarch64_be => .stage2_aarch64,
+        .arm, .armeb, .thumb, .thumbeb => .stage2_arm,
+        .loongarch32, .loongarch64 => .stage2_loongarch,
+        .powerpc, .powerpcle, .powerpc64, .powerpc64le => .stage2_powerpc,
+        .riscv64 => .stage2_riscv64,
+        .sparc64 => .stage2_sparc64,
+        .spirv32, .spirv64 => .stage2_spirv,
+        .wasm32, .wasm64 => .stage2_wasm,
+        .x86, .x86c16 => .stage2_x86,
+        .x86_64 => .stage2_x86_64,
+        .spork8 => .zsf_spork8,
+        else => .other,
+    };
+}
+
 test {
     _ = Ast;
     _ = AstRlAnnotate;
