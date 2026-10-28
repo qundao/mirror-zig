@@ -2392,14 +2392,15 @@ fn dependencyResolved(
                 break :versioned true;
             }
         }
-        if (graph.package_instances.get(.{
-            .pkg_hash = entry.hash,
-            .options = package_options,
-        })) |found_dependency| {
-            return found_dependency;
-        }
         break :versioned false;
     };
+
+    if (graph.package_instances.get(.{
+        .pkg_hash = entry.hash,
+        .options = package_options,
+    })) |found_dependency| {
+        return found_dependency;
+    }
 
     const dep_root: Cache.Path = .{
         .root_dir = .{
