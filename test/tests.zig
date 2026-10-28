@@ -3148,31 +3148,6 @@ pub fn addLinkTests(b: *std.Build, options: LinkTestOptions) *Step {
     return step;
 }
 
-pub fn addCases(
-    b: *std.Build,
-    parent_step: *Step,
-    case_test_options: @import("src/Cases.zig").CaseTestOptions,
-) !void {
-    const arena = b.allocator;
-    const gpa = b.allocator;
-    const io = b.graph.io;
-
-    var cases = @import("src/Cases.zig").init(gpa, arena, io);
-
-    b.dependOnDirectoryContents(b.path("test/cases"));
-
-    var dir = try b.root.openDir(io, "test/cases", .{ .iterate = true });
-    defer dir.close(io);
-
-    cases.addFromDir(dir, "test/cases", b);
-
-    cases.lowerToBuildSteps(
-        b,
-        parent_step,
-        case_test_options,
-    );
-}
-
 pub const RunnerTarget = @import("Runner.zig").Target;
 pub const RunnerOptions = struct {
     test_filters: []const []const u8,
