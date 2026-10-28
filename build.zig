@@ -57,7 +57,10 @@ pub fn build(b: *std.Build) !void {
     const install_buildref = b.addInstallFileWithDir(buildref_file, .prefix, "doc/build.html");
     const check_langref = superHtmlCheck(b, langref_file);
     const check_buildref = superHtmlCheck(b, buildref_file);
-    if (enable_superhtml) install_langref.step.dependOn(check_langref);
+    if (enable_superhtml) {
+        install_langref.step.dependOn(check_langref);
+        install_buildref.step.dependOn(check_buildref);
+    }
 
     const check_autodocs = superHtmlCheck(b, b.path("lib/docs/index.html"));
     if (enable_superhtml) {

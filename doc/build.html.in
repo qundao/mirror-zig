@@ -531,7 +531,7 @@ th pre code {
     <p>When using the build system to run unit tests, the build runner and the test runner
     communicate via <em>stdin</em> and <em>stdout</em> in order to run multiple unit test suites
     concurrently, and report test failures in a meaningful way without having their output jumbled
-    together. This is one reason why writing to <em>standard out</em> in unit tests is problematic</a> -
+    together. This is one reason why writing to <em>standard out</em> in unit tests is problematic -
     it interferes with this communication channel. On the flip side, this mechanism enables useful
     features such as crash handling and unit test timeouts.</p>
     {#code|unit-testing/main.zig#}
@@ -714,7 +714,7 @@ th pre code {
     {#header_close#}
 
     {#header_open|Manifest File Reference (build.zig.zon)#}
-    <p><code>build.zig.zon</code> is the <strong>manifest file</strong> for <code>build.zig</code> scripts.</p>
+    <p><code>build.zig.zon</code> is the <strong>manifest file</strong> for <code>build.zig</code> scripts.
     It is named <code>build.zig.zon</code> in order to make it clear that it is metadata specifically pertaining
     to <code>build.zig</code>.</p>
     <p><strong>build root</strong> - the directory that contains <code>build.zig</code>.</p>
