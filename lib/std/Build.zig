@@ -424,15 +424,37 @@ pub const PackageOptions = struct {
     }
 
     pub fn logDifferences(a: *const Map, b: *const Map) void {
-        for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
-            if (!mem.eql(u8, a_key, b_key)) {
-                log.info("key {q} does not match key {q}", .{ a_key, b_key });
-                return;
-            }
-            if (!a_val.eql(b_val)) {
-                log.info("{q} value {f} does not match {f}", .{ a_key, a_val, b_val });
+        const a_keys = a.keys();
+        const b_keys = b.keys();
+        const a_vals = a.values();
+        const b_vals = b.values();
+        var a_i: usize = 0;
+        var b_i: usize = 0;
+        while (a_i < a_keys.len and b_i < b_keys.len) {
+            const a_key = a_keys[a_i];
+            const b_key = b_keys[b_i];
+            switch (mem.order(u8, a_key, b_key)) {
+                .lt => {
+                    log.info("{q}: {f} vs (missing)", .{ a_key, a_vals[a_i] });
+                    a_i += 1;
+                },
+                .eq => {
+                    const a_val = a_vals[a_i];
+                    const b_val = b_vals[b_i];
+                    if (!a_val.eql(b_val)) {
+                        log.info("{q}: {f} vs {f}", .{ a_key, a_val, b_val });
+                    }
+                    a_i += 1;
+                    b_i += 1;
+                },
+                .gt => {
+                    log.info("{q}: (missing) vs {f}", .{ b_key, b_vals[b_i] });
+                    b_i += 1;
+                },
             }
         }
+        for (a_keys[a_i..], a_vals[a_i..]) |a_key, a_val| log.info("{q}: {f} vs (missing)", .{ a_key, a_val });
+        for (b_keys[b_i..], b_vals[b_i..]) |b_key, b_val| log.info("{q}: (missing) vs {f}", .{ b_key, b_val });
     }
 };
 
