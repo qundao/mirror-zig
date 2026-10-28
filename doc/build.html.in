@@ -524,7 +524,7 @@ th pre code {
     {#syntax#}addRunArtifact{#endsyntax#}, which establishes a dependency edge between these two steps,
     the unit tests will not be executed.</p>
     <p>The <em>Compile</em> step can be configured the same as any executable, library, or object
-    file, for example by {#link|Linking to System Libraries#}, setting target options, or adding
+    file, for example by {#link|Depending on a Library#}, setting target options, or adding
     additional compilation units.</p>
     <p>The <em>Run</em> step can be configured the same as any Run step, for example by skipping
     execution when the host is not capable of executing the binary.</p>
@@ -542,8 +542,36 @@ th pre code {
     {#code|unit-testing-skip-foreign/build.zig#}
     {#header_close#}
 
-    {#header_open|Linking to System Libraries#}
-    <p>TODO documentation</p>
+    {#header_open|Depending on a Library#}
+    <p>There are two ways to satisfy library dependencies:</p>
+    <ol>
+    <li>{#link|Static Library#} via {#link|Package Management#}.</li>
+    <li>Use the files provided by the host system.</li>
+    </ol>
+    <p>The correct answer is: both.</p>
+    <p>For the use case of upstream project developers, obtaining these libraries via the Zig Build
+    System provides the least friction and puts the configuration power in the hands of those
+    upstream developers. Everyone who builds this way will have reproducible, consistent results as each
+    other, and it will work on every operating system and even support cross-compilation.
+    Furthermore, it allows the project to decide with perfect precision the exact versions of its
+    entire dependency tree it wishes to build against. This is the generally preferred way to depend
+    on external libraries for upstream developers.</p>
+    <p>However, for the use case of packaging software into repositories such as Debian, Homebrew,
+    or *BSD ports, it is necessary to link against system libraries. To cooperate with system
+    package maintainers, build scripts specify <strong>System Integration Options</strong>.</p>
+    {#code|system-libraries/build.zig.zon#}
+    {#code|system-libraries/build.zig#}
+    <p>Note in particular this part from the help menu:</p>
+<pre><code>  Available System Integrations:                Enabled:
+    zlib                                        yes</code></pre>
+    <p>This option comes from the call to {#syntax#}b.systemIntegrationOption{#endsyntax#} in the
+    build script, and it is enabled because we passed <code>-fsys=yes</code> on the command
+    line. System package maintainers are expected to pass <code>--system [pkgdir]</code>, which flips the
+    default value for all system integration options to <em>enabled</em> and disables package fetching
+    in favor of using the provided <code>pkgdir</code> for all Zig packages.</p>
+    <p>Users of <code>zig build</code> may use <code>--search-prefix</code> to provide additional
+    directories that are considered "system directories" for the purposes of finding static and
+    dynamic libraries.</p>
     {#header_close#}
     {#header_close#}
 
@@ -560,10 +588,6 @@ th pre code {
     {#header_open|Cache Poisoning#}
     <p>TODO documentation</p>
     {#header_close#}
-    {#header_close#}
-
-    {#header_open|System Integration#}
-    <p>TODO documentation</p>
     {#header_close#}
     {#header_close#}
 

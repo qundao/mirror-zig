@@ -1672,6 +1672,7 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
     var it = try dir.walkSelectively(arena);
     while (it.next(io) catch @panic("failed to read dir")) |entry| {
         if (mem.startsWith(u8, entry.basename, ".")) continue;
+        if (mem.eql(u8, entry.basename, "zig-pkg")) continue;
 
         switch (entry.kind) {
             .file => {},
@@ -1683,6 +1684,7 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
         }
 
         if (!mem.endsWith(u8, entry.basename, ".zig") and
+            !mem.endsWith(u8, entry.basename, ".zon") and
             !mem.endsWith(u8, entry.basename, ".diff"))
         {
             continue;
