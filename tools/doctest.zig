@@ -100,8 +100,8 @@ pub fn main(init: process.Init) !void {
         try tokenizeAndPrintDiff(arena, out, source_bytes);
         try out.writeAll("</pre>");
     } else {
-        const code = try parseManifest(arena, source_bytes);
-        const source = stripManifest(source_bytes);
+        const code = try parseManifest(arena, input_path, source_bytes);
+        const source = stripManifest(input_path, source_bytes);
 
         try printSourceBlock(arena, out, source, Dir.path.basename(input_path));
         try printOutput(
@@ -1057,15 +1057,15 @@ const Code = struct {
     const ExpectedOutcome = enum { succeed, fail, build_fail };
 };
 
-fn stripManifest(source_bytes: []const u8) []const u8 {
+fn stripManifest(input_path: []const u8, source_bytes: []const u8) []const u8 {
     const manifest_start = mem.findLast(u8, source_bytes, "\n\n// ") orelse
-        fatal("missing manifest comment", .{});
+        fatal("{s}: missing manifest comment", .{input_path});
     return source_bytes[0 .. manifest_start + 1];
 }
 
-fn parseManifest(arena: Allocator, source_bytes: []const u8) !Code {
+fn parseManifest(arena: Allocator, input_path: []const u8, source_bytes: []const u8) !Code {
     const manifest_start = mem.findLast(u8, source_bytes, "\n\n// ") orelse
-        fatal("missing manifest comment", .{});
+        fatal("{s}: missing manifest comment", .{input_path});
     var it = mem.tokenizeScalar(u8, source_bytes[manifest_start..], '\n');
     const first_line = skipPrefix(it.next().?);
 
