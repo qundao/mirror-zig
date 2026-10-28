@@ -1,4 +1,4 @@
-#todo "it'd be great if we could actually check that no analysis happened!"
+# "TODO: it'd be great if we could actually check that no analysis happened!"
 #zig build-exe {
 --name test
 -Mroot=test.zig

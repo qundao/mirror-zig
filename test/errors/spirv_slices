@@ -18,7 +18,7 @@ export fn b() void {
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-opengl -mcpu baseline+variable_pointers -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-opengl -mcpu baseline+variable_pointers -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -29,7 +29,7 @@ test.zig:14:11: error: cannot construct slice from logical address space 'generi
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-vulkan -mcpu baseline+variable_pointers -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-vulkan -mcpu baseline+variable_pointers -fno-llvm
 -Mroot=test.zig
 #}
 #update

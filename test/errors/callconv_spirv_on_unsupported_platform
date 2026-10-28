@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv64-opencl -mcpu opencl_v2_1+mesh_shading_ext -fno-llvm -fno-lld -fno-new-linker
+-target spirv64-opencl -mcpu opencl_v2_1+mesh_shading_ext -fno-llvm
 -Mroot=test.zig
 #}
 

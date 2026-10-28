@@ -1,4 +1,4 @@
-#todo "passes, but prints errors"
+# "TODO: passes, but prints errors"
 #skip x86_64-linux-none-baseline-whole-selfhosted-new-nopic
 #skip x86_64-linux-none-baseline-whole-selfhosted-new-pic
 #skip x86_64-linux-none-baseline-incremental-selfhosted-new-nopic

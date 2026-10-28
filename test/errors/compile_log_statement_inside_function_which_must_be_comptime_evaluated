@@ -1,4 +1,4 @@
-#todo "lack of comptime function call memoization changes the compile log output"
+# "TODO: lack of comptime function call memoization changes the compile log output"
 #skip x86_64-linux-none-baseline-incremental-selfhosted-new-nopic
 
 #zig build-obj {

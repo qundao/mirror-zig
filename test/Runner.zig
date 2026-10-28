@@ -7,7 +7,7 @@
 //! insufficient for running these tests.
 //!
 //! # Anatomy of a Test Suite
-//! At the top level, the `test` directory of this repo contains a set of tests suites that make use
+//! At the top level, the `test` directory of this repo contains a set of test suites that make use
 //! of this runner.  The main thing that distinguishes one test suite from another is the
 //! `test/<suite>/matrix.zon` file which determines the set of "targets" on which each test in the
 //! suite is run.  Note that in this case, target refers to more than just what is given to the
@@ -71,7 +71,7 @@
 //!     #cmd "Hello, world!"
 //!
 //!     #cmd {
-//!     Hello, world!}#
+//!     Hello, world!#}
 //!
 //!     #cmd @hello.txt
 //!
@@ -103,9 +103,10 @@
 //! # Manifest Command List
 //! Manifests support the following commands:
 //!
-//! The todo command allows including comments about other commands in the manifest, for example:
+//! The empty command indicates a comment that can be used to describe other commands in the
+//! manifest, for example:
 //!
-//!     #todo "the following targets are skipped until feature X is implemented"
+//!     # "the following targets are skipped until feature X is implemented"
 //!
 //! The skip command allows skipping a given target in the test matrix for the current case. These
 //! must appear at the top of the file before any non-comment commands, for example:
@@ -138,11 +139,11 @@
 //! The delete command deletes a previously written file, which is different from writing an empty
 //! file, for example:
 //!
-//!     #delete maybe_exists.zig
+//!     #delete existing.zig
 //!
 //! The update command runs a compiler update with the current state of the written source files,
-//! where the contents are an informative string shown by progress reporting and error messages,
-//! for example:
+//! where the contents are an informative string shown by progress reporting and error messages, and
+//! can be empty to let this runner choose one for you, for example:
 //!
 //!     #update "decl deleted"
 //!
@@ -160,10 +161,12 @@
 //! * `builtin.zig:?:?:` matches a path to a builtin source file and any line or column number.
 //! * `lib/std/**.zig:?:?:` matches a path to a source file located in the standard library and any
 //!   line or column number.
-//! omitted.  Empty contents succeed when the compiler produces no compile errors.
+//! Empty contents succeed when the compiler produces no compile errors.
 //!
 //! The stdout check succeeds when running the binary produced by the compiler, possibly with an
-//! executor like qemu, exits with exit code 0 and produces the standard output given in contents.
+//! executor like qemu, exits with exit code 0 and produces the given standard output.  The contents
+//! are a sequence of matches separated by `#...` that are expected to appear in the order given,
+//! with arbitrary contents.
 //!
 //! The exit check succeeds when running the binary as the stdout check does exits with the given
 //! exit code.  The contents are the decimal exit code in ascii with no trailing newline.
@@ -175,31 +178,33 @@
 //! * `..., ` matches a possibly empty sequence of parameters or operands.
 //! * `  ...` at the end of a line matches any possibly empty sequence of lines not starting with
 //!   `}`, which avoids accidentally escaping the current function.
-//! * `, !...` at the end of a line matches any possibly empty sequence of of debug attachments of
-//!   the form `, !name !0`.
+//! * `, !...` at the end of a line matches any possibly empty sequence of debug attachments of the
+//!   form `, !name !0`.
 //! * `?` matches an unknown integer constant.
 //! * `isize` matches any of the llvm types that Zig's `usize`/`isize` can lower to.
 //! * `!!` matches a literal `!`.
 //! * `!<id>` matches anything of the form `!0` the first time that id is used.  Later uses of
 //!   the same id match exactly what the first id matched.
 //! * `%%` matches a literal `%`.
-//! * `%<id>` matches anything of the form `%"quoted name"` or `%name` or `%0 the first time that
+//! * `%<id>` matches anything of the form `%"quoted name"` or `%name` or `%0` the first time that
 //!   id is used.  Later uses of the same id match exactly what the first id matched.
 //! * `^^` matches a literal `^`.
 //! * `^<id>` matches anything of the form `^0` the first time that id is used.  Later uses of
 //!   the same id match exactly what the first id matched.
+//! In the above descriptions, `<id>` uses the same syntax as non-quoted non-numeric llvm
+//! identifiers. Numeric identifiers are excluded because they should not be reused in other
+//! functions.
 //!
 //! The gdb and lldb checks succeed when running the binary under a debugger produces the given
-//! standard output.  The contents are a sequence of matches separated by `#...` that are expected
-//! to appear in the order given, separated by artibtrary text.  The commands to be executed by the
-//! debugger are extracted from the contents by looking for lines starting with `(gdb) ` or
-//! `(lldb) ` respectively.
+//! standard output like the stdout check.  The commands to be executed by the debugger are
+//! extracted from the contents by looking for lines starting with `(gdb) ` or `(lldb) `
+//! respectively.
 //!
-//! # Running a Case Individually and Other Tricks
+//! # Running a Case Individually and Other Fun Tricks
 //! This runner is primarily intended to be invoked by the build system, and uses the test protocol
 //! for scheduling test runs and communicating test results.  However, sometimes it is much easier
-//! to debug a failing test if it did not depend on the entire build system, and so the binary
-//! compiled from this file can also be invoked directly, for example:
+//! to debug a failing test if it did not depend on the entire build system, and so this runner can
+//! also be invoked directly, for example:
 //!
 //!    $ ./runner --zig=path/to/zig --lib=path/to/lib --keep-src -fqemu \
 //!    --target aarch64-linux-none-baseline-whole-llvm-lld-pic \
@@ -236,8 +241,8 @@ pub const Target = struct {
 
     cache_mode: CacheMode,
     backend: Backend,
-    linker: Linker,
-    pic: Pic,
+    linker: Linker = .default,
+    pic: Pic = .default,
 
     pub const Cpu = Cpu: {
         @setEvalBranchQuota(4_000);
@@ -479,8 +484,8 @@ pub const Target = struct {
         /// Corresponds to `-ofmt=c`.
         cbe,
     };
-    pub const Linker = enum { lld, old, new };
-    pub const Pic = enum { nopic, pic, pie };
+    pub const Linker = enum { default, lld, old, new };
+    pub const Pic = enum { default, nopic, pic, pie };
 };
 
 gpa: std.mem.Allocator,
@@ -1337,12 +1342,18 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
             continue;
         }
         update.cmd_src_loc = try update.manifest_sr.srcLoc(cmd_src_loc);
-        const cmd = std.meta.stringToEnum(Command, std.mem.cutPrefix(u8, cmd_src_loc, "#") orelse
-            return update.manifest_sr.fail(cmd_src_loc, "expected command", .{})) orelse
-            return update.manifest_sr.fail(cmd_src_loc, "unknown command", .{});
+        const cmd_name = std.mem.cutPrefix(u8, cmd_src_loc, "#") orelse
+            return update.manifest_sr.fail(cmd_src_loc, "expected command", .{});
+        const cmd: Command = cmd: switch (cmd_name.len) {
+            0 => .comment,
+            else => switch (std.meta.stringToEnum(Command, cmd_name) orelse break :cmd null) {
+                else => |cmd| cmd,
+                .comment => null,
+            },
+        } orelse return update.manifest_sr.fail(cmd_src_loc, "unknown command", .{});
 
         const arg = switch (cmd) {
-            .todo, .update => null,
+            .comment, .update => null,
             .skip, .zig, .write, .delete, .check => line_it.next() orelse
                 return update.manifest_sr.fail(line_it.rest()[0..0], "missing argument", .{}),
         };
@@ -1370,7 +1381,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                 break :contents_r &contents_impl.r;
             }
             switch (cmd) {
-                .todo, .zig, .write, .update, .check => {},
+                .comment, .zig, .write, .update, .check => {},
                 .skip, .delete => return update.manifest_sr.fail(contents, "unexpected contents {q}", .{
                     contents,
                 }),
@@ -1496,7 +1507,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
         try comp.exit();
     }
 }
-const Command = enum { todo, skip, zig, write, delete, update, check };
+const Command = enum { comment, skip, zig, write, delete, update, check };
 fn handleCommand(
     runner: *Runner,
     update: *Update,
@@ -1512,7 +1523,7 @@ fn handleCommand(
     defer cmd_prog_node.end();
 
     cmd: switch (cmd) {
-        .todo => _ = contents_r.discardRemaining() catch |err| switch (err) {
+        .comment => _ = contents_r.discardRemaining() catch |err| switch (err) {
             error.ReadFailed => {},
         },
         .skip => if (!update.allow_skip) return update.manifest_sr.fail(
@@ -1887,7 +1898,7 @@ fn handleCommand(
         error.ReadFailed => return error.ContentsReadFailed,
     }) == 0);
     switch (cmd) {
-        .todo, .skip => {},
+        .comment, .skip => {},
         else => update.allow_skip = false,
     }
 }
@@ -1951,11 +1962,13 @@ fn spawnCompiler(
         else => |e| return runner.fail("unable to get lib path: {t}", .{e}),
     }] });
     switch (comp.target.linker) {
+        .default => {},
         .lld => try argv.appendSlice(gpa, &.{ "-flld", "-fno-new-linker" }),
         .old => try argv.appendSlice(gpa, &.{ "-fno-lld", "-fno-new-linker" }),
         .new => try argv.appendSlice(gpa, &.{ "-fno-lld", "-fnew-linker" }),
     }
     switch (comp.target.pic) {
+        .default => {},
         .nopic => try argv.appendSlice(gpa, &.{ "-fno-PIC", "-fno-PIE" }),
         .pic => try argv.appendSlice(gpa, &.{ "-fPIC", "-fno-PIE" }),
         .pie => try argv.appendSlice(gpa, &.{ "-fPIC", "-fPIE" }),
@@ -3050,6 +3063,7 @@ pub fn main(init: std.process.Init) (std.mem.Allocator.Error || std.Io.Cancelabl
     const test_path = test_path_arg orelse fatal("missing \"path/to/test\" arg", .{});
     const zig_path = zig_path_arg orelse fatal("missing \"--zig=path/to/zig\" arg", .{});
     const lib_path = lib_path_arg orelse fatal("missing \"--lib=path/to/lib\" arg", .{});
+    if (args.targets.items.len == 0) fatal("no \"--target\" args specified, so nothing to do", .{});
 
     const cwd: std.Io.Dir = .cwd();
     args.test_file = cwd.openFile(init.io, test_path, .{

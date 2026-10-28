@@ -1,6 +1,6 @@
 #zig build-exe {
 --name test
--target wasm32-freestanding -fno-new-linker
+-target wasm32-freestanding
 -Mroot=test.zig
 #}
 

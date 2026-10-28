@@ -28,7 +28,7 @@ comptime {
 }
 #}
 #update
-#todo {
+# {
 The output here has been regressed by #19414.
 Restoring useful output here will require providing a Sema to TypedValue.print.
 #}

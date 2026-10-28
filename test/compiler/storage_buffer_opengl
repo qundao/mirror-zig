@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test
--target spirv32-opengl -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-opengl -fno-llvm
 -Mroot=test.zig
 #}
 

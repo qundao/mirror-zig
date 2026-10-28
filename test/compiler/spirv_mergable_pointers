@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test
--target spirv64-vulkan -fno-llvm -fno-lld -fno-new-linker
+-target spirv64-vulkan -fno-llvm
 -Mroot=test.zig
 #}
 

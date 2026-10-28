@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test -fno-emit-bin
--fllvm
+-target x86_64-linux -fllvm
 -Mroot=test.zig
 #}
 

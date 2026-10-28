@@ -22,7 +22,7 @@
 #skip x86_64-linux-x32-baseline-whole-llvm-new-pic
 
 #zig build-obj {
---name test -fno-lld -fno-new-linker -ofmt=llvmir
+--name test -ofmt=llvmir -fno-lld -fno-new-linker
 -Mroot=test.zig
 #}
 

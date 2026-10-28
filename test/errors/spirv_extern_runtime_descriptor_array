@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-vulkan -mcpu baseline+runtime_descriptor_array -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-vulkan -mcpu baseline+runtime_descriptor_array -fno-llvm
 -Mroot=test.zig
 #}
 

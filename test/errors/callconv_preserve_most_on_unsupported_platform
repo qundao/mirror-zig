@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test -fno-emit-bin
--target wasm32-freestanding -fno-llvm -fno-lld -fno-new-linker
+-target wasm32-freestanding -fno-llvm
 -Mroot=test.zig
 #}
 

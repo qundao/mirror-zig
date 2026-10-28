@@ -1,6 +1,6 @@
 #zig build-obj {
 --name test
--target spirv32-vulkan -mcpu vulkan_v1_2+mesh_shading_ext -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-vulkan -mcpu vulkan_v1_2+mesh_shading_ext -fno-llvm
 -Mroot=test.zig
 #}
 

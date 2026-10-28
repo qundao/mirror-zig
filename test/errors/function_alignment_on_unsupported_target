@@ -24,7 +24,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-opengl -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-opengl -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -34,7 +34,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-vulkan -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-vulkan -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -44,7 +44,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv32-opencl -fno-llvm -fno-lld -fno-new-linker
+-target spirv32-opencl -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -54,7 +54,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv64-opencl -fno-llvm -fno-lld -fno-new-linker
+-target spirv64-opencl -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -64,7 +64,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target spirv64-amdhsa -fno-llvm -fno-lld -fno-new-linker
+-target spirv64-amdhsa -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -74,7 +74,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target wasm32-freestanding -fno-llvm -fno-lld -fno-new-linker
+-target wasm32-freestanding -fno-llvm
 -Mroot=test.zig
 #}
 #update
@@ -84,7 +84,7 @@ test.zig:1:25: error: target does not support function alignment greater than 1
 
 #zig build-obj {
 --name test -fno-emit-bin
--target wasm64-freestanding -fno-llvm -fno-lld -fno-new-linker
+-target wasm64-freestanding -fno-llvm
 -Mroot=test.zig
 #}
 #update
