@@ -2283,7 +2283,7 @@ pub fn addCliTests(b: *std.Build) *Step {
             "objdump",
             "rc",
             "reduce",
-            "std",
+            "doc",
         }) |cmd| {
             const run_help = b.addSystemCommand(&.{ b.graph.zig_exe, cmd, "--help" });
             run_help.setName(b.fmt("zig {s} --help", .{cmd}));
