@@ -1,10 +1,10 @@
-#skip amdgcn-amdhsa-none-baseline-whole-llvm-lld-default
+#skip amdgcn-amdhsa-none-baseline-whole-llvm-debug-lld
 
-#skip nvptx-cuda-none-baseline-whole-llvm-lld-default
-#skip nvptx-nvcl-none-baseline-whole-llvm-lld-default
+#skip nvptx-cuda-none-baseline-whole-llvm-debug-lld
+#skip nvptx-nvcl-none-baseline-whole-llvm-debug-lld
 
-#skip nvptx64-cuda-none-baseline-whole-llvm-lld-default
-#skip nvptx64-nvcl-none-baseline-whole-llvm-lld-default
+#skip nvptx64-cuda-none-baseline-whole-llvm-debug-lld
+#skip nvptx64-nvcl-none-baseline-whole-llvm-debug-lld
 
 #zig build-obj {
 --name test -fno-lld -fno-new-linker -ofmt=llvmir

@@ -1,8 +1,8 @@
 # "TODO: passes, but prints errors"
-#skip x86_64-linux-none-baseline-whole-selfhosted-new-no
-#skip x86_64-linux-none-baseline-whole-selfhosted-new-pic
-#skip x86_64-linux-none-baseline-incremental-selfhosted-new-no
-#skip x86_64-linux-none-baseline-incremental-selfhosted-new-pic
+#skip x86_64-linux-none-baseline-whole-selfhosted-debug-pdc-new
+#skip x86_64-linux-none-baseline-whole-selfhosted-debug-pic-new
+#skip x86_64-linux-none-baseline-incremental-selfhosted-debug-pdc-new
+#skip x86_64-linux-none-baseline-incremental-selfhosted-debug-pic-new
 
 #zig build-exe {
 --name errors

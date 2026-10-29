@@ -3200,6 +3200,7 @@ pub fn addRunnerTests(
         const run = b.addRunArtifact(runner);
         run.setName(@"test".name);
         run.enableProtocolMode();
+        run.addArg("--quiet"); // don't fill stderr telling us about skipped tests etc
 
         const test_path = tests_path.path(b, @"test".name);
         switch (@"test".kind) {
@@ -3266,8 +3267,6 @@ pub fn addRunnerTests(
 
         if (options.gdb) |gdb| run.addPrefixedFileArg("--gdb=", b.graph.cwdRelativePath(gdb));
         if (options.lldb) |lldb| run.addPrefixedFileArg("--lldb=", b.graph.cwdRelativePath(lldb));
-
-        run.addArg("--quiet"); // don't fill stderr telling us about skipped tests etc
 
         tests_step.dependOn(&run.step);
     }

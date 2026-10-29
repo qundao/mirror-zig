@@ -9,9 +9,10 @@
     .{
         .cpu = .{ .x86_64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .none = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .incremental,
         .backend = .cbe,
+        .link_libc = .lc,
     },
     .{
         .cpu = .{ .x86_64 = .{} },

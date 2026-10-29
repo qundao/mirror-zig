@@ -1,4 +1,4 @@
-#skip wasm32-wasi-none-baseline-whole-selfhosted-default-default
+#skip wasm32-wasi-none-baseline-whole-selfhosted-debug
 
 #zig build-obj {
 --name test

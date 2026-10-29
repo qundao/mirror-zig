@@ -1,5 +1,5 @@
-#skip wasm32-wasi-none-baseline-whole-llvm-default-default
-#skip wasm32-wasi-none-baseline-whole-selfhosted-default-default
+#skip wasm32-wasi-none-baseline-whole-llvm-debug
+#skip wasm32-wasi-none-baseline-whole-selfhosted-debug
 
 #zig build-exe {
 --name test
