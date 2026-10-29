@@ -1678,6 +1678,33 @@ pub fn findZigLibDirFromSelfExe(
     return error.FileNotFound;
 }
 
+/// Returns path to langref.html if found.
+pub fn findDocFromExe(
+    arena: Allocator,
+    io: Io,
+    self_exe_path: []const u8,
+) ![]const u8 {
+    const cwd = Dir.cwd();
+    var cur_path: []const u8 = self_exe_path;
+    while (Dir.path.dirname(cur_path)) |dirname| : (cur_path = dirname) {
+        const search_paths: [3][]const []const u8 = .{
+            &.{ dirname, "doc", "langref.html" },
+            &.{ dirname, "doc", "zig", "langref.html" },
+            &.{ dirname, "share", "doc", "zig", "langref.html" },
+        };
+        for (&search_paths) |search_path| {
+            const test_path = try Dir.path.join(arena, search_path);
+            if (cwd.access(io, test_path, .{ .read = true })) |_| {
+                return test_path;
+            } else |err| switch (err) {
+                error.FileNotFound, error.AccessDenied => continue,
+                else => |e| return e,
+            }
+        }
+    }
+    return error.FileNotFound;
+}
+
 /// Returns the sub_path that worked, or `null` if none did.
 /// The path of the returned Directory is relative to `base`.
 /// The handle of the returned Directory is open.

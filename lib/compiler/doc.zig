@@ -9,7 +9,14 @@ const Cache = std.Build.Cache;
 
 fn usage(io: Io) noreturn {
     Io.File.stdout().writeStreamingAll(io,
-        \\Usage: zig std [options]
+        \\Usage: zig std [options] [documents]
+        \\
+        \\Document:                   Description:
+        \\  std                       Standard Module API
+        \\  langref                   Zig Language Reference
+        \\  build                     Build System Documentation
+        \\
+        \\If no documents are specified, all documents are opened.
         \\
         \\Options:
         \\  -h, --help                Print this help and exit
@@ -38,23 +45,69 @@ pub fn main(init: std.process.Init) !void {
 
     var listen_port: u16 = 0;
     var force_open_browser: ?bool = null;
+    var open_langref = false;
+    var open_std = false;
+    var open_build = false;
+    var any_open = false;
     while (argv.next()) |arg| {
-        if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
-            usage(io);
-        } else if (mem.eql(u8, arg, "-p") or mem.eql(u8, arg, "--port")) {
-            listen_port = std.fmt.parseInt(u16, argv.next() orelse usage(io), 10) catch |err| {
-                std.log.err("expected port number: {}", .{err});
+        if (mem.startsWith(u8, arg, "-")) {
+            if (mem.eql(u8, arg, "-h") or mem.eql(u8, arg, "--help")) {
                 usage(io);
-            };
-        } else if (mem.eql(u8, arg, "--open-browser")) {
-            force_open_browser = true;
-        } else if (mem.eql(u8, arg, "--no-open-browser")) {
-            force_open_browser = false;
+            } else if (mem.eql(u8, arg, "-p") or mem.eql(u8, arg, "--port")) {
+                listen_port = std.fmt.parseInt(u16, argv.next() orelse usage(io), 10) catch |err| {
+                    std.log.err("expected port number: {}", .{err});
+                    usage(io);
+                };
+            } else if (mem.eql(u8, arg, "--open-browser")) {
+                force_open_browser = true;
+            } else if (mem.eql(u8, arg, "--no-open-browser")) {
+                force_open_browser = false;
+            } else {
+                std.log.err("unrecognized option: {q}", .{arg});
+                usage(io);
+            }
+        } else if (mem.eql(u8, arg, "std")) {
+            open_std = true;
+            any_open = true;
+        } else if (mem.eql(u8, arg, "langref")) {
+            open_langref = true;
+            any_open = true;
+        } else if (mem.eql(u8, arg, "build")) {
+            open_build = true;
+            any_open = true;
         } else {
-            std.log.err("unrecognized argument: {s}", .{arg});
+            std.log.err("unrecognized document: {q}", .{arg});
             usage(io);
         }
     }
+
+    if (!any_open) {
+        open_langref = true;
+        open_build = true;
+        open_std = true;
+    }
+
+    if (open_langref or open_build) static: {
+        const langref_path = std.zig.findDocFromExe(arena, io, zig_exe_path) catch |err| {
+            std.log.err("failed to find documentation from zig executable {q}: {t}", .{ zig_exe_path, err });
+            break :static;
+        };
+        if (open_langref) {
+            openBrowserTab(io, langref_path) catch |err| {
+                std.log.err("failed to open {q} in browser: {t}", .{ langref_path, err });
+            };
+        }
+        if (open_build) {
+            const build_path = try Io.Dir.path.join(arena, &.{
+                Io.Dir.path.dirname(langref_path).?, "build.html",
+            });
+            openBrowserTab(io, build_path) catch |err| {
+                std.log.err("failed to open {q} in browser: {t}", .{ build_path, err });
+            };
+        }
+    }
+    if (!open_std) return;
+
     const should_open_browser = force_open_browser orelse (listen_port == 0);
 
     const address = Io.net.IpAddress.parse("127.0.0.1", listen_port) catch unreachable;
@@ -66,7 +119,7 @@ pub fn main(init: std.process.Init) !void {
     Io.File.stdout().writeStreamingAll(io, url_with_newline) catch {};
     if (should_open_browser) {
         openBrowserTab(io, url_with_newline[0 .. url_with_newline.len - 1 :'\n']) catch |err| {
-            std.log.err("unable to open browser: {t}", .{err});
+            std.log.err("failed to open browser: {t}", .{err});
         };
     }
 
@@ -108,14 +161,14 @@ fn accept(context: *Context, stream: Io.net.Stream) void {
         serveRequest(&request, context) catch |err| switch (err) {
             error.WriteFailed => {
                 if (conn_writer.err) |e| {
-                    std.log.err("unable to serve {s}: {t}", .{ request.head.target, e });
+                    std.log.err("failed to serve {s}: {t}", .{ request.head.target, e });
                 } else {
-                    std.log.err("unable to serve {s}: {t}", .{ request.head.target, err });
+                    std.log.err("failed to serve {s}: {t}", .{ request.head.target, err });
                 }
                 return;
             },
             else => {
-                std.log.err("unable to serve {s}: {t}", .{ request.head.target, err });
+                std.log.err("failed to serve {s}: {t}", .{ request.head.target, err });
                 return;
             },
         };

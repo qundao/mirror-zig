@@ -256,7 +256,7 @@ const Cmd = enum {
     fmt,
     objcopy,
     objdump,
-    std,
+    doc,
     targets,
     version,
     env,
@@ -404,10 +404,10 @@ fn mainArgs(
                 .root_src_path = "Objdump.zig",
             });
         },
-        .std => {
+        .doc => {
             return jitCmd(gpa, arena, io, cmd_args, environ_map, .{
                 .cmd_name = "std",
-                .root_src_path = "std-docs.zig",
+                .root_src_path = "doc.zig",
                 .prepend_zig_lib_dir_path = true,
                 .prepend_zig_exe_path = true,
                 .prepend_global_cache_path = true,
