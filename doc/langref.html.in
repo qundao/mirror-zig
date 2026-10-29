@@ -301,8 +301,8 @@
   <header><h1>Zig Programming Language Reference</h1></header>
   <div id="main-wrapper">
       <div id="navigation">
-        <nav aria-labelledby="related-documentation">
-          <h2 id="related-documentation">Related Documentation</h2>
+        <nav aria-labelledby="related-documents">
+          <h2 id="related-documents">Related Documents</h2>
           <table>
           <tr>
             <th>Resource</th>

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Zig Build System</title>
+  <title>Zig Build System Documentation</title>
   <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAgklEQVR4AWMYWuD7EllJIM4G4g4g5oIJ/odhOJ8wToOxSTXgNxDHoeiBMfA4+wGShjyYOCkG/IGqWQziEzYAoUAeiF9D5U+DxEg14DRU7jWIT5IBIOdCxf+A+CQZAAoopEB7QJwBCBwHiip8UYmRdrAlDpIMgApwQZNnNii5Dq0MBgCxxycBnwEd+wAAAABJRU5ErkJggg==">
   <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNTMgMTQwIj48ZyBmaWxsPSIjRjdBNDFEIj48Zz48cG9seWdvbiBwb2ludHM9IjQ2LDIyIDI4LDQ0IDE5LDMwIi8+PHBvbHlnb24gcG9pbnRzPSI0NiwyMiAzMywzMyAyOCw0NCAyMiw0NCAyMiw5NSAzMSw5NSAyMCwxMDAgMTIsMTE3IDAsMTE3IDAsMjIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMzEsOTUgMTIsMTE3IDQsMTA2Ii8+PC9nPjxnPjxwb2x5Z29uIHBvaW50cz0iNTYsMjIgNjIsMzYgMzcsNDQiLz48cG9seWdvbiBwb2ludHM9IjU2LDIyIDExMSwyMiAxMTEsNDQgMzcsNDQgNTYsMzIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTE2LDk1IDk3LDExNyA5MCwxMDQiLz48cG9seWdvbiBwb2ludHM9IjExNiw5NSAxMDAsMTA0IDk3LDExNyA0MiwxMTcgNDIsOTUiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTUwLDAgNTIsMTE3IDMsMTQwIDEwMSwyMiIvPjwvZz48Zz48cG9seWdvbiBwb2ludHM9IjE0MSwyMiAxNDAsNDAgMTIyLDQ1Ii8+PHBvbHlnb24gcG9pbnRzPSIxNTMsMjIgMTUzLDExNyAxMDYsMTE3IDEyMCwxMDUgMTI1LDk1IDEzMSw5NSAxMzEsNDUgMTIyLDQ1IDEzMiwzNiAxNDEsMjIiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyIvPjxwb2x5Z29uIHBvaW50cz0iMTI1LDk1IDEzMCwxMTAgMTA2LDExNyIvPjwvZz48L2c+PC9zdmc+">
   <style>
@@ -289,10 +289,10 @@ th pre code {
   </style>
 </head>
 <body>
-  <header><h1>Zig Build System</h1></header>
+  <header><h1>Zig Build System Documentation</h1></header>
   <div id="navigation">
     <nav>
-      <h2 id="related-documentation">Related Documentation</h2>
+      <h2 id="related-documents">Related Documents</h2>
       <table>
       <tr>
         <th>Resource</th>
@@ -651,19 +651,81 @@ $ cat zig-out/word.txt
     {#header_close#}
 
     {#header_open|Producing Assets for @embedFile#}
-    <p>TODO documentation</p>
+    <p>This version of hello world wants to <code>@embedFile</code> an asset generated at build time,
+    which we're going to produce using a tool written in Zig.</p>
+    <p><strong><code>words.json</code></strong></p>
+<pre><code>{
+  "en": "world",
+  "it": "mondo",
+  "ja": "世界"
+}</code></pre>
+    {#code|embedfile/src/main.zig#}
+    {#code|embedfile/tools/word_select.zig#}
+    {#code|embedfile/build.zig#}
+    <p>Output:</p>
+    {#shell_samp#}
+$ tree zig-out/
+└── bin
+    └── hello
+
+$ zig-out/bin/hello
+info: Hello, world
+    {#end_shell_samp#}
     {#header_close#}
 
     {#header_open|Generating Zig Source Code#}
-    <p>TODO documentation</p>
+    <p>This build file uses a Zig program to generate a Zig file and then exposes it to the main
+    program as a module dependency.</p>
+    {#code|import/src/main.zig#}
+    {#code|import/tools/generate_struct.zig#}
+    {#code|import/build.zig#}
+    <p>Output:</p>
+    {#shell_samp#}
+$ tree zig-out/
+└── bin
+    └── hello
+
+$ zig-out/bin/hello
+info: Hello .{ .age = 18, .name = { 102, 111, 111 } }
+    {#end_shell_samp#}
     {#header_close#}
 
     {#header_open|Dealing With One or More Generated Files#}
-    <p>TODO documentation</p>
+    <p>The {#link|WriteFile#} step provides a way to generate one or more files which share
+    a parent directory. The generated directory lives inside the local <code>.zig-cache</code>, and
+    each generated file is independently available as a {#syntax#}std.Build.LazyPath{#endsyntax#}. The parent
+    directory itself is also available as a {#syntax#}LazyPath{#endsyntax#}.</p>
+    <p>This API supports writing arbitrary strings to the generated directory as well as copying files into it.</p>
+    {#code|write-files/src/main.zig#}
+    {#code|write-files/build.zig#}
+    <p>Output:</p>
+    {#shell_samp#}
+$ tree zig-out/
+└── project.tar.gz
+    {#end_shell_samp#}
     {#header_close#}
 
     {#header_open|Mutating Source Files in Place#}
-    <p>TODO documentation</p>
+    <p>It is uncommon, but sometimes the case that a project commits generated files into version
+    control. This can be useful when the generated files are seldomly updated and have burdensome
+    system dependencies for the update process, but <em>only</em> during the update process.
+    {#link|UpdateSourceFiles#} provides a way to accomplish this task.</p>
+    <p>Be careful with this functionality; it should not be used during the normal build process,
+    but as a utility run by a developer with intention to update source files, which will then be
+    committed to version control. Using this step during routine build process causes caching and
+    concurrency bugs.</p>
+    {#code|mutate-source-files/tools/proto_gen.zig#}
+    {#code|mutate-source-files/src/main.zig#}
+    {#code|mutate-source-files/src/protocol.zig#}
+    {#code|mutate-source-files/build.zig#}
+<pre><code class="shell">$ zig build update-protocol --summary all
+<span class="sgr-36m">Build Summary:</span> 4/4 steps succeeded
+update-protocol<span class="sgr-32m"> success</span>
+└─ WriteFile<span class="sgr-32m"> success</span>
+   └─ run proto_gen (protocol.zig)<span class="sgr-32m"> success</span><span class="sgr-2m"> 401us</span><span class="sgr-2m"> MaxRSS:1M</span>
+      └─ zig build-exe proto_gen Debug native<span class="sgr-32m"> success</span><span class="sgr-2m"> 1s</span><span class="sgr-2m"> MaxRSS:183M</span>
+</code></pre>
+<p>After running this command, <code>src/protocol.zig</code> is updated in place.</p>
     {#header_close#}
     {#header_close#}
 
@@ -728,7 +790,25 @@ $ cat zig-out/word.txt
 
     {#header_open|Recipes#}
     {#header_open|Build for multiple targets to make a release#}
-    <p>TODO documentation</p>
+    <p>In this example we change some defaults when creating an {#link|InstallArtifact#} step in
+    order to put the build for each target into a separate subdirectory inside the install path.</p>
+    {#code|release/build.zig#}
+    {#code|release/hello.zig#}
+    <p>Output:</p>
+    {#shell_samp#}
+$ tree zig-out
+├── aarch64-linux
+│   └── hello
+├── aarch64-macos
+│   └── hello
+├── x86_64-linux-gnu
+│   └── hello
+├── x86_64-linux-musl
+│   └── hello
+└── x86_64-windows
+    ├── hello.exe
+    └── hello.pdb
+    {#end_shell_samp#}
     {#header_close#}
 
     {#header_open|Walking a directory during configuration#}
