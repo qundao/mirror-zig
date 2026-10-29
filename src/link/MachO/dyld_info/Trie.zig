@@ -134,9 +134,9 @@ fn finalize(self: *Trie, allocator: Allocator) !void {
     const tracy = trace(@src());
     defer tracy.end();
 
-    var ordered_nodes = std.array_list.Managed(Node.Index).init(allocator);
-    defer ordered_nodes.deinit();
-    try ordered_nodes.ensureTotalCapacityPrecise(self.nodes.items(.is_terminal).len);
+    var ordered_nodes: std.ArrayList(Node.Index) = .empty;
+    defer ordered_nodes.deinit(allocator);
+    try ordered_nodes.ensureTotalCapacityPrecise(allocator, self.nodes.items(.is_terminal).len);
 
     {
         var fifo: std.ArrayList(Node.Index) = .empty;
