@@ -18501,9 +18501,6 @@ fn zirPtrType(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air
         break :blk ty;
     };
 
-    if (elem_ty.zigTypeTag(zcu) == .noreturn)
-        return sema.fail(block, elem_ty_src, "pointer to noreturn not allowed", .{});
-
     const target = zcu.getTarget();
 
     var extra_i = extra.end;
@@ -20098,7 +20095,6 @@ fn zirReifyPointer(
     const elem_ty = try sema.resolveType(block, elem_ty_src, extra.elem_ty);
 
     switch (elem_ty.zigTypeTag(zcu)) {
-        .noreturn => return sema.fail(block, elem_ty_src, "pointer to noreturn not allowed", .{}),
         // This needs to be disallowed, because the sentinel parameter would otherwise have type
         // `?@TypeOf(null)`, which is not a valid type because you cannot differentiate between
         // constructing the "inner" null value and the "outer" null value.
