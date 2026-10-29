@@ -628,6 +628,26 @@ $ cat zig-out/word.txt
     {#header_close#}
 
     {#header_open|Running the Project's Tools#}
+    <p>This version of hello world expects to find a <code>word.txt</code> file in the same path,
+    and we want to produce it at build-time by invoking a Zig program on a JSON file.</p>
+    <p><strong><code>words.json</code></strong></p>
+<pre><code>{
+  "en": "world",
+  "it": "mondo",
+  "ja": "世界"
+}</code></pre>
+    {#code|zig-tool/src/main.zig#}
+    {#code|zig-tool/tools/word_select.zig#}
+    {#code|zig-tool/build.zig#}
+    <p>Output:</p>
+    {#shell_samp#}
+$ tree zig-out
+├── hello
+└── word.txt
+
+$ cat zig-out/word.txt
+世界
+    {#end_shell_samp#}
     {#header_close#}
 
     {#header_open|Producing Assets for @embedFile#}

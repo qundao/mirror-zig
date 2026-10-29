@@ -1176,7 +1176,7 @@ fn writeEscaped(w: *Writer, input: []const u8) Writer.Error!void {
 
 const patterns: []const Pattern = &.{
     .{ .match = "\x1B\x28\x30\x74\x71\x1B\x28\x42", .sub = "├─" },
-    .{ .match = "\x1B\x28\x30\x78\x1B\x28\x42", .sub = "─" },
+    .{ .match = "\x1B\x28\x30\x78\x1B\x28\x42", .sub = "|" },
     .{ .match = "\x1B\x28\x30\x6d\x71\x1B\x28\x42", .sub = "└─" },
 };
 
