@@ -594,20 +594,54 @@ th pre code {
     {#header_open|Generating Files#}
 
     {#header_open|Running System Tools#}
-    <p>TODO documentation</p>
+    <p>This version of hello world expects to find a <code>word.txt</code> file in the same path,
+    and we want to use a system tool to generate it starting from a JSON file.</p>
+    <p>Be aware that system dependencies will make your project harder to build for your
+    users. This build script depends on <code>jq</code>, for example, which is not present by
+    default in most Linux distributions and which might be an unfamiliar tool for
+    Windows users.</p>
+    <p>The next section will replace <code>jq</code> with a Zig tool included in the source tree,
+    which is the preferred approach.</p>
+    <p><strong><code>words.json</code></strong></p>
+<pre><code>{
+  "en": "world",
+  "it": "mondo",
+  "ja": "世界"
+}</code></pre>
+    {#code|system-tool/src/main.zig#}
+    {#code|system-tool/build.zig#}
+    <p>Output:</p>
+<pre><code>zig-out
+├── hello
+└── word.txt
+</code></pre>
+    {#shell_samp#}
+$ tree zig-out
+├── hello
+└── word.txt
+
+$ cat zig-out/word.txt
+世界
+    {#end_shell_samp#}
+    <p>Note how <code>captureStdOut</code> creates a temporary file with the output of the
+    <code>jq</code> invocation.</p>
     {#header_close#}
-    {#header_open|Running the Project’s Tools#}
-    <p>TODO documentation</p>
+
+    {#header_open|Running the Project's Tools#}
     {#header_close#}
+
     {#header_open|Producing Assets for @embedFile#}
     <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Generating Zig Source Code#}
     <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Dealing With One or More Generated Files#}
     <p>TODO documentation</p>
     {#header_close#}
+
     {#header_open|Mutating Source Files in Place#}
     <p>TODO documentation</p>
     {#header_close#}
