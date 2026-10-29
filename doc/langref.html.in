@@ -313,7 +313,7 @@
             <td><code style="white-space: nowrap">zig doc langref</code></td>
           </tr>
           <tr>
-            <td><a href="/documentation/master/std/">Standard Module Documentation</a></td>
+            <td><a href="/documentation/master/std/">Standard Module API</a></td>
             <td><code>zig doc std</code></td>
           </tr>
           <tr>
