@@ -30,21 +30,21 @@ pub fn main(init: std.process.Init) !void {
                 return std.process.cleanExit(io);
             } else if (std.mem.eql(u8, "--input-file", arg)) {
                 i += 1;
-                if (i > args.len) fatal("expected arg after '{s}'", .{arg});
+                if (i > args.len) fatal("expected arg after {q}", .{arg});
                 if (opt_input_file_path != null) fatal("duplicated {s} argument", .{arg});
                 opt_input_file_path = args[i];
             } else if (std.mem.eql(u8, "--output-file", arg)) {
                 i += 1;
-                if (i > args.len) fatal("expected arg after '{s}'", .{arg});
+                if (i > args.len) fatal("expected arg after {q}", .{arg});
                 if (opt_output_file_path != null) fatal("duplicated {s} argument", .{arg});
                 opt_output_file_path = args[i];
             } else if (std.mem.eql(u8, "--lang", arg)) {
                 i += 1;
-                if (i > args.len) fatal("expected arg after '{s}'", .{arg});
+                if (i > args.len) fatal("expected arg after {q}", .{arg});
                 if (opt_lang != null) fatal("duplicated {s} argument", .{arg});
                 opt_lang = args[i];
             } else {
-                fatal("unrecognized arg: '{s}'", .{arg});
+                fatal("unrecognized arg: {q}", .{arg});
             }
         }
     }
@@ -54,14 +54,14 @@ pub fn main(init: std.process.Init) !void {
     const lang = opt_lang orelse fatal("missing --lang", .{});
 
     var input_file = Io.Dir.cwd().openFile(io, input_file_path, .{}) catch |err| {
-        fatal("unable to open '{s}': {s}", .{ input_file_path, @errorName(err) });
+        fatal("unable to open {q}: {t}", .{ input_file_path, err });
     };
     defer input_file.close(io);
     var input_file_buffer: [1000]u8 = undefined;
     var input_file_reader = input_file.reader(io, &input_file_buffer);
 
     var output_file = Io.Dir.cwd().createFile(io, output_file_path, .{}) catch |err| {
-        fatal("unable to open '{s}': {s}", .{ output_file_path, @errorName(err) });
+        fatal("unable to open {q}: {t}", .{ output_file_path, err });
     };
     defer output_file.close(io);
 
@@ -71,7 +71,7 @@ pub fn main(init: std.process.Init) !void {
         .max_value_len = 1000,
     });
 
-    const w = words.map.get(lang) orelse fatal("Lang not found in JSON file", .{});
+    const w = words.map.get(lang) orelse fatal("lang not found in JSON file", .{});
 
     try output_file.writeStreamingAll(io, w);
     return std.process.cleanExit(io);
