@@ -9672,7 +9672,8 @@ fn zirElemVal(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air
     const extra = sema.code.extraData(Zir.Inst.Bin, inst_data.payload_index).data;
     const array = sema.resolveInst(extra.lhs);
     const elem_index = sema.resolveInst(extra.rhs);
-    return sema.elemVal(block, src, array, elem_index, src, false);
+    const array_src = src;
+    return sema.elemVal(block, src, array, array_src, elem_index, src, false);
 }
 
 fn zirElemPtrLoad(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -9685,7 +9686,8 @@ fn zirElemPtrLoad(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError
     if (try sema.resolveDefinedValue(block, src, array_ptr)) |array_ptr_val| {
         if (try sema.maybeDerefPtr(block, src, array_ptr_val)) |array_val| {
             const array: Air.Inst.Ref = .fromValue(array_val);
-            return elemVal(sema, block, src, array, uncoerced_elem_index, elem_index_src, true);
+            const array_src = src;
+            return elemVal(sema, block, src, array, array_src, uncoerced_elem_index, elem_index_src, true);
         }
     }
     const elem_index = try sema.coerce(block, .usize, uncoerced_elem_index, elem_index_src);
@@ -9697,7 +9699,7 @@ fn zirElemValImm(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!
     const inst_data = sema.code.instructions.items(.data)[@backingInt(inst)].elem_val_imm;
     const array = sema.resolveInst(inst_data.operand);
     const elem_index = try sema.pt.intRef(.usize, inst_data.idx);
-    return sema.elemVal(block, LazySrcLoc.unneeded, array, elem_index, LazySrcLoc.unneeded, false);
+    return sema.elemVal(block, LazySrcLoc.unneeded, array, LazySrcLoc.unneeded, elem_index, LazySrcLoc.unneeded, false);
 }
 
 fn zirElemPtr(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -13717,7 +13719,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = elem_i,
             } });
-            const init = try sema.elemVal(block, operand_src, lhs, elem_index, src, true);
+            const init = try sema.elemVal(block, operand_src, lhs, lhs_src, elem_index, src, true);
             try sema.storePtr2(block, src, elem_ptr, src, init, operand_src, .store);
         }
         while (elem_i < result_len) : (elem_i += 1) {
@@ -13729,7 +13731,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = @intCast(rhs_elem_i),
             } });
-            const init = try sema.elemVal(block, operand_src, rhs, rhs_index, src, true);
+            const init = try sema.elemVal(block, operand_src, rhs, rhs_src, rhs_index, src, true);
             try sema.storePtr2(block, src, elem_ptr, src, init, operand_src, .store);
         }
         if (res_sent_val) |sent_val| {
@@ -13751,7 +13753,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = elem_i,
             } });
-            const init = try sema.elemVal(block, operand_src, lhs, index, src, true);
+            const init = try sema.elemVal(block, operand_src, lhs, lhs_src, index, src, true);
             element_refs[elem_i] = try sema.coerce(block, resolved_elem_ty, init, operand_src);
         }
         while (elem_i < result_len) : (elem_i += 1) {
@@ -13761,7 +13763,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = @intCast(rhs_elem_i),
             } });
-            const init = try sema.elemVal(block, operand_src, rhs, index, src, true);
+            const init = try sema.elemVal(block, operand_src, rhs, rhs_src, index, src, true);
             element_refs[elem_i] = try sema.coerce(block, resolved_elem_ty, init, operand_src);
         }
     }
@@ -27477,11 +27479,11 @@ fn elemVal(
     block: *Block,
     src: LazySrcLoc,
     indexable: Air.Inst.Ref,
+    indexable_src: LazySrcLoc,
     elem_index_uncasted: Air.Inst.Ref,
     elem_index_src: LazySrcLoc,
     oob_safety: bool,
 ) CompileError!Air.Inst.Ref {
-    const indexable_src = src; // TODO better source location
     const indexable_ty = sema.typeOf(indexable);
     const pt = sema.pt;
     const zcu = pt.zcu;
@@ -30717,7 +30719,7 @@ fn coerceArrayLike(
         const index_ref = Air.internedToRef((try pt.intValue(.usize, i)).toIntern());
         const src = inst_src; // TODO better source location
         const elem_src = inst_src; // TODO better source location
-        const elem_ref = try sema.elemValArray(block, src, inst_src, inst, elem_src, index_ref, true);
+        const elem_ref = try sema.elemVal(block, src, inst, inst_src, index_ref, elem_src, true);
         const coerced = try sema.coerce(block, dest_elem_ty, elem_ref, elem_src);
         ref.* = coerced;
         if (runtime_src == null) {
