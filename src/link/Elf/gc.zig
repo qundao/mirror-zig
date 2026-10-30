@@ -4,7 +4,7 @@ pub fn gcAtoms(elf_file: *Elf) !void {
     var roots: std.ArrayList(*Atom) = .empty;
     defer roots.deinit(gpa);
     try collectRoots(gpa, &roots, elf_file);
-    mark(roots, elf_file);
+    mark(roots.items, elf_file);
     prune(elf_file);
 }
 
@@ -133,8 +133,8 @@ fn markLive(atom: *Atom, elf_file: *Elf) void {
     }
 }
 
-fn mark(roots: std.ArrayList(*Atom), elf_file: *Elf) void {
-    for (roots.items) |root| {
+fn mark(roots: []const *Atom, elf_file: *Elf) void {
+    for (roots) |root| {
         gc_track_live_log.debug("root atom({d})", .{root.atom_index});
         markLive(root, elf_file);
     }

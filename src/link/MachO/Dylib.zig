@@ -802,10 +802,10 @@ pub const TargetMatcher = struct {
                     if (mem.eql(u8, v3.platform, "zippered")) {
                         // From Xcode 10.3 → 11.3.1, macos SDK .tbd files specify platform as 'zippered'
                         // which should map to [ '<arch>-macos', '<arch>-maccatalyst' ]
-                        try targets.append(allocator, try std.fmt.allocPrint(allocator, "{s}-macos", .{arch}));
-                        try targets.append(allocator, try std.fmt.allocPrint(allocator, "{s}-maccatalyst", .{arch}));
+                        try targets.append(allocator, try allocator.print("{s}-macos", .{arch}));
+                        try targets.append(allocator, try allocator.print("{s}-maccatalyst", .{arch}));
                     } else {
-                        try targets.append(allocator, try std.fmt.allocPrint(allocator, "{s}-{s}", .{ arch, v3.platform }));
+                        try targets.append(allocator, try allocator.print("{s}-{s}", .{ arch, v3.platform }));
                     }
                 }
                 break :blk targets.items;
