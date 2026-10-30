@@ -220,12 +220,6 @@
 //! current working directory after passing `--keep-src`.  Note also that when using the build
 //! system, `-Dtest-filter` filters the case name and `-Dtest-target-filter` filters the target.
 
-const assert = std.debug.assert;
-const builtin = @import("builtin");
-const std = @import("std");
-const Runner = @This();
-const Pattern = @import("Runner/match.zig").Pattern;
-
 /// These are passed as `<target>-<cpu>-<cache_mode>-<backend>-...` strings.
 pub const Target = struct {
     cpu: Cpu = .{ .native = .{} },
@@ -513,8 +507,6 @@ server: std.zig.Server,
 eb_wip: std.zig.ErrorBundle.Wip,
 
 const Args = struct {
-    quiet: bool,
-
     @"test": ?struct {
         input_dir: std.zig.Server.Message.InputDir,
         dir: std.Io.Dir,
@@ -643,6 +635,7 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                 runner.server.in.readSliceAll(args_body) catch unreachable;
                 const State = enum {
                     positional,
+                    @"--log",
                     @"--zig",
                     @"--lib",
                     @"--src",
@@ -658,6 +651,7 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                     enum { path, dir, file, string },
                 ) = .init(.{
                     .positional = .path,
+                    .@"--log" = .string,
                     .@"--zig" = .file,
                     .@"--lib" = .dir,
                     .@"--src" = .dir,
@@ -679,8 +673,14 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                             const string = args_body[args_body_offset..end];
                             args_body_offset = end + 1;
                             switch (state) {
-                                .positional => if (std.mem.eql(u8, string, "--quiet")) {
-                                    runner.args.quiet = true;
+                                .positional => if (std.mem.eql(u8, string, "--log")) {
+                                    state = .@"--log";
+                                    continue;
+                                } else if (std.mem.cutPrefix(u8, string, "--log=")) |log_level| {
+                                    global_log_level = std.meta.stringToEnum(
+                                        std.log.Level,
+                                        log_level,
+                                    ) orelse return runner.fail("invalid log level {q}", .{log_level});
                                 } else if (std.mem.eql(u8, string, "--target")) {
                                     state = .@"--target";
                                     continue;
@@ -714,6 +714,12 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                                 } else if (std.mem.eql(u8, string, "--lldb")) {
                                     state = .@"--lldb";
                                     continue;
+                                },
+                                .@"--log" => {
+                                    global_log_level = std.meta.stringToEnum(
+                                        std.log.Level,
+                                        string,
+                                    ) orelse return runner.fail("invalid log level {q}", .{string});
                                 },
                                 .@"--target" => try runner.args.addTarget(runner.gpa, string, false),
                                 .@"--skipped-target" => try runner.args.addTarget(
@@ -773,7 +779,7 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                                     .{e},
                                 ),
                             };
-                            if (!runner.args.quiet) debug: {
+                            debug: {
                                 std.log.debug("inherited parent dir {t}={q}", .{
                                     state,
                                     runner.dirPath(dir) catch |err| switch (err) {
@@ -847,7 +853,7 @@ pub fn runServer(runner: *Runner) ProtocolError!void {
                                     .{e},
                                 ),
                             };
-                            if (!runner.args.quiet) debug: {
+                            debug: {
                                 std.log.debug("inherited parent file {t}={q}", .{
                                     state,
                                     runner.filePath(file) catch |err| switch (err) {
@@ -1375,9 +1381,9 @@ const TestError = error{
 } || FailError;
 fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestError)!void {
     const target_query = runner.args.getTarget(test_index);
-    if (!runner.args.quiet) std.log.info("testing target {q}...", .{target_query});
+    std.log.info("testing target {q}...", .{target_query});
     if (runner.args.targets.values()[test_index].skipped) {
-        if (!runner.args.quiet) std.log.info("skipped by the build system", .{});
+        std.log.info("skipped by the build system", .{});
         return error.SkipTest;
     }
     const manifest_file = runner.args.manifest_file orelse
@@ -1621,7 +1627,7 @@ fn handleCommand(
     arg: ?[]const u8,
     contents_r: *std.Io.Reader,
 ) (error{ContentsReadFailed} || TestError)!void {
-    if (!runner.args.quiet) std.log.debug("handleCommand({}, {?q})", .{ cmd, arg });
+    std.log.debug("handleCommand({}, {?q})", .{ cmd, arg });
     const arena = runner.arena.allocator();
 
     var name_buffer: [std.Progress.Node.max_name_len]u8 = undefined;
@@ -1640,7 +1646,7 @@ fn handleCommand(
         else => {
             if (update.invalid_skip) return error.AlreadyReported;
             if (update.skipped == true) {
-                if (!runner.args.quiet) std.log.info("skipped by a \"#skip\" command", .{});
+                std.log.info("skipped by a \"#skip\" command", .{});
                 return error.SkipTest;
             }
             update.skipped = false;
@@ -2112,7 +2118,7 @@ fn handleCommand(
             const stderr_buffered = stderr.buffered();
             if (stderr_buffered.len > 0) {
                 if (comp.allow_compiler_stderr) {
-                    std.log.info("#update {q} stderr:\n{s}", .{ update.name, stderr_buffered });
+                    std.log.warn("#update {q} stderr:\n{s}", .{ update.name, stderr_buffered });
                 } else return update.fail("unexpected stderr:\n{s}", .{stderr_buffered});
             }
 
@@ -2142,7 +2148,7 @@ fn spawnCompiler(
 
     compiler.* = .{
         .runner = runner,
-        .allow_compiler_stderr = true,
+        .allow_compiler_stderr = false,
         .command = command,
         .state = .idle,
         .child = undefined,
@@ -2263,7 +2269,7 @@ fn spawnCompiler(
     }
     try argv.append(gpa, "--listen=-");
 
-    if (!runner.args.quiet) std.log.info("{f}", .{std.zig.SubprocessCommand{
+    std.log.info("{f}", .{std.zig.SubprocessCommand{
         .argv = argv.items,
         .cwd = cwd_path: {
             break :cwd_path runner.dirPath(src_dir) catch |err| switch (err) {
@@ -2288,7 +2294,7 @@ fn spawnCompiler(
     }) catch |err| switch (err) {
         error.Canceled, error.OutOfMemory => |e| return e,
         error.OperationUnsupported => {
-            if (!runner.args.quiet) std.log.warn("skipped because spawning is not supported", .{});
+            std.log.info("skipped because spawning is not supported", .{});
             return error.SkipTest;
         },
         else => |e| return runner.fail("unable to spawn compiler: {t}", .{e}),
@@ -2375,7 +2381,7 @@ const Compiler = struct {
         if (stderr_buffered.len > 0) {
             const tag_name = if (maybe_header) |header| @tagName(header.tag) else "exit";
             if (comp.allow_compiler_stderr) {
-                std.log.info("{s} stderr:\n{s}", .{ tag_name, stderr_buffered });
+                std.log.warn("{s} stderr:\n{s}", .{ tag_name, stderr_buffered });
             } else return comp.runner.fail("{s} unexpected stderr:\n{s}", .{
                 tag_name, stderr_buffered,
             });
@@ -2803,8 +2809,7 @@ const Compiler = struct {
             .link_libc = config.flags.link_libc,
         })) {
             .bad_dl, .bad_os_or_cpu => {
-                // This binary cannot be executed on this host.
-                if (!runner.args.quiet) std.log.warn("skipping execution because host {q} cannot " ++
+                std.log.info("skipping execution because host {q} cannot " ++
                     "execute binaries for foreign target {q}", .{
                     try runner.host.zigTriple(arena), comp.target.triple,
                 });
@@ -2859,7 +2864,7 @@ const Compiler = struct {
         };
         argv.appendAssumeCapacity(emit_path);
 
-        if (!runner.args.quiet) std.log.info("{f}", .{std.zig.SubprocessCommand{
+        std.log.info("{f}", .{std.zig.SubprocessCommand{
             .argv = argv.items,
             .cwd = cwd_path: {
                 break :cwd_path runner.dirPath(update.src_dir) catch |err| switch (err) {
@@ -2883,7 +2888,7 @@ const Compiler = struct {
                 .stdout, .exit => if (use_executor) .search else .{ .file = emit_file },
                 .gdb, .lldb => {
                     if (use_executor) {
-                        if (!runner.args.quiet) std.log.warn(
+                        std.log.info(
                             "skipping debugging of {q} via executor for foreign target {q}",
                             .{ emit_path, comp.target.triple },
                         );
@@ -2931,7 +2936,7 @@ const Compiler = struct {
                         .gdb => runner.args.gdb_exe,
                         .lldb => runner.args.lldb_exe,
                     } orelse {
-                        if (!runner.args.quiet) std.log.warn(
+                        std.log.info(
                             "skipping debugging of {q} because of missing \"--{t}=path/to/{[1]t}\" arg",
                             .{ emit_path, check },
                         );
@@ -2945,7 +2950,7 @@ const Compiler = struct {
             .progress_node = run_prog_node,
         }) catch |err| if (use_executor) {
             // Chances are the foreign executor isn't available. Skip this evaluation.
-            if (!runner.args.quiet) std.log.warn(
+            std.log.info(
                 "skipping execution of {q} via executor for foreign target {q}: {t}",
                 .{ emit_path, comp.target.triple, err },
             );
@@ -3002,19 +3007,27 @@ const Compiler = struct {
                 .{emit_path},
             ),
         }
-        // * Since we do not use the test protocol here yet, ignore stderr output from the test
-        //   runner in terminal mode.
-        // * If we are using an executor such as wine, ignore any stderr spam it may produce.
-        if (!comp.command.isTest() and !use_executor and result.stderr.len > 0) {
-            std.log.err("#update {q} generated executable {q} had unexpected stderr:\n{s}", .{
-                update.name, emit_path, result.stderr,
-            });
+        if (result.stderr.len > 0) {
+            // * If we are using an executor such as wine, ignore any stderr spam it may produce.
+            // * Since we do not use the test protocol here yet, ignore stderr output from the test
+            //   runner in terminal mode.
+            if (use_executor or comp.command.isTest()) {
+                std.log.warn(
+                    \\#update {q} generated executable {q} had unexpected stderr:
+                    \\{s}
+                    \\
+                , .{ update.name, emit_path, result.stderr });
+            } else return runner.fail(
+                \\#update {q} generated executable {q} had unexpected stderr:
+                \\{s}
+                \\
+            , .{ update.name, emit_path, result.stderr });
         }
     }
 
     fn compileC(parent_comp: *Compiler, src_dir: std.Io.Dir, c_path: []const u8) TestError![]const u8 {
         const runner = parent_comp.runner;
-        if (!runner.args.quiet) debug: {
+        debug: {
             std.log.debug("compileC({q}, {q})", .{
                 runner.dirPath(src_dir) catch |err| switch (err) {
                     error.Canceled, error.OutOfMemory => |e| return e,
@@ -3123,7 +3136,7 @@ const Compiler = struct {
 };
 
 const ClientArgs = struct {
-    quiet: bool,
+    log_level: ?std.log.Level,
     keep_src: bool,
 
     test_file: std.Io.File,
@@ -3151,7 +3164,7 @@ pub fn main(init: std.process.Init) (std.mem.Allocator.Error || std.Io.Cancelabl
     const arena = init.arena.allocator();
 
     var args: ClientArgs = .{
-        .quiet = false,
+        .log_level = null,
         .keep_src = false,
 
         .test_file = undefined,
@@ -3204,8 +3217,6 @@ pub fn main(init: std.process.Init) (std.mem.Allocator.Error || std.Io.Cancelabl
                 .io = init.io,
                 .prog_node = std.Progress.start(init.io, .{}),
                 .args = .{
-                    .quiet = false,
-
                     .@"test" = null,
                     .manifest_file = null,
                     .zig_exe = null,
@@ -3257,8 +3268,13 @@ pub fn main(init: std.process.Init) (std.mem.Allocator.Error || std.Io.Cancelabl
                 },
             };
             return 0;
-        } else if (std.mem.eql(u8, arg, "--quiet")) {
-            args.quiet = true;
+        } else if (std.mem.eql(u8, arg, "--log")) {
+            const log_level = arg_it.next() orelse return fatal("missing arg after {q}", .{arg});
+            args.log_level = std.meta.stringToEnum(std.log.Level, log_level) orelse
+                return fatal("invalid arg {q} after {q}", .{ log_level, arg });
+        } else if (std.mem.cutPrefix(u8, arg, "--log")) |log_level| {
+            args.log_level = std.meta.stringToEnum(std.log.Level, log_level) orelse
+                return fatal("invalid arg {q} after {q}", .{ log_level, arg });
         } else if (std.mem.eql(u8, arg, "--keep-src")) {
             args.keep_src = true;
         } else if (std.mem.eql(u8, arg, "--zig")) {
@@ -3394,7 +3410,7 @@ pub fn main(init: std.process.Init) (std.mem.Allocator.Error || std.Io.Cancelabl
     defer {
         args.src_dir.close(init.io);
         if (!args.keep_src) cwd.deleteTree(init.io, src_dir_path) catch |err| {
-            std.log.warn("unable to delete tree {q}: {t}", .{ src_dir_path, err });
+            std.log.err("unable to delete tree {q}: {t}", .{ src_dir_path, err });
         };
     }
 
@@ -3511,9 +3527,10 @@ fn runClient(
     defer argv.deinit(gpa);
     const Arg = std.zig.Client.Message.Arg;
 
-    if (args.quiet) {
+    if (args.log_level) |log_level| {
         try argv.append(gpa, @backingInt(Arg.string));
-        try argv.appendSlice(gpa, "--quiet");
+        try argv.appendSlice(gpa, "--log=");
+        try argv.appendSlice(gpa, @tagName(log_level));
         try argv.append(gpa, 0);
     }
 
@@ -3546,10 +3563,7 @@ fn runClient(
 
     for (matrix.keys(), matrix.values()) |target, state| {
         try argv.append(gpa, @backingInt(Arg.string));
-        try argv.appendSlice(gpa, if (state.skipped) "--skipped-target" else "--target");
-        try argv.append(gpa, 0);
-
-        try argv.append(gpa, @backingInt(Arg.string));
+        try argv.appendSlice(gpa, if (state.skipped) "--skipped-target=" else "--target=");
         try argv.appendSlice(gpa, target);
         try argv.append(gpa, 0);
     }
@@ -3705,3 +3719,23 @@ const newline: []const Pattern = &.{
     } },
     .{ .literal = "\n" },
 };
+
+pub const std_options: std.Options = .{
+    .logFn = log,
+};
+var global_log_level: std.log.Level = .info;
+fn log(
+    comptime level: std.log.Level,
+    comptime scope: @EnumLiteral(),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    if (@backingInt(level) > @backingInt(global_log_level)) return;
+    std.log.defaultLog(level, scope, format, args);
+}
+
+const assert = std.debug.assert;
+const builtin = @import("builtin");
+const std = @import("std");
+const Runner = @This();
+const Pattern = @import("Runner/match.zig").Pattern;
