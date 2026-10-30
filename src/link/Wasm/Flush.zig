@@ -1716,9 +1716,6 @@ pub fn finish(f: *Flush, wasm: *Wasm) !void {
             },
         }
 
-        var debug_bytes: std.ArrayList(u8) = .empty;
-        defer debug_bytes.deinit(gpa);
-
         try emitProducerSection(gpa, binary_bytes);
         try emitFeaturesSection(gpa, binary_bytes, target);
     }
