@@ -2158,7 +2158,7 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
     const arena = graph.arena;
 
     const color: Color = Color.settingFromEnvironment(environ_map);
-    var opt_path_or_url: ?[]const u8 = null;
+    var opt_positional_arg: ?[]const u8 = null;
     var override_local_cache_dir: ?[]const u8 = EnvVar.ZIG_LOCAL_CACHE_DIR.get(environ_map);
     var override_pkg_dir: ?[]const u8 = EnvVar.ZIG_LOCAL_PKG_DIR.get(environ_map);
     var debug_hash: bool = false;
@@ -2193,14 +2193,14 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
             } else {
                 fatal("unrecognized parameter: {q}", .{arg});
             }
-        } else if (opt_path_or_url != null) {
+        } else if (opt_positional_arg != null) {
             fatal("unexpected extra parameter: {q}", .{arg});
         } else {
-            opt_path_or_url = arg;
+            opt_positional_arg = arg;
         }
     }
 
-    const path_or_url = opt_path_or_url orelse fatal("missing url or path parameter", .{});
+    const positional_arg = opt_positional_arg orelse fatal("missing url, path, or hash parameter", .{});
 
     var http_client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer http_client.deinit();
@@ -2257,7 +2257,7 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
         .arena = std.heap.ArenaAllocator.init(gpa),
         .parent = null,
         .name = "",
-        .location = .{ .path_or_url = path_or_url },
+        .location = .{ .cli_arg = positional_arg },
         .lazy_status = .eager,
         .remote_package_root = undefined,
         .parent_package_root = if (build_root_initialized) .{ .root_dir = build_root.directory } else .cwd(),
@@ -2332,12 +2332,12 @@ fn cmdFetch(gpa: Allocator, graph: *Graph, args: []const []const u8) !void {
     var fixups: std.zig.Ast.Render.Fixups = .{};
     defer fixups.deinit(gpa);
 
-    var saved_path_or_url = path_or_url;
+    var saved_path_or_url = positional_arg;
 
     if (fetch.latest_commit) |latest_commit| resolved: {
         const latest_commit_hex = try arena.print("{f}", .{latest_commit});
 
-        var uri = try std.Uri.parse(path_or_url);
+        var uri = try std.Uri.parse(positional_arg);
 
         if (uri.fragment) |fragment| {
             const target_ref = try fragment.toRawMaybeAlloc(arena);
@@ -2533,18 +2533,24 @@ const usage_cache_cat =
 const usage_fetch =
     \\Usage: zig fetch [options] <url>
     \\Usage: zig fetch [options] <path>
+    \\Usage: zig fetch [options] <hash>
     \\
     \\    Copy a package into the global cache and print its hash.
+    \\
     \\    <url> must point to one of the following:
     \\      - A git+http / git+https server for the package
     \\      - A tarball file (with or without compression) containing
     \\        package source
     \\      - A git bundle file containing package source
     \\
+    \\    When <hash> is provided, the package is fetched from the global
+    \\    cache only.
+    \\
     \\Examples:
     \\
     \\  zig fetch --save git+https://example.com/andrewrk/fun-example-tool.git
     \\  zig fetch --save https://example.com/andrewrk/fun-example-tool/archive/refs/heads/master.tar.gz
+    \\  zig fetch .
     \\
     \\Options:
     \\  -h, --help                    Print this help and exit
