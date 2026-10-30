@@ -731,8 +731,7 @@ pub fn resolveLiterals(self: *Object, lp: *MachO.LiteralPool, macho_file: *MachO
                 };
                 const addend = try macho_file.cast(u32, rel.addend);
                 const target_size = try macho_file.cast(usize, target.size);
-                try buffer.ensureUnusedCapacity(gpa, target_size);
-                buffer.resize(gpa, target_size) catch unreachable;
+                try buffer.resize(gpa, target_size);
                 const gop = try sections_data.getOrPut(target.n_sect);
                 if (!gop.found_existing) {
                     gop.value_ptr.* = try self.readSectionData(gpa, io, file, @intCast(target.n_sect));

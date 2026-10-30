@@ -415,8 +415,7 @@ pub fn resolveLiterals(self: *InternalObject, lp: *MachO.LiteralPool, macho_file
         assert(rel.tag == .@"extern");
         const target = rel.getTargetSymbol(atom.*, macho_file).getAtom(macho_file).?;
         const target_size = try macho_file.cast(usize, target.size);
-        try buffer.ensureUnusedCapacity(gpa, target_size);
-        buffer.resize(gpa, target_size) catch unreachable;
+        try buffer.resize(gpa, target_size);
         const section_data = try self.getSectionData(target.n_sect, macho_file);
         @memcpy(buffer.items, section_data);
         const res = try lp.insert(gpa, header.type(), buffer.items);
