@@ -118,6 +118,7 @@
 //!
 //!     #require windows
 //!
+//! * `safe-unwind` requires that a safe unwind strategy, like DWARF unwinding, is available.
 //! * `windows` requires a target os tag of `.uefi` or `.windows`.
 //!
 //! The zig command defines the compiler command line arguments that are specific to this case,
@@ -182,10 +183,11 @@
 //! The exit check succeeds when running the binary as the stdout check does exits with the given
 //! exit code.  The contents are the decimal exit code in ascii with no trailing newline.
 //!
-//! The error-trace check succeed when running the binary as the stdout check does exits with 1,
-//! produces no standard output, and produces the given standard error.  The contents support a few
-//! useful patterns that are not matched exactly:
+//! The error-trace, panic, and stack-trace checks succeed when running the binary as the stdout
+//! check does exits with 1, abort, or 0 respectively, produces no standard output, and produces the
+//! given standard error.  The contents support a few useful patterns that are not matched exactly:
 //!
+//! * `thread ? panic: ` matches a panic message for any thread id.
 //! * `test.zig:` matches a path ending with `test.zig` as the final component followed by a `:`.
 //! * `0x?` matches any hex address.
 //! * ` (test*)` at the end of a line matches either ` (test)`, ` (test.zig)`, or ` (test_zcu.obj)`.
@@ -234,282 +236,6 @@
 //! The resulting binary can be examined or debugged by locating it in a `src_*` directory in the
 //! current working directory after passing `--keep-src`.  Note also that when using the build
 //! system, `-Dtest-filter` filters the case name and `-Dtest-target-filter` filters the target.
-
-/// These are passed as `<target>-<cpu>-<cache_mode>-<backend>-...` strings.
-pub const Target = struct {
-    cpu: Cpu = .{ .native = .{} },
-    os: Os = .native,
-    abi: Abi = .default,
-    ofmt: ObjectFormat = .default,
-    dynamic_linker: DynamicLinker = .default,
-
-    cache_mode: CacheMode,
-    backend: Backend,
-    optimize: std.lang.Optimize = .debug,
-    pic: Pic = .default,
-    linker: Linker = .default,
-    link_libc: LinkLibc = .default,
-    strip: Strip = .default,
-
-    pub const Cpu = Cpu: {
-        @setEvalBranchQuota(4_000);
-        const Arch = std.Target.Cpu.Arch;
-        const arch_info = @typeInfo(Arch).@"enum";
-        const field_names = .{"native"} ++ arch_info.field_names;
-        var field_types: [field_names.len]type = undefined;
-        field_types[0] = struct {
-            model: Model = .native,
-
-            pub const Model = enum { native, baseline };
-        };
-        for (field_types[1..], field_names[1..]) |*field_type, field_name| {
-            const arch = @field(Arch, field_name);
-            const models = arch.allCpuModels();
-            const family = @field(std.Target, @tagName(arch.family()));
-            field_type.* = struct {
-                model: Model = .baseline,
-                features: struct { add: []const Feature = &.{}, remove: []const Feature = &.{} } = .{},
-
-                pub const Model = Model: {
-                    const explicit_models = @typeInfo(family.cpu).@"struct".decl_names;
-                    var model_names: []const []const u8 = &.{"native"};
-                    if (!@hasDecl(family.cpu, "baseline")) model_names = model_names ++ .{"baseline"};
-                    model_names = model_names ++ explicit_models;
-                    const TagInt = std.math.IntFittingRange(0, model_names.len - 1);
-                    var model_values: [model_names.len]TagInt = undefined;
-                    var model_index = 0;
-                    {
-                        var model_value = explicit_models.len;
-                        model_values[model_index] = model_value;
-                        model_index += 1;
-                        model_value += 1;
-                        if (!@hasDecl(family.cpu, "baseline")) {
-                            model_values[model_index] = model_value;
-                            model_index += 1;
-                            model_value += 1;
-                        }
-                    }
-                    for (model_values[model_index..], 0..) |*model_value, value| model_value.* = value;
-                    break :Model @Enum(TagInt, .exhaustive, model_names, &model_values);
-                };
-
-                pub const Feature = family.Feature;
-
-                pub fn updateQuery(cpu: *const @This(), query: *std.Target.Query) void {
-                    query.cpu_model = switch (cpu.model) {
-                        .native => .native,
-                        .baseline => .baseline,
-                        else => |model| .{ .explicit = models[@backingInt(model)] },
-                    };
-                    for (cpu.features.add) |add_feature|
-                        query.cpu_features_add.addFeature(@backingInt(add_feature));
-                    for (cpu.features.remove) |remove_feature|
-                        query.cpu_features_sub.addFeature(@backingInt(remove_feature));
-                }
-            };
-        }
-        const TagInt = std.math.IntFittingRange(0, field_names.len - 1);
-        var field_values: [field_names.len]TagInt = undefined;
-        field_values[0] = field_names.len - 1;
-        for (field_values[1..], arch_info.field_values) |*field_value, value| field_value.* = value;
-        const Tag = @Enum(TagInt, .exhaustive, field_names, &field_values);
-        break :Cpu @Union(.auto, Tag, field_names, &field_types, &@splat(.{}));
-    };
-
-    pub const Os = Os: {
-        const os_info = @typeInfo(std.Target.Os.Tag).@"enum";
-        const field_names = .{"native"} ++ os_info.field_names;
-        var field_types: [field_names.len]type = undefined;
-        field_types[0] = void;
-        for (field_types[1..], field_names[1..]) |*field_type, field_name| {
-            const version: enum {
-                none,
-                semver,
-                windows,
-            } = switch (@field(std.Target.Os.Tag, field_name).versionRangeTag()) {
-                .none => .none,
-                .semver, .hurd, .linux => .semver,
-                .windows => .windows,
-            };
-            field_type.* = struct {
-                version: ?Version = null,
-
-                pub const Version = switch (version) {
-                    .none => struct {},
-                    .semver => struct {
-                        min: std.SemanticVersion,
-                        max: ?std.SemanticVersion = null,
-                    },
-                    .windows => struct {
-                        min: std.Target.Os.WindowsVersion,
-                        max: ?std.Target.Os.WindowsVersion = null,
-                    },
-                };
-
-                pub fn updateQuery(os: *const @This(), query: *std.Target.Query) void {
-                    if (os.version) |v| switch (version) {
-                        .none => {},
-                        .semver => {
-                            query.os_version_min = .{ .semver = v.min };
-                            if (v.max) |max| query.os_version_max = .{ .semver = max };
-                        },
-                        .windows => {
-                            query.os_version_min = .{ .windows = v.min };
-                            if (v.max) |max| query.os_version_max = .{ .windows = max };
-                        },
-                    };
-                }
-            };
-        }
-        const TagInt = std.math.IntFittingRange(0, field_names.len - 1);
-        var field_values: [field_names.len]TagInt = undefined;
-        field_values[0] = field_names.len - 1;
-        for (field_values[1..], os_info.field_values) |*field_value, value| field_value.* = value;
-        const Tag = @Enum(TagInt, .exhaustive, field_names, &field_values);
-        break :Os @Union(.auto, Tag, field_names, &field_types, &@splat(.{}));
-    };
-
-    pub const Abi = Abi: {
-        const abi_info = @typeInfo(std.Target.Abi).@"enum";
-        const field_names = .{"default"} ++ abi_info.field_names;
-        var field_types: [field_names.len]type = undefined;
-        field_types[0] = void;
-        for (field_types[1..], field_names[1..]) |*field_type, field_name| {
-            const abi_tag = @field(std.Target.Abi, field_name);
-            const version: enum { none, libc, android } = if (abi_tag.isAndroid())
-                .android
-            else if (abi_tag.isGnu() or abi_tag.isMusl())
-                .libc
-            else
-                .none;
-            field_type.* = struct {
-                version: ?Version = null,
-
-                pub const Version = switch (version) {
-                    .none => struct {},
-                    .libc => std.SemanticVersion,
-                    .android => u32,
-                };
-
-                pub fn updateQuery(abi: *const @This(), query: *std.Target.Query) void {
-                    if (abi.version) |v| switch (version) {
-                        .none => {},
-                        .libc => query.glibc_version = v,
-                        .android => query.android_api_level = v,
-                    };
-                }
-            };
-        }
-        const TagInt = std.math.IntFittingRange(0, field_names.len - 1);
-        var field_values: [field_names.len]TagInt = undefined;
-        field_values[0] = field_names.len - 1;
-        for (field_values[1..], abi_info.field_values) |*field_value, value| field_value.* = value;
-        const Tag = @Enum(TagInt, .exhaustive, field_names, &field_values);
-        break :Abi @Union(.auto, Tag, field_names, &field_types, &@splat(.{}));
-    };
-
-    pub const ObjectFormat = ObjectFormat: {
-        const ofmt_info = @typeInfo(std.Target.ObjectFormat).@"enum";
-        const field_names = .{"default"} ++ ofmt_info.field_names;
-        const TagInt = std.math.IntFittingRange(0, field_names.len - 1);
-        var field_values: [field_names.len]TagInt = undefined;
-        field_values[0] = field_names.len - 1;
-        for (field_values[1..], ofmt_info.field_values) |*field_value, value| field_value.* = value;
-        break :ObjectFormat @Enum(TagInt, .exhaustive, field_names, &field_values);
-    };
-
-    pub const DynamicLinker = union(enum) {
-        default,
-        none,
-        explicit: []const u8,
-    };
-
-    pub fn toQuery(target: *const Target) std.Target.Query {
-        var query: std.Target.Query = .{};
-        query.cpu_arch = switch (target.cpu) {
-            .native => null,
-            else => |arch| @fromBackingInt(@backingInt(arch)),
-        };
-        switch (target.cpu) {
-            .native => |native| query.cpu_model = switch (native.model) {
-                .native => .native,
-                .baseline => .baseline,
-            },
-            inline else => |cpu| cpu.updateQuery(&query),
-        }
-        query.os_tag = switch (target.os) {
-            .native => null,
-            else => |os| @fromBackingInt(@backingInt(os)),
-        };
-        switch (target.os) {
-            .native => {},
-            inline else => |os| os.updateQuery(&query),
-        }
-        query.abi = switch (target.abi) {
-            .default => null,
-            else => |abi| @fromBackingInt(@backingInt(abi)),
-        };
-        switch (target.abi) {
-            .default => {},
-            inline else => |abi| abi.updateQuery(&query),
-        }
-        query.ofmt = switch (target.ofmt) {
-            .default => null,
-            else => |ofmt| @fromBackingInt(@backingInt(ofmt)),
-        };
-        query.dynamic_linker = switch (target.dynamic_linker) {
-            .default => null,
-            .none => .none,
-            .explicit => |dynamic_linker| .init(dynamic_linker),
-        };
-        return query;
-    }
-
-    pub fn format(target: *const Target, w: *std.Io.Writer) std.Io.Writer.Error!void {
-        try w.print("{f}-{f}-{t}-{t}-{t}", .{
-            std.fmt.alt(&target.toQuery(), .printZigTriple),
-            std.fmt.alt(&target.toQuery(), .printCpu),
-            target.cache_mode,
-            target.backend,
-            target.optimize,
-        });
-        switch (target.pic) {
-            .default => {},
-            else => |pic| try w.print("-{t}", .{pic}),
-        }
-        switch (target.linker) {
-            .default => {},
-            else => |linker| try w.print("-{t}", .{linker}),
-        }
-        switch (target.link_libc) {
-            .default => {},
-            else => |link_libc| try w.print("-{t}", .{link_libc}),
-        }
-        switch (target.strip) {
-            .default => {},
-            else => |strip| try w.print("-{t}", .{strip}),
-        }
-    }
-
-    pub const CacheMode = enum { whole, incremental };
-    pub const Backend = enum {
-        /// Use the self-hosted code generation backend for this target.
-        /// Corresponds to `-fno-llvm -fno-lld`.
-        selfhosted,
-        /// Use the LLVM backend.
-        /// Corresponds to `-fllvm -flld`.
-        llvm,
-        /// Use the C backend. The output is compiled with `zig cc`.
-        /// Corresponds to `-ofmt=c`.
-        cbe,
-    };
-    pub const Pic = enum { default, pdc, pic, pie };
-    pub const Linker = enum { default, lld, old, new };
-    pub const LinkLibc = enum { default, lc };
-    pub const Strip = enum { default, nostrip, stripdebug, strip };
-
-    const State = struct { skipped: bool };
-};
 
 gpa: std.mem.Allocator,
 arena: *std.heap.ArenaAllocator,
@@ -1489,6 +1215,14 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                     );
                     break :link_libc link_libc;
                 } else .default;
+            const linkage: Target.Linkage =
+                if (std.meta.stringToEnum(Target.Linkage, component)) |linkage| linkage: {
+                    component = component_it.next() orelse return runner.fail(
+                        "target {q} missing components before linkage",
+                        .{target_query},
+                    );
+                    break :linkage linkage;
+                } else .default;
             const linker: Target.Linker =
                 if (std.meta.stringToEnum(Target.Linker, component)) |linker| linker: {
                     component = component_it.next() orelse return runner.fail(
@@ -1497,6 +1231,26 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                     );
                     break :linker linker;
                 } else .default;
+            const unwind_tables: Target.UnwindTables = if (std.meta.stringToEnum(
+                Target.UnwindTables,
+                component,
+            )) |unwind_tables| unwind_tables: {
+                component = component_it.next() orelse return runner.fail(
+                    "target {q} missing components before unwind tables",
+                    .{target_query},
+                );
+                break :unwind_tables unwind_tables;
+            } else .default;
+            const frame_pointers: Target.FramePointers = if (std.meta.stringToEnum(
+                Target.FramePointers,
+                component,
+            )) |frame_pointers| frame_pointers: {
+                component = component_it.next() orelse return runner.fail(
+                    "target {q} missing components before frame pointers",
+                    .{target_query},
+                );
+                break :frame_pointers frame_pointers;
+            } else .default;
             const pic: Target.Pic = if (std.meta.stringToEnum(Target.Pic, component)) |pic| pic: {
                 component = component_it.next() orelse return runner.fail(
                     "target {q} missing components before pic",
@@ -1596,7 +1350,12 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
                 .backend = backend,
                 .optimize = optimize,
                 .pic = pic,
+                .default_frame_pointers = frame_pointers == .default,
+                .frame_pointers = frame_pointers.resolve(&resolved, optimize),
+                .default_unwind_tables = unwind_tables == .default,
+                .unwind_tables = unwind_tables.resolve(&resolved),
                 .linker = linker,
+                .linkage = linkage,
                 .link_libc = link_libc,
                 .strip = strip,
             };
@@ -1829,7 +1588,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
     }
 }
 const Command = enum { comment, skip, require, zig, write, delete, update, check };
-const Requirement = enum { windows };
+const Requirement = enum { @"safe-unwind", windows };
 fn handleCommand(
     runner: *Runner,
     update: *Update,
@@ -1900,6 +1659,16 @@ fn handleCommand(
                 .{ false, arg.? };
             const satisfied = switch (std.meta.stringToEnum(Requirement, requirement) orelse
                 return update.manifest_sr.fail(requirement, "unknown requirement", .{})) {
+                .@"safe-unwind" => switch (update.target.unwind_tables) {
+                    .async => true,
+                    .none, .sync => switch (std.debug.FpUsability.of(&update.target.resolved)) {
+                        .useless, .unsafe => false,
+                        .safe, .ideal => switch (update.target.frame_pointers) {
+                            .keep => true,
+                            .omit => false,
+                        },
+                    },
+                },
                 .windows => switch (update.target.resolved.os.tag) {
                     else => false,
                     .uefi, .windows => true,
@@ -2293,11 +2062,24 @@ fn spawnCompiler(
         .pic => try argv.appendSlice(gpa, &.{ "-fPIC", "-fno-PIE" }),
         .pie => try argv.appendSlice(gpa, &.{ "-fPIC", "-fPIE" }),
     }
+    if (!comp.target.default_frame_pointers) switch (comp.target.frame_pointers) {
+        .keep => try argv.append(gpa, "-fno-omit-frame-pointer"),
+        .omit => try argv.append(gpa, "-fomit-frame-pointer"),
+    };
+    if (!comp.target.default_unwind_tables) switch (comp.target.unwind_tables) {
+        .none => try argv.append(gpa, "-fno-unwind-tables"),
+        .sync => try argv.append(gpa, "-funwind-tables"),
+        .async => try argv.append(gpa, "-fasync-unwind-tables"),
+    };
     switch (comp.target.linker) {
         .default => {},
         .lld => try argv.appendSlice(gpa, &.{ "-flld", "-fno-new-linker" }),
         .old => try argv.appendSlice(gpa, &.{ "-fno-lld", "-fno-new-linker" }),
         .new => try argv.appendSlice(gpa, &.{ "-fno-lld", "-fnew-linker" }),
+    }
+    switch (comp.target.linkage) {
+        .default => {},
+        inline .static, .dynamic => |linkage| try argv.append(gpa, "-" ++ @tagName(linkage)),
     }
     switch (comp.target.link_libc) {
         .default => {},
@@ -2447,7 +2229,12 @@ const Compiler = struct {
         backend: ?Runner.Target.Backend,
         optimize: std.lang.Optimize,
         pic: Runner.Target.Pic,
+        default_frame_pointers: bool,
+        frame_pointers: Runner.Target.FramePointers.Resolved,
+        default_unwind_tables: bool,
+        unwind_tables: std.lang.UnwindTables,
         linker: Runner.Target.Linker,
+        linkage: Runner.Target.Linkage,
         link_libc: Runner.Target.LinkLibc,
         strip: Runner.Target.Strip,
     };
@@ -2505,7 +2292,7 @@ const Compiler = struct {
         );
     }
 
-    const Check = enum { errors, stdout, exit, @"error-trace", llvm, gdb, lldb };
+    const Check = enum { errors, stdout, exit, @"error-trace", panic, @"stack-trace", llvm, gdb, lldb };
     fn checkSuccess(
         comp: *Compiler,
         update: *const Update,
@@ -2527,7 +2314,7 @@ const Compiler = struct {
         // stdin, and because it is empty, the debugger exits normally with status 0. Choose a
         // non-zero status to return from the debugger script instead to detect it running to
         // completion and indicate success.
-        const debug_success = 99;
+        const debug_success: std.process.Child.Term = .{ .exited = 99 };
 
         const tmp_dir_path = ".zig-cache" ++ std.Io.Dir.path.sep_str ++ "tmp";
         update.src_dir.createDirPath(io, tmp_dir_path) catch |err| switch (err) {
@@ -2562,7 +2349,7 @@ const Compiler = struct {
         const script_path, const script_file, var script_fw = script: switch (check) {
             .errors => unreachable,
             .stdout, .exit => .{ undefined, null, undefined },
-            .@"error-trace" => {
+            .@"error-trace", .panic, .@"stack-trace" => {
                 _ = environ_map.swapRemove("CLICOLOR_FORCE");
                 try environ_map.put("NO_COLOR", "1"); // affects output formatting
                 break :script .{ undefined, null, undefined };
@@ -2986,7 +2773,7 @@ const Compiler = struct {
         const result = std.process.run(gpa, io, .{
             .exe = exe: switch (check) {
                 .errors, .llvm => unreachable,
-                .stdout, .exit, .@"error-trace" => if (use_executor)
+                .stdout, .exit, .@"error-trace", .panic, .@"stack-trace" => if (use_executor)
                     .search
                 else
                     .{ .file = emit_file },
@@ -3020,7 +2807,7 @@ const Compiler = struct {
                         \\
                         \\quit {d}
                         \\
-                    , .{debug_success}) catch |err| switch (err) {
+                    , .{debug_success.exited}) catch |err| switch (err) {
                         error.WriteFailed => switch (script_fw.err.?) {
                             error.Canceled => |e| return e,
                             else => |e| return update.fail(
@@ -3055,7 +2842,7 @@ const Compiler = struct {
             .inherit_files = switch (check) {
                 .errors, .llvm => unreachable,
                 .stdout, .exit, .gdb, .lldb => &.{},
-                .@"error-trace" => &.{emit_file},
+                .@"error-trace", .panic, .@"stack-trace" => &.{emit_file},
             },
         }) catch |err| if (use_executor) {
             // Chances are the foreign executor isn't available. Skip this evaluation.
@@ -3071,100 +2858,120 @@ const Compiler = struct {
             gpa.free(result.stdout);
             gpa.free(result.stderr);
         }
-        switch (result.term) {
-            .exited => |code| switch (check) {
-                .errors, .llvm => unreachable,
-                .stdout => {
-                    if (code != 0) return update.fail(
-                        "{q} exited with code {d}, expected code 0",
-                        .{ emit_path, code },
-                    );
-                    try update.checkPattern("stdout", expected, result.stdout, &.{
-                        .{ "\n", .anon, newline },
-                    });
-                },
-                .exit => {
+        switch (check) {
+            .errors, .llvm => unreachable,
+            .stdout => {
+                const expected_term: std.process.Child.Term = .{ .exited = 0 };
+                if (!result.term.eql(expected_term)) return update.fail(
+                    "{q} {f}, expected to have {f}",
+                    .{ emit_path, result.term, expected_term },
+                );
+                try update.checkPattern("stdout", expected, result.stdout, &.{
+                    .{ "\n", .anon, newline },
+                });
+            },
+            .exit => switch (result.term) {
+                else => return update.fail(
+                    "{q} {f}, expected to have exited with code {s}",
+                    .{ emit_path, result.term, expected },
+                ),
+                .exited => |code| {
                     var actual_buffer: [std.fmt.count("{d}", .{std.math.maxInt(u8)})]u8 = undefined;
                     const actual = std.mem.print(&actual_buffer, "{d}", .{code}) catch unreachable;
                     try update.checkPattern("exit code", expected, actual, &.{});
                 },
-                .@"error-trace" => {
-                    if (code != 1) return update.fail(
-                        "{q} exited with code {d}, expected code 1",
-                        .{ emit_path, code },
-                    );
-                    try update.checkPattern("stderr", expected, result.stderr, &.{
-                        .{ "\n", .anon, newline },
-                        .{ "test.zig:", .anon, &.{
+            },
+            .@"error-trace", .panic, .@"stack-trace" => {
+                const expected_term: std.process.Child.Term = switch (check) {
+                    else => unreachable,
+                    .@"error-trace" => .{ .exited = 1 },
+                    .panic => switch (comp.target.resolved.os.tag) {
+                        else => .{ .signal = @fromBackingInt(@intCast(6)) },
+                        .windows => .{ .exited = 3 },
+                    },
+                    .@"stack-trace" => .success,
+                };
+                if (!result.term.eql(expected_term)) return update.fail(
+                    "{q} {f}, expected to have {f}",
+                    .{ emit_path, result.term, expected_term },
+                );
+                try update.checkPattern("stderr", expected, result.stderr, &.{
+                    .{ "\n", .anon, newline },
+                    .{ "thread ? panic: ", .anon, &.{
+                        .{ .literal = "thread " },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                            } },
+                        } },
+                        .{ .literal = " panic: " },
+                    } },
+                    .{ "test.zig:", .anon, &.{
+                        .{ .none = &.{
+                            .{ '\n', '\n' },
+                            .{ '\r', '\r' },
+                            .{ ' ', ' ' },
+                            .{ ':', ':' },
+                        } },
+                        .{ .@"*" = &.{
                             .{ .none = &.{
                                 .{ '\n', '\n' },
                                 .{ '\r', '\r' },
-                                .{ ' ', ' ' },
-                                .{ ':', ':' },
                             } },
+                        } },
+                        .{ .any = &.{
+                            .{ '/', '/' },
+                            .{ '\\', '\\' },
+                        } },
+                        .{ .literal = "test.zig:" },
+                    } },
+                    .{ "0x?", .anon, &.{
+                        .{ .literal = "0x" },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                                .{ 'a', 'f' },
+                            } },
+                        } },
+                    } },
+                    .{ " (test*)\n", .anon, &[_]Pattern{
+                        .{ .literal = " (test" },
+                        .{ .@"?" = &.{
+                            .{ .@"|" = &.{ &.{
+                                .{ .literal = ".zig" },
+                            }, &.{
+                                .{ .literal = "_zcu.obj" },
+                            } } },
+                        } },
+                        .{ .literal = ")" },
+                    } ++ newline },
+                    .{ "...\n", .anon, &.{
+                        .{ .@"+" = &[_]Pattern{
                             .{ .@"*" = &.{
                                 .{ .none = &.{
                                     .{ '\n', '\n' },
                                     .{ '\r', '\r' },
                                 } },
                             } },
-                            .{ .any = &.{
-                                .{ '/', '/' },
-                                .{ '\\', '\\' },
-                            } },
-                            .{ .literal = "test.zig:" },
-                        } },
-                        .{ "0x?", .anon, &.{
-                            .{ .literal = "0x" },
-                            .{ .@"+" = &.{
-                                .{ .any = &.{
-                                    .{ '0', '9' },
-                                    .{ 'a', 'f' },
-                                } },
-                            } },
-                        } },
-                        .{ " (test*)", .anon, &.{
-                            .{ .literal = " (test" },
-                            .{ .@"?" = &.{
-                                .{ .@"|" = &.{ &.{
-                                    .{ .literal = ".zig" },
-                                }, &.{
-                                    .{ .literal = "_zcu.obj" },
-                                } } },
-                            } },
-                            .{ .literal = ")" },
-                        } },
-                    });
-                    try update.checkPattern("stdout", "", result.stdout, &.{});
-                    return; // skip stderr check below
-                },
-                .gdb, .lldb => {
-                    if (code != debug_success) return update.fail(
-                        "debugging {q} exited with code {d}, expected code {d}",
-                        .{ emit_path, code, debug_success },
-                    );
-                    try update.checkPattern("debugger stdout", expected, result.stdout, &.{
-                        .{ "\n", .anon, newline },
-                        .{ "#...", .anon, &.{
-                            .{ .@"*" = &.{
-                                .{ .none = &.{} },
-                            } },
-                        } },
-                    });
-                },
+                        } ++ newline },
+                    } },
+                });
+                return;
             },
-            .signal => |sig| return update.fail(
-                "generated executable {q} terminated with signal {t}",
-                .{ emit_path, sig },
-            ),
-            .stopped => |sig| return update.fail(
-                "generated executable {q} stopped with signal {t}",
-                .{ emit_path, sig },
-            ),
-            .unknown => return update.fail(
-                "generated executable {q} terminated unexpectedly",
-                .{emit_path},
-            ),
+            .gdb, .lldb => {
+                if (!result.term.eql(debug_success)) return update.fail(
+                    "{q} {f}, expected to have {f}",
+                    .{ emit_path, result.term, debug_success },
+                );
+                try update.checkPattern("debugger stdout", expected, result.stdout, &.{
+                    .{ "\n", .anon, newline },
+                    .{ "#...", .anon, &.{
+                        .{ .@"*" = &.{
+                            .{ .none = &.{} },
+                        } },
+                    } },
+                });
+            },
         }
         if (result.stderr.len > 0) {
             // * If we are using an executor such as wine, ignore any stderr spam it may produce.
@@ -3910,5 +3717,6 @@ fn log(
 const assert = std.debug.assert;
 const builtin = @import("builtin");
 const std = @import("std");
-const Runner = @This();
 const Pattern = @import("Runner/match.zig").Pattern;
+const Runner = @This();
+const Target = @import("Runner/Target.zig");

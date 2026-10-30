@@ -664,21 +664,6 @@ pub fn build(b: *std.Build) !void {
         .skip_libc = skip_libc,
         .max_rss = 100_000_000,
     }));
-    test_step.dependOn(tests.addStackTraceTests(b, .{
-        .test_filters = test_filters,
-        .test_target_filters = test_target_filters,
-        .test_extra_targets = test_extra_targets,
-        .optimize_modes = optimize_modes,
-        .skip_non_native = skip_non_native,
-        .skip_freebsd = skip_freebsd,
-        .skip_netbsd = skip_netbsd,
-        .skip_openbsd = skip_openbsd,
-        .skip_windows = skip_windows,
-        .skip_darwin = skip_darwin,
-        .skip_linux = skip_linux,
-        .skip_llvm = skip_llvm,
-        .skip_libc = skip_libc,
-    }));
     test_step.dependOn(tests.addCliTests(b));
 
     try addWasiUpdateStep(b, version);
@@ -764,6 +749,7 @@ pub fn build(b: *std.Build) !void {
     const runner_opts: tests.RunnerOptions = .{
         .test_filters = test_filters,
         .test_target_filters = test_target_filters,
+        .test_extra_targets = test_extra_targets,
         .skip_non_native = skip_non_native,
         .skip_wasm = skip_wasm,
         .skip_freebsd = skip_freebsd,
@@ -811,6 +797,10 @@ pub fn build(b: *std.Build) !void {
     const test_safety_step = b.step("test-safety", "Run the safety check tests");
     try tests.addRunnerTests(b, runner, test_safety_step, "test/safety", @import("test/safety/matrix.zon"), runner_opts);
     test_step.dependOn(test_safety_step);
+
+    const test_stack_traces_step = b.step("test-stack-traces", "Run the stack trace tests");
+    try tests.addRunnerTests(b, runner, test_stack_traces_step, "test/stack_traces", @import("test/stack_traces/matrix.zon"), runner_opts);
+    test_step.dependOn(test_stack_traces_step);
 
     // Provide steps for manually building commands which are usually JIT-compiled. This can be
     // useful during development, e.g. for using incremental compilation.

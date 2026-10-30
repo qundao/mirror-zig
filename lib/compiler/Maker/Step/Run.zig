@@ -2615,7 +2615,7 @@ fn runCommand(
         },
         else => {
             // On failure, report captured stderr like normal standard error output.
-            if (!generic_result.term.success()) {
+            if (!generic_result.term.eql(.success)) {
                 if (generic_result.stderr) |bytes| {
                     try step.setResultStderr(gpa, bytes);
                 }

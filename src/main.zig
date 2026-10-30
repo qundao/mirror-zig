@@ -5230,7 +5230,7 @@ fn jitCmdInner(
 
         break :t try child.wait(io);
     };
-    if (term.success()) {
+    if (term.eql(.success)) {
         if (options.capture != null) return;
         return cleanExit(io);
     }

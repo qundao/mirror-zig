@@ -594,18 +594,6 @@ pub fn clangSupportsNoImplicitFloatArg(target: *const std.Target) bool {
     };
 }
 
-pub fn defaultUnwindTables(target: *const std.Target, libunwind: bool, libtsan: bool) std.lang.UnwindTables {
-    if (target.os.tag == .windows) {
-        // The old 32-bit x86 variant of SEH doesn't use tables.
-        return if (target.cpu.arch != .x86) .async else .none;
-    }
-    if (target.os.tag.isDarwin()) return .async;
-    if (libunwind) return .async;
-    if (libtsan) return .async;
-    if (std.debug.Dwarf.supportsUnwinding(target)) return .async;
-    return .none;
-}
-
 pub fn defaultAddressSpace(
     target: *const std.Target,
     context: enum {

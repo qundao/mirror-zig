@@ -2006,7 +2006,7 @@ pub fn buildExeSubprocess(
         },
     };
 
-    if (!term.success()) {
+    if (!term.eql(.success)) {
         log.err("command {f}: {f}", .{ term, cmd });
         if (received_fs_inputs) return error.FailedButCacheIntact;
         return error.AlreadyReported;
@@ -2073,6 +2073,27 @@ pub fn compilerBackend(t: *const std.Target, use_llvm: bool) std.lang.CompilerBa
         .spork8 => .zsf_spork8,
         else => .other,
     };
+}
+
+pub fn defaultOmitFramePointer(t: *const std.Target, optimize: std.lang.Optimize) bool {
+    if (optimize == .small) {
+        // On x86, in most cases, keeping the frame pointer usually results in smaller binary size.
+        // This has to do with how instructions for memory access via the stack base pointer register
+        // (when keeping the frame pointer) are smaller than instructions for memory access via the
+        // stack pointer register (when omitting the frame pointer).
+        return !t.cpu.arch.isX86();
+    }
+    return false;
+}
+
+pub fn defaultUnwindTables(t: *const std.Target) std.lang.UnwindTables {
+    switch (t.cpu.arch) {
+        else => {},
+        // The old 32-bit x86 variant of SEH doesn't support tables.
+        .x86 => if (t.os.tag == .windows) return .none,
+        .nvptx, .nvptx64, .spirv32, .spirv64 => return .none,
+    }
+    return .async;
 }
 
 test {

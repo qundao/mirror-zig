@@ -182,13 +182,7 @@ pub fn create(arena: Allocator, options: CreateOptions) !*Module {
     const omit_frame_pointer = b: {
         if (options.inherited.omit_frame_pointer) |x| break :b x;
         if (options.parent) |p| break :b p.omit_frame_pointer;
-        if (optimize_mode == .small) {
-            // On x86, in most cases, keeping the frame pointer usually results in smaller binary size.
-            // This has to do with how instructions for memory access via the stack base pointer register (when keeping the frame pointer)
-            // are smaller than instructions for memory access via the stack pointer register (when omitting the frame pointer).
-            break :b !target.cpu.arch.isX86();
-        }
-        break :b false;
+        break :b std.zig.defaultOmitFramePointer(target, optimize_mode);
     };
 
     const sanitize_thread = b: {
@@ -201,11 +195,7 @@ pub fn create(arena: Allocator, options: CreateOptions) !*Module {
         if (options.inherited.unwind_tables) |x| break :b x;
         if (options.parent) |p| break :b p.unwind_tables;
 
-        break :b target_util.defaultUnwindTables(
-            target,
-            options.global.link_libunwind,
-            sanitize_thread or options.global.any_sanitize_thread,
-        );
+        break :b std.zig.defaultUnwindTables(target);
     };
 
     const fuzz = b: {
