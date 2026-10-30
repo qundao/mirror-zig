@@ -565,12 +565,14 @@ pub const Location = union(enum) {
     relative_path: Path,
     /// Recursive Fetch tasks will never use this Location, but it may be
     /// passed in by the CLI. Indicates the file contents here should be copied
-    /// into the global package cache. It may be a file relative to the cwd or
-    /// absolute, in which case it should be treated exactly like a `file://`
-    /// URL, or a directory, in which case it should be treated as an
-    /// already-unpacked directory (but still needs to be copied into the
-    /// global package cache and have inclusion rules applied).
-    path_or_url: []const u8,
+    /// into the global package cache. It may be:
+    /// - a URL
+    /// - a file relative to the cwd or absolute, in which case it should be treated exactly like a
+    ///   `file://` URL
+    /// - a directory, in which case it should be treated as an already-unpacked directory (but
+    ///   still needs to be copied into the global package cache and have inclusion rules applied).
+    /// - a package hash, in which case it only succeeds if already globally-cached.
+    cli_arg: []const u8,
 
     pub const Remote = struct {
         url: []const u8,
@@ -594,6 +596,8 @@ pub fn run(f: *Fetch) RunError!void {
     const eb = &f.error_bundle;
     const arena = f.arena.allocator();
     const gpa = f.arena.child_allocator;
+
+    var resource_buffer: [init_resource_buffer_size]u8 = undefined;
 
     eb.* = try .init(gpa);
 
@@ -631,34 +635,41 @@ pub fn run(f: *Fetch) RunError!void {
             return queueJobsForDeps(f);
         },
         .remote => |remote| remote,
-        .path_or_url => |path_or_url| {
-            if (Io.Dir.cwd().openDir(io, path_or_url, .{ .iterate = true })) |dir| {
+        .cli_arg => |cli_arg| {
+            const dir_err = if (Io.Dir.cwd().openDir(io, cli_arg, .{ .iterate = true })) |dir| {
                 var resource: Resource = .{ .dir = dir };
-                return f.runResource(path_or_url, &resource, null, false);
-            } else |dir_err| {
-                var server_header_buffer: [init_resource_buffer_size]u8 = undefined;
+                return f.runResource(cli_arg, &resource, null, false);
+            } else |err| err;
 
-                const file_err = if (dir_err == error.NotDir) e: {
-                    if (Io.Dir.cwd().openFile(io, path_or_url, .{})) |file| {
-                        var resource: Resource = .{ .file = file.reader(io, &server_header_buffer) };
-                        return f.runResource(path_or_url, &resource, null, false);
-                    } else |err| break :e err;
-                } else dir_err;
+            const file_err = if (dir_err == error.NotDir) e: {
+                if (Io.Dir.cwd().openFile(io, cli_arg, .{})) |file| {
+                    var resource: Resource = .{ .file = file.reader(io, &resource_buffer) };
+                    return f.runResource(cli_arg, &resource, null, false);
+                } else |err| break :e err;
+            } else dir_err;
 
-                const uri = std.Uri.parse(path_or_url) catch |uri_err| {
-                    return f.fail(0, try eb.printString(
-                        "{q} could not be recognized as a file path ({t}) or an URL ({t})",
-                        .{ path_or_url, file_err, uri_err },
-                    ));
-                };
+            const uri_err = if (std.Uri.parse(cli_arg)) |uri| {
                 var resource: Resource = undefined;
-                try f.initResource(uri, &resource, &server_header_buffer);
+                try f.initResource(uri, &resource, &resource_buffer);
                 return f.runResource(try uri.path.toRawMaybeAlloc(arena), &resource, null, false);
+            } else |err| err;
+
+            const package_hash_validation = Package.Hash.validate(cli_arg);
+            if (package_hash_validation == .ok) {
+                runResourceFromGlobalCache(f, .fromSlice(cli_arg), &resource_buffer) catch |err| switch (err) {
+                    else => |e| return e,
+                    error.FileNotFound => {
+                        return f.fail(0, try eb.printString("package {s} not found in global cache", .{cli_arg}));
+                    },
+                };
+                return;
             }
+            return f.fail(0, try eb.printString(
+                "{q} could not be recognized as a file path ({t}), an URL ({t}), or a package hash ({t})",
+                .{ cli_arg, file_err, uri_err, package_hash_validation },
+            ));
         },
     };
-
-    var resource_buffer: [init_resource_buffer_size]u8 = undefined;
 
     if (remote.hash) |expected_hash| {
         const expected_project_id: Package.ProjectId = expected_hash.projectId();
@@ -705,29 +716,8 @@ pub fn run(f: *Fetch) RunError!void {
             }
         }
 
-        // Check global cache before remote fetch.
-        const cached_tarball_sub_path = try std.fmt.allocPrint(arena, "p/{s}.tar.gz", .{expected_hash.toSlice()});
-        const cached_tarball_path: Path = .{
-            .root_dir = job_queue.global_cache,
-            .sub_path = cached_tarball_sub_path,
-        };
-        if (cached_tarball_path.root_dir.handle.openFile(io, cached_tarball_path.sub_path, .{})) |file| {
-            log.debug("found global cached tarball {f}", .{cached_tarball_path});
-            var resource: Resource = .{ .file = file.reader(io, &resource_buffer) };
-            return f.runResource(cached_tarball_sub_path, &resource, remote.hash, true);
-        } else |err| switch (err) {
-            error.FileNotFound => log.debug("FileNotFound: {f}", .{cached_tarball_path}),
-            error.Canceled => |e| return e,
-            else => |e| {
-                try eb.addRootErrorMessage(.{
-                    .msg = try eb.printString("unable to open globally cached package {f}: {t}", .{
-                        cached_tarball_path, e,
-                    }),
-                });
-                return error.FetchFailed;
-            },
-        }
-
+        // Even if the package is globally, cached, we do not want to copy lazy packages locally
+        // unless actually needed.
         switch (f.lazy_status) {
             .eager => {},
             .available => if (!job_queue.unlazy_set.contains(expected_hash)) {
@@ -736,6 +726,11 @@ pub fn run(f: *Fetch) RunError!void {
             },
             .unavailable => unreachable,
         }
+
+        runResourceFromGlobalCache(f, expected_hash, &resource_buffer) catch |err| switch (err) {
+            else => |e| return e,
+            error.FileNotFound => {},
+        };
     } else if (job_queue.read_only) {
         try eb.addRootErrorMessage(.{
             .msg = try eb.addString("dependency is missing hash field"),
@@ -752,6 +747,40 @@ pub fn run(f: *Fetch) RunError!void {
     var resource: Resource = undefined;
     try f.initResource(uri, &resource, &resource_buffer);
     return f.runResource(try uri.path.toRawMaybeAlloc(arena), &resource, remote.hash, false);
+}
+
+fn runResourceFromGlobalCache(
+    f: *Fetch,
+    expected_hash: Package.Hash,
+    resource_buffer: []u8,
+) (RunError || error{FileNotFound})!void {
+    const job_queue = f.job_queue;
+    const io = job_queue.io;
+    const arena = f.arena.allocator();
+    const eb = &f.error_bundle;
+    const cached_tarball_sub_path = try std.fmt.allocPrint(arena, "p{c}{s}.tar.gz", .{
+        fs.path.sep, expected_hash.toSlice(),
+    });
+    const cached_tarball_path: Path = .{
+        .root_dir = job_queue.global_cache,
+        .sub_path = cached_tarball_sub_path,
+    };
+    if (cached_tarball_path.root_dir.handle.openFile(io, cached_tarball_path.sub_path, .{})) |file| {
+        log.debug("found global cached tarball {f}", .{cached_tarball_path});
+        var resource: Resource = .{ .file = file.reader(io, resource_buffer) };
+        return f.runResource(cached_tarball_sub_path, &resource, expected_hash, true);
+    } else |err| switch (err) {
+        error.FileNotFound => log.debug("FileNotFound: {f}", .{cached_tarball_path}),
+        error.Canceled => |e| return e,
+        else => |e| {
+            try eb.addRootErrorMessage(.{
+                .msg = try eb.printString("unable to open globally cached package {f}: {t}", .{
+                    cached_tarball_path, e,
+                }),
+            });
+            return error.FetchFailed;
+        },
+    }
 }
 
 pub fn deinit(f: *Fetch) void {
@@ -798,7 +827,7 @@ fn runResource(
                     .open_options = .{ .iterate = true },
                 }) catch |err| {
                     try eb.addRootErrorMessage(.{
-                        .msg = try eb.printString("unable to create temporary directory '{f}': {t}", .{
+                        .msg = try eb.printString("failed to create temporary directory {qf}: {t}", .{
                             tmp_directory_path, err,
                         }),
                     });
@@ -878,12 +907,18 @@ fn runResource(
     // Validate the computed hash against the expected hash. If invalid, this job is done.
 
     if (remote_hash) |declared_hash| {
-        const hash_tok = f.hashTok().?;
         if (!computed_package_hash.eql(&declared_hash)) {
-            return f.fail(hash_tok, try eb.printString(
-                "hash mismatch: manifest declares {s} but the fetched package has {s}",
-                .{ declared_hash.toSlice(), computed_package_hash.toSlice() },
-            ));
+            if (f.hashTok()) |hash_tok| {
+                return f.fail(hash_tok, try eb.printString(
+                    "hash mismatch: manifest declares {s} but the fetched package has {s}",
+                    .{ declared_hash.toSlice(), computed_package_hash.toSlice() },
+                ));
+            } else {
+                return f.fail(0, try eb.printString(
+                    "global package {s} corrupt; computed hash is {s}",
+                    .{ declared_hash.toSlice(), computed_package_hash.toSlice() },
+                ));
+            }
         }
     } else if (!f.omit_missing_hash_error) {
         const notes_len = 1;
@@ -1457,14 +1492,14 @@ fn unpackResource(
     const eb = &f.error_bundle;
     const file_type = switch (resource.*) {
         .file => FileType.fromPath(uri_path) orelse
-            return f.fail(f.locationTok(), try eb.printString("unknown file type: '{s}'", .{uri_path})),
+            return f.fail(f.locationTok(), try eb.printString("unknown file type: {q}", .{uri_path})),
 
         .http_request => |*http_request| ft: {
             const head = &http_request.response.head;
 
             // Content-Type takes first precedence.
             const content_type = head.content_type orelse
-                return f.fail(f.locationTok(), try eb.addString("missing 'Content-Type' header"));
+                return f.fail(f.locationTok(), try eb.addString("missing Content-Type header"));
 
             // Extract the MIME type, ignoring charset and boundary directives
             const mime_type_end = std.mem.find(u8, content_type, ";") orelse content_type.len;
@@ -1499,7 +1534,7 @@ fn unpackResource(
                 !ascii.eqlIgnoreCase(mime_type, "application/x-compressed"))
             {
                 return f.fail(f.locationTok(), try eb.printString(
-                    "unrecognized 'Content-Type' header: '{s}'",
+                    "unrecognized Content-Type header: {q}",
                     .{content_type},
                 ));
             }
@@ -1508,7 +1543,7 @@ fn unpackResource(
             if (head.content_disposition) |cd_header| {
                 break :ft FileType.fromContentDisposition(cd_header) orelse {
                     return f.fail(f.locationTok(), try eb.printString(
-                        "unsupported Content-Disposition header value: '{s}' for Content-Type=application/octet-stream",
+                        "unsupported Content-Disposition header value: {q} for Content-Type=application/octet-stream",
                         .{cd_header},
                     ));
                 };
@@ -1516,7 +1551,7 @@ fn unpackResource(
 
             // Finally, the path from the URI is used.
             break :ft FileType.fromPath(uri_path) orelse {
-                return f.fail(f.locationTok(), try eb.printString("unknown file type: '{s}'", .{uri_path}));
+                return f.fail(f.locationTok(), try eb.printString("unknown file type: {q}", .{uri_path}));
             };
         },
 
@@ -1524,7 +1559,7 @@ fn unpackResource(
 
         .dir => |dir| {
             f.recursiveDirectoryCopy(dir, tmp_directory.handle) catch |err| {
-                return f.fail(f.locationTok(), try eb.printString("unable to copy directory '{s}': {t}", .{
+                return f.fail(f.locationTok(), try eb.printString("unable to copy directory {q}: {t}", .{
                     uri_path, err,
                 }));
             };
