@@ -10,7 +10,6 @@ const libc = @import("libc.zig");
 const link = @import("link.zig");
 
 // Implementations
-pub const ErrorTracesContext = @import("src/ErrorTrace.zig");
 pub const StackTracesContext = @import("src/StackTrace.zig");
 pub const LibcContext = @import("src/Libc.zig");
 pub const LinkContext = @import("src/Link.zig");
@@ -2270,30 +2269,6 @@ pub fn addStackTraceTests(b: *std.Build, options: StackTracesContext.Options) *S
         .convert_exe = convert_exe,
     };
     stack_traces_context.addCases();
-
-    return step;
-}
-
-pub fn addErrorTraceTests(b: *std.Build, options: ErrorTracesContext.Options) *Step {
-    const step = b.step("test-error-traces", "Run the error trace tests");
-
-    const convert_exe = b.addExecutable(.{
-        .name = "convert-stack-trace",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("test/src/convert-stack-trace.zig"),
-            .target = b.graph.host,
-            .optimize = .debug,
-        }),
-    });
-
-    const error_traces_context = b.allocator.create(ErrorTracesContext) catch @panic("OOM");
-    error_traces_context.* = .{
-        .b = b,
-        .step = step,
-        .options = options,
-        .convert_exe = convert_exe,
-    };
-    error_traces_context.addCases();
 
     return step;
 }

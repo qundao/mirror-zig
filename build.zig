@@ -679,21 +679,6 @@ pub fn build(b: *std.Build) !void {
         .skip_llvm = skip_llvm,
         .skip_libc = skip_libc,
     }));
-    test_step.dependOn(tests.addErrorTraceTests(b, .{
-        .test_filters = test_filters,
-        .test_target_filters = test_target_filters,
-        .test_extra_targets = test_extra_targets,
-        .optimize_modes = optimize_modes,
-        .skip_non_native = skip_non_native,
-        .skip_freebsd = skip_freebsd,
-        .skip_netbsd = skip_netbsd,
-        .skip_openbsd = skip_openbsd,
-        .skip_windows = skip_windows,
-        .skip_darwin = skip_darwin,
-        .skip_linux = skip_linux,
-        .skip_llvm = skip_llvm,
-        .skip_libc = skip_libc,
-    }));
     test_step.dependOn(tests.addCliTests(b));
 
     try addWasiUpdateStep(b, version);
@@ -810,6 +795,10 @@ pub fn build(b: *std.Build) !void {
     const test_errors_step = b.step("test-errors", "Run the compile error tests");
     try tests.addRunnerTests(b, runner, test_errors_step, "test/errors", @import("test/errors/matrix.zon"), runner_opts);
     test_step.dependOn(test_errors_step);
+
+    const test_error_traces_step = b.step("test-error-traces", "Run the error trace tests");
+    try tests.addRunnerTests(b, runner, test_error_traces_step, "test/error_traces", @import("test/error_traces/matrix.zon"), runner_opts);
+    test_step.dependOn(test_error_traces_step);
 
     const test_incremental_step = b.step("test-incremental", "Run the incremental compilation tests");
     try tests.addRunnerTests(b, runner, test_incremental_step, "test/incremental", @import("test/incremental/matrix.zon"), runner_opts);
