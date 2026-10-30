@@ -1020,9 +1020,8 @@ fn parseDependentDylibs(self: *MachO) !void {
     while (index < self.dylibs.items.len) : (index += 1) {
         const dylib_index = self.dylibs.items[index];
 
-        var dependents: std.ArrayList(File.Index) = .empty;
+        var dependents: std.ArrayList(File.Index) = try .initCapacity(gpa, self.getFile(dylib_index).?.dylib.dependents.items.len);
         defer dependents.deinit(gpa);
-        try dependents.ensureTotalCapacityPrecise(gpa, self.getFile(dylib_index).?.dylib.dependents.items.len);
 
         const is_weak = self.getFile(dylib_index).?.dylib.weak;
         for (self.getFile(dylib_index).?.dylib.dependents.items) |id| {
@@ -2655,9 +2654,8 @@ fn calcSymtabSize(self: *MachO) !void {
 
     const gpa = self.base.comp.gpa;
 
-    var files: std.ArrayList(File.Index) = .empty;
+    var files: std.ArrayList(File.Index) = try .initCapacity(gpa, self.objects.items.len + self.dylibs.items.len + 2);
     defer files.deinit(gpa);
-    try files.ensureTotalCapacityPrecise(gpa, self.objects.items.len + self.dylibs.items.len + 2);
     if (self.zig_object) |index| files.appendAssumeCapacity(index);
     for (self.objects.items) |index| files.appendAssumeCapacity(index);
     for (self.dylibs.items) |index| files.appendAssumeCapacity(index);

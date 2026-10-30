@@ -121,9 +121,8 @@ pub fn flushStaticLib(macho_file: *MachO, comp: *Compilation) link.Error!void {
         try zo.readFileContents(macho_file);
     }
 
-    var files: std.ArrayList(File.Index) = .empty;
+    var files: std.ArrayList(File.Index) = try .initCapacity(gpa, macho_file.objects.items.len + 1);
     defer files.deinit(gpa);
-    try files.ensureTotalCapacityPrecise(gpa, macho_file.objects.items.len + 1);
     if (macho_file.getZigObject()) |zo| files.appendAssumeCapacity(zo.index);
     for (macho_file.objects.items) |index| files.appendAssumeCapacity(index);
 

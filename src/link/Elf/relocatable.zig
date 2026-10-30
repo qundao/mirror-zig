@@ -63,9 +63,8 @@ pub fn flushStaticLib(elf_file: *Elf, comp: *Compilation) !void {
         try zig_object.readFileContents(elf_file);
     }
 
-    var files: std.ArrayList(File.Index) = .empty;
+    var files: std.ArrayList(File.Index) = try .initCapacity(gpa, elf_file.objects.items.len + 1);
     defer files.deinit(gpa);
-    try files.ensureTotalCapacityPrecise(gpa, elf_file.objects.items.len + 1);
     if (elf_file.zigObjectPtr()) |zig_object| files.appendAssumeCapacity(zig_object.index);
     for (elf_file.objects.items) |index| files.appendAssumeCapacity(index);
 

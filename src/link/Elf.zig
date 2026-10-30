@@ -2168,9 +2168,8 @@ fn sortInitFini(self: *Elf) !void {
         }
         if (!is_init_fini and !is_ctor_dtor) continue;
 
-        var entries: std.ArrayList(Entry) = .empty;
+        var entries: std.ArrayList(Entry) = try .initCapacity(gpa, atom_list.atoms.keys().len);
         defer entries.deinit(gpa);
-        try entries.ensureTotalCapacityPrecise(gpa, atom_list.atoms.keys().len);
 
         for (atom_list.atoms.keys()) |ref| {
             const atom_ptr = self.atom(ref).?;
@@ -2990,9 +2989,8 @@ pub fn updateSymtabSize(self: *Elf) !void {
     const gpa = self.base.comp.gpa;
     const shared_objects = self.shared_objects.values();
 
-    var files: std.ArrayList(File.Index) = .empty;
+    var files: std.ArrayList(File.Index) = try .initCapacity(gpa, self.objects.items.len + shared_objects.len + 2);
     defer files.deinit(gpa);
-    try files.ensureTotalCapacityPrecise(gpa, self.objects.items.len + shared_objects.len + 2);
 
     if (self.zig_object_index) |index| files.appendAssumeCapacity(index);
     for (self.objects.items) |index| files.appendAssumeCapacity(index);
