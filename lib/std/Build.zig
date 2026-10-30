@@ -36,7 +36,6 @@ default_step: *Step,
 top_level_steps: std.array_hash_map.String(*Step.TopLevel),
 /// Path to the directory containing build.zig.
 root: Cache.Path,
-debug_log_scopes: []const []const u8 = &.{},
 /// Number of stack frames captured when a `StackTrace` is recorded for debug purposes,
 /// in particular at `Step` creation.
 /// Set to 0 to disable stack collection.
@@ -544,7 +543,6 @@ fn createChild(
         .invalid_user_input = false,
         .default_step = undefined,
         .top_level_steps = .{},
-        .debug_log_scopes = parent.debug_log_scopes,
         .dep_prefix = dep_prefix,
         .modules = .empty,
         .named_writefiles = .empty,
