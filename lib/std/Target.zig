@@ -1408,6 +1408,25 @@ pub const Cpu = struct {
                 }
             }
 
+            pub fn populateDependents(set: *Set, all_features_list: []const Cpu.Feature) void {
+                @setEvalBranchQuota(1000000);
+
+                var old = set.ints;
+                while (true) {
+                    for (all_features_list, 0..) |feature, index_usize| {
+                        const index: Index = @intCast(index_usize);
+                        if (!set.isEnabled(index)) {
+                            if (!feature.dependencies.intersectWith(set.*).isEmpty()) {
+                                set.addFeature(index);
+                            }
+                        }
+                    }
+                    const nothing_changed = std.mem.eql(usize, &old, &set.ints);
+                    if (nothing_changed) return;
+                    old = set.ints;
+                }
+            }
+
             pub fn asBytes(set: *const Set) *const [byte_count]u8 {
                 return std.mem.sliceAsBytes(&set.ints)[0..byte_count];
             }
@@ -1421,6 +1440,10 @@ pub const Cpu = struct {
                 const set_v: V = set.ints;
                 const other_v: V = other_set.ints;
                 return @reduce(.And, (set_v & other_v) == other_v);
+            }
+
+            pub fn intersectWith(set: Set, other_set: Set) Set {
+                return .{ .ints = @as(@Vector(usize_count, usize), set.ints) & @as(@Vector(usize_count, usize), other_set.ints) };
             }
         };
 
