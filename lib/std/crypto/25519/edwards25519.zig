@@ -582,6 +582,7 @@ test "packing/unpacking" {
     for (small_order_ss) |small_order_s| {
         const small_p = try Edwards25519.fromBytes(small_order_s);
         try std.testing.expectError(error.WeakPublicKey, small_p.mul(s));
+        try std.testing.expectError(error.WeakPublicKey, small_p.rejectUnexpectedSubgroup());
     }
 }
 
@@ -635,11 +636,18 @@ test "implicit reduction of invalid scalars" {
 
 test "subgroup check" {
     const io = std.testing.io;
+    var t8: [Edwards25519.encoded_length]u8 = undefined;
+    _ = try std.fmt.hexToBytes(&t8, "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05");
+    const torsion8 = try Edwards25519.fromBytes(t8);
     for (0..100) |_| {
         var p = Edwards25519.basePoint;
         const s = Edwards25519.scalar.random(io);
         p = try p.mulPublic(s);
         try p.rejectUnexpectedSubgroup();
+        for (1..8) |_| {
+            p = p.add(torsion8);
+            try std.testing.expectError(error.UnexpectedSubgroup, p.rejectUnexpectedSubgroup());
+        }
     }
     var bogus: [Edwards25519.encoded_length]u8 = undefined;
     _ = try std.fmt.hexToBytes(&bogus, "4dc95e3c28d78c48a60531525e6327e259b7ba0d2f5c81b694052c766a14b625");
