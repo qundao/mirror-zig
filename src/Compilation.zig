@@ -6914,10 +6914,6 @@ pub fn addCCArgs(
                 const is_enabled = target.cpu.features.isEnabled(index);
 
                 if (feature.llvm_name) |llvm_name| {
-                    // We communicate these to Clang through the dedicated options.
-                    if (std.mem.startsWith(u8, llvm_name, "soft-float") or std.mem.startsWith(u8, llvm_name, "hard-float"))
-                        continue;
-
                     const plus_or_minus = "-+"[@intFromBool(is_enabled)];
                     const arg = try arena.print("{c}{s}", .{ plus_or_minus, llvm_name });
                     for (xclang_flags) |xclang| {
