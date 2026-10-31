@@ -6909,16 +6909,24 @@ pub fn addCCArgs(
             // It would be really nice if there was a more compact way to communicate this info to Clang.
             const all_features_list = target.cpu.arch.allFeaturesList();
             try argv.ensureUnusedCapacity(arena, all_features_list.len * xclang_flags.len * 4);
-            for (all_features_list, 0..) |feature, index_usize| {
-                const index = @as(std.Target.Cpu.Feature.Set.Index, @intCast(index_usize));
-                const is_enabled = target.cpu.features.isEnabled(index);
-
+            // Append disabled features after enabled ones, so that their effects aren't overwritten.
+            var disabled_features: std.ArrayList([]const u8) = try .initCapacity(arena, all_features_list.len);
+            for (all_features_list) |feature| {
                 if (feature.llvm_name) |llvm_name| {
-                    const plus_or_minus = "-+"[@intFromBool(is_enabled)];
-                    const arg = try arena.print("{c}{s}", .{ plus_or_minus, llvm_name });
-                    for (xclang_flags) |xclang| {
-                        argv.appendSliceAssumeCapacity(&.{ xclang, "-target-feature", xclang, arg });
+                    if (target.cpu.features.isEnabled(feature.index)) {
+                        const arg = try arena.print("+{s}", .{llvm_name});
+                        for (xclang_flags) |xclang| {
+                            argv.appendSliceAssumeCapacity(&.{ xclang, "-target-feature", xclang, arg });
+                        }
+                    } else {
+                        disabled_features.appendAssumeCapacity(llvm_name);
                     }
+                }
+            }
+            for (disabled_features.items) |llvm_name| {
+                const arg = try std.fmt.allocPrint(arena, "-{s}", .{llvm_name});
+                for (xclang_flags) |xclang| {
+                    argv.appendSliceAssumeCapacity(&.{ xclang, "-target-feature", xclang, arg });
                 }
             }
 
