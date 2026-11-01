@@ -5,6 +5,7 @@ const CpuFeature = std.Target.Cpu.Feature;
 const CpuModel = std.Target.Cpu.Model;
 
 pub const Feature = enum {
+    aclass,
     addr_lsl_slow_14,
     aes,
     aggressive_fma,
@@ -118,6 +119,7 @@ pub const Feature = enum {
     rand,
     ras,
     rasv2,
+    rclass,
     rcpc,
     rcpc3,
     rcpc_immo,
@@ -194,8 +196,6 @@ pub const Feature = enum {
     v8_7a,
     v8_8a,
     v8_9a,
-    v8a,
-    v8r,
     v9_1a,
     v9_2a,
     v9_3a,
@@ -228,6 +228,11 @@ pub const all_features = blk: {
     const len = @typeInfo(Feature).@"enum".field_names.len;
     std.debug.assert(len <= CpuFeature.Set.needed_bit_count);
     var result: [len]CpuFeature = undefined;
+    result[@backingInt(Feature.aclass)] = .{
+        .llvm_name = "v8a",
+        .description = "Is application profile ('A' series)",
+        .dependencies = featureSet(&[_]Feature{}),
+    };
     result[@backingInt(Feature.addr_lsl_slow_14)] = .{
         .llvm_name = "addr-lsl-slow-14",
         .description = "Address operands with shift amount of 1 or 4 are slow",
@@ -877,6 +882,27 @@ pub const all_features = blk: {
             .ras,
         }),
     };
+    result[@backingInt(Feature.rclass)] = .{
+        .llvm_name = "v8r",
+        .description = "Is realtime profile ('R' series)",
+        .dependencies = featureSet(&[_]Feature{
+            .ccpp,
+            .contextidr_el2,
+            .crc,
+            .dit,
+            .flagm,
+            .lse,
+            .pan_rwv,
+            .pauth,
+            .ras,
+            .rcpc_immo,
+            .sel2,
+            .specrestrict,
+            .tlb_rmi,
+            .tracev8_4,
+            .uaops,
+        }),
+    };
     result[@backingInt(Feature.rcpc)] = .{
         .llvm_name = "rcpc",
         .description = "Enable support for RCPC extension",
@@ -1314,12 +1340,12 @@ pub const all_features = blk: {
         .llvm_name = "v8.1a",
         .description = "Support ARM v8.1a architecture",
         .dependencies = featureSet(&[_]Feature{
+            .aclass,
             .crc,
             .lor,
             .lse,
             .pan,
             .rdm,
-            .v8a,
             .vh,
         }),
     };
@@ -1419,32 +1445,6 @@ pub const all_features = blk: {
             .rasv2,
             .specres2,
             .v8_8a,
-        }),
-    };
-    result[@backingInt(Feature.v8a)] = .{
-        .llvm_name = "v8a",
-        .description = "Support ARM v8a architecture",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.v8r)] = .{
-        .llvm_name = "v8r",
-        .description = "Support ARM v8r architecture",
-        .dependencies = featureSet(&[_]Feature{
-            .ccpp,
-            .contextidr_el2,
-            .crc,
-            .dit,
-            .flagm,
-            .lse,
-            .pan_rwv,
-            .pauth,
-            .ras,
-            .rcpc_immo,
-            .sel2,
-            .specrestrict,
-            .tlb_rmi,
-            .tracev8_4,
-            .uaops,
         }),
     };
     result[@backingInt(Feature.v9_1a)] = .{
@@ -1716,6 +1716,7 @@ pub const cpu = struct {
         .name = "apple_a10",
         .llvm_name = "apple-a10",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alternate_sextload_cvt_f32_pattern,
             .arith_bcc_fusion,
@@ -1729,7 +1730,6 @@ pub const cpu = struct {
             .perfmon,
             .rdm,
             .sha2,
-            .v8a,
             .vh,
             .zcm_fpr128,
             .zcm_gpr64,
@@ -2013,6 +2013,7 @@ pub const cpu = struct {
         .name = "apple_a7",
         .llvm_name = "apple-a7",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alternate_sextload_cvt_f32_pattern,
             .arith_bcc_fusion,
@@ -2022,7 +2023,6 @@ pub const cpu = struct {
             .no_zcz_fpr64,
             .perfmon,
             .sha2,
-            .v8a,
             .zcm_fpr128,
             .zcm_gpr64,
             .zcz_fp_workaround,
@@ -2035,6 +2035,7 @@ pub const cpu = struct {
         .name = "apple_a8",
         .llvm_name = "apple-a8",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alternate_sextload_cvt_f32_pattern,
             .arith_bcc_fusion,
@@ -2044,7 +2045,6 @@ pub const cpu = struct {
             .no_zcz_fpr64,
             .perfmon,
             .sha2,
-            .v8a,
             .zcm_fpr128,
             .zcm_gpr64,
             .zcz_fp_workaround,
@@ -2057,6 +2057,7 @@ pub const cpu = struct {
         .name = "apple_a9",
         .llvm_name = "apple-a9",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alternate_sextload_cvt_f32_pattern,
             .arith_bcc_fusion,
@@ -2066,7 +2067,6 @@ pub const cpu = struct {
             .no_zcz_fpr64,
             .perfmon,
             .sha2,
-            .v8a,
             .zcm_fpr128,
             .zcm_gpr64,
             .zcz_fp_workaround,
@@ -2519,8 +2519,8 @@ pub const cpu = struct {
         .name = "armv8a",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .neon,
-            .v8a,
         }),
     };
     pub const armv8r: CpuModel = .{
@@ -2528,7 +2528,7 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .neon,
-            .v8r,
+            .rclass,
         }),
     };
     pub const armv9_1a: CpuModel = .{
@@ -2758,22 +2758,22 @@ pub const cpu = struct {
         .name = "cortex_a34",
         .llvm_name = "cortex-a34",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .sha2,
-            .v8a,
         }),
     };
     pub const cortex_a35: CpuModel = .{
         .name = "cortex_a35",
         .llvm_name = "cortex-a35",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .sha2,
-            .v8a,
         }),
     };
     pub const cortex_a510: CpuModel = .{
@@ -2839,6 +2839,7 @@ pub const cpu = struct {
         .name = "cortex_a53",
         .llvm_name = "cortex-a53",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .balance_fp_ops,
             .crc,
@@ -2847,7 +2848,6 @@ pub const cpu = struct {
             .perfmon,
             .sha2,
             .use_wzr_to_vec_move,
-            .v8a,
         }),
     };
     pub const cortex_a55: CpuModel = .{
@@ -2871,6 +2871,7 @@ pub const cpu = struct {
         .name = "cortex_a57",
         .llvm_name = "cortex-a57",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .addr_lsl_slow_14,
             .aes,
             .balance_fp_ops,
@@ -2881,7 +2882,6 @@ pub const cpu = struct {
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const cortex_a65: CpuModel = .{
@@ -2977,6 +2977,7 @@ pub const cpu = struct {
         .name = "cortex_a72",
         .llvm_name = "cortex-a72",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .addr_lsl_slow_14,
             .aes,
             .crc,
@@ -2986,7 +2987,6 @@ pub const cpu = struct {
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const cortex_a720: CpuModel = .{
@@ -3068,6 +3068,7 @@ pub const cpu = struct {
         .name = "cortex_a73",
         .llvm_name = "cortex-a73",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .addr_lsl_slow_14,
             .aes,
             .crc,
@@ -3076,7 +3077,6 @@ pub const cpu = struct {
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const cortex_a75: CpuModel = .{
@@ -3237,10 +3237,10 @@ pub const cpu = struct {
             .jsconv,
             .perfmon,
             .predres,
+            .rclass,
             .rdm,
             .sb,
             .ssbs,
-            .v8r,
         }),
     };
     pub const cortex_r82ae: CpuModel = .{
@@ -3255,10 +3255,10 @@ pub const cpu = struct {
             .jsconv,
             .perfmon,
             .predres,
+            .rclass,
             .rdm,
             .sb,
             .ssbs,
-            .v8r,
         }),
     };
     pub const cortex_x1: CpuModel = .{
@@ -3407,6 +3407,7 @@ pub const cpu = struct {
         .name = "cyclone",
         .llvm_name = "cyclone",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alternate_sextload_cvt_f32_pattern,
             .arith_bcc_fusion,
@@ -3416,7 +3417,6 @@ pub const cpu = struct {
             .no_zcz_fpr64,
             .perfmon,
             .sha2,
-            .v8a,
             .zcm_fpr128,
             .zcm_gpr64,
             .zcz_fp_workaround,
@@ -3429,42 +3429,43 @@ pub const cpu = struct {
         .name = "emag",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .crc,
             .crypto,
             .perfmon,
-            .v8a,
         }),
     };
     pub const exynos_m1: CpuModel = .{
         .name = "exynos_m1",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .crc,
             .crypto,
             .fuse_aes,
             .perfmon,
             .slow_misaligned_128store,
             .slow_paired_128,
-            .v8a,
         }),
     };
     pub const exynos_m2: CpuModel = .{
         .name = "exynos_m2",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .crc,
             .crypto,
             .fuse_aes,
             .perfmon,
             .slow_misaligned_128store,
             .slow_paired_128,
-            .v8a,
         }),
     };
     pub const exynos_m3: CpuModel = .{
         .name = "exynos_m3",
         .llvm_name = "exynos-m3",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alu_lsl_fast,
             .crc,
@@ -3476,7 +3477,6 @@ pub const cpu = struct {
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const exynos_m4: CpuModel = .{
@@ -3529,6 +3529,7 @@ pub const cpu = struct {
         .name = "falkor",
         .llvm_name = "falkor",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alu_lsl_fast,
             .crc,
@@ -3537,7 +3538,6 @@ pub const cpu = struct {
             .rdm,
             .sha2,
             .slow_strqro_store,
-            .v8a,
             .zcz_gpr32,
             .zcz_gpr64,
         }),
@@ -3665,13 +3665,13 @@ pub const cpu = struct {
         .name = "kryo",
         .llvm_name = "kryo",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .alu_lsl_fast,
             .crc,
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
             .zcz_gpr32,
             .zcz_gpr64,
         }),
@@ -4014,12 +4014,12 @@ pub const cpu = struct {
         .name = "thunderx",
         .llvm_name = "thunderx",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const thunderx2t99: CpuModel = .{
@@ -4053,36 +4053,36 @@ pub const cpu = struct {
         .name = "thunderxt81",
         .llvm_name = "thunderxt81",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const thunderxt83: CpuModel = .{
         .name = "thunderxt83",
         .llvm_name = "thunderxt83",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const thunderxt88: CpuModel = .{
         .name = "thunderxt88",
         .llvm_name = "thunderxt88",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .aes,
             .crc,
             .perfmon,
             .predictable_select_expensive,
             .sha2,
-            .v8a,
         }),
     };
     pub const tsv110: CpuModel = .{
@@ -4105,8 +4105,8 @@ pub const cpu = struct {
         .name = "xgene1",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
+            .aclass,
             .perfmon,
-            .v8a,
         }),
     };
 };

@@ -759,9 +759,19 @@ const targets = [_]ArchTarget{
             },
 
             .{
+                .llvm_name = "v8a",
+                .zig_name = "aclass",
+                .desc = "Is application profile ('A' series)",
+            },
+            .{
                 .llvm_name = "CONTEXTIDREL2",
                 .zig_name = "contextidr_el2",
                 .desc = "Enable RW operand Context ID Register (EL2)",
+            },
+            .{
+                .llvm_name = "v8r",
+                .zig_name = "rclass",
+                .desc = "Is realtime profile ('R' series)",
             },
             .{
                 .llvm_name = "strict-align",
@@ -790,12 +800,12 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8a",
-                .features = &.{ "neon", "v8a" },
+                .features = &.{ "aclass", "neon" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8r",
-                .features = &.{ "neon", "v8r" },
+                .features = &.{ "neon", "rclass" },
             },
             .{
                 .llvm_name = "generic",
@@ -887,44 +897,44 @@ const targets = [_]ArchTarget{
                 .llvm_name = "generic",
                 .zig_name = "emag",
                 .features = &.{
+                    "aclass",
                     "crc",
                     "crypto",
                     "perfmon",
-                    "v8a",
                 },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "exynos_m1",
                 .features = &.{
+                    "aclass",
                     "crc",
                     "crypto",
                     "fuse_aes",
                     "perfmon",
                     "slow_misaligned_128store",
                     "slow_paired_128",
-                    "v8a",
                 },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "exynos_m2",
                 .features = &.{
+                    "aclass",
                     "crc",
                     "crypto",
                     "fuse_aes",
                     "perfmon",
                     "slow_misaligned_128store",
                     "slow_paired_128",
-                    "v8a",
                 },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "xgene1",
                 .features = &.{
+                    "aclass",
                     "perfmon",
-                    "v8a",
                 },
             },
         },
