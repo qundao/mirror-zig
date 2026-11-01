@@ -782,97 +782,97 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8a",
-                .features = &.{"v8a"},
+                .features = &.{ "neon", "v8a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8r",
-                .features = &.{"v8r"},
+                .features = &.{ "neon", "v8r" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_1a",
-                .features = &.{"v8_1a"},
+                .features = &.{ "neon", "v8_1a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_2a",
-                .features = &.{"v8_2a"},
+                .features = &.{ "neon", "v8_2a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_3a",
-                .features = &.{"v8_3a"},
+                .features = &.{ "neon", "v8_3a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_4a",
-                .features = &.{"v8_4a"},
+                .features = &.{ "neon", "v8_4a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_5a",
-                .features = &.{"v8_5a"},
+                .features = &.{ "neon", "v8_5a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_6a",
-                .features = &.{"v8_6a"},
+                .features = &.{ "neon", "v8_6a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_7a",
-                .features = &.{"v8_7a"},
+                .features = &.{ "neon", "v8_7a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_8a",
-                .features = &.{"v8_8a"},
+                .features = &.{ "neon", "v8_8a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv8_9a",
-                .features = &.{"v8_9a"},
+                .features = &.{ "neon", "v8_9a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9a",
-                .features = &.{"v9a"},
+                .features = &.{ "neon", "v9a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_1a",
-                .features = &.{"v9_1a"},
+                .features = &.{ "neon", "v9_1a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_2a",
-                .features = &.{"v9_2a"},
+                .features = &.{ "neon", "v9_2a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_3a",
-                .features = &.{"v9_3a"},
+                .features = &.{ "neon", "v9_3a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_4a",
-                .features = &.{"v9_4a"},
+                .features = &.{ "neon", "v9_4a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_5a",
-                .features = &.{"v9_5a"},
+                .features = &.{ "neon", "v9_5a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_6a",
-                .features = &.{"v9_6a"},
+                .features = &.{ "neon", "v9_6a" },
             },
             .{
                 .llvm_name = "generic",
                 .zig_name = "armv9_7a",
-                .features = &.{"v9_7a"},
+                .features = &.{ "neon", "v9_7a" },
             },
 
             .{
@@ -8887,24 +8887,6 @@ fn processOneTargetInner(io: Io, job: Job) !void {
                             if (mem.eql(u8, other_zig_name, omit_dep)) break;
                         } else {
                             try deps.append(arena, other_zig_name);
-                        }
-                    }
-                    // This is used by AArch64.
-                    if (kv.value_ptr.object.get("DefaultExts")) |exts_val| {
-                        for (exts_val.array.items) |ext| {
-                            const other_key = ext.object.get("def").?.string;
-                            const other_obj = root_map.get(other_key).?.object;
-                            const other_llvm_name = other_obj.get("Name").?.string;
-                            const other_zig_name = (try llvmFeatureNameToZigNameOmit(
-                                arena,
-                                target,
-                                other_llvm_name,
-                            )) orelse continue;
-                            for (omit_deps) |omit_dep| {
-                                if (mem.eql(u8, other_zig_name, omit_dep)) break;
-                            } else {
-                                try deps.append(arena, other_zig_name);
-                            }
                         }
                     }
                     for (extra_deps) |extra_dep| {
