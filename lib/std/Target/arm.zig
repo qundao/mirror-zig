@@ -344,7 +344,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.fp16)] = .{
         .llvm_name = "fp16",
         .description = "Enable half-precision floating point",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .vfp3d16sp,
+        }),
     };
     result[@backingInt(Feature.fp16fml)] = .{
         .llvm_name = "fp16fml",
@@ -970,7 +972,6 @@ pub const all_features = blk: {
         .description = "Enable VFP4 instructions with only 16 d-registers and no double precision",
         .dependencies = featureSet(&[_]Feature{
             .fp16,
-            .vfp3d16sp,
         }),
     };
     result[@backingInt(Feature.vfp4sp)] = .{
@@ -2516,7 +2517,6 @@ pub const cpu = struct {
             .slowfpvfmx,
             .slowfpvmlx,
             .v7,
-            .vfp3d16sp,
         }),
     };
     pub const cortex_r8: CpuModel = .{
@@ -2537,7 +2537,6 @@ pub const cpu = struct {
             .slowfpvfmx,
             .slowfpvmlx,
             .v7,
-            .vfp3d16sp,
         }),
     };
     pub const cortex_x1: CpuModel = .{

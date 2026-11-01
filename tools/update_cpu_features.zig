@@ -2151,6 +2151,10 @@ const targets = [_]ArchTarget{
             },
 
             .{
+                .llvm_name = "fp16",
+                .extra_deps = &.{"vfp3d16sp"},
+            },
+            .{
                 .llvm_name = "strict-align",
                 .zig_name = "no_unaligned_access",
             },
