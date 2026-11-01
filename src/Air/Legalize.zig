@@ -2049,12 +2049,9 @@ fn scalarizeReduceBlockPayload(l: *Legalize, orig_inst: Air.Inst.Index, optimize
             .bool => .false,
             else => unreachable,
         },
-        // identity for multiplication is 1, or -1 for an i1
+        // identity for multiplication is 1
         .Mul => switch (scalar_ty.zigTypeTag(zcu)) {
-            .int => if (scalar_ty.isSignedInt(zcu) and scalar_ty.intInfo(zcu).bits == 1)
-                try pt.intValue(scalar_ty, -1)
-            else
-                try pt.intValue(scalar_ty, 1),
+            .int => try pt.intValue(scalar_ty, 1),
             .float => try pt.floatValue(scalar_ty, 1.0),
             else => unreachable,
         },

@@ -6943,10 +6943,7 @@ fn airReduce(f: *Function, inst: Air.Inst.Index) !CValue {
             else => unreachable,
         },
         .Mul => switch (scalar_ty.zigTypeTag(zcu)) {
-            .int => if (scalar_ty.isSignedInt(zcu) and scalar_ty.intInfo(zcu).bits == 1)
-                try pt.intValue(scalar_ty, -1)
-            else
-                try pt.intValue(scalar_ty, 1),
+            .int => try pt.intValue(scalar_ty, 1),
             .float => try pt.floatValue(scalar_ty, 1.0),
             else => unreachable,
         },
