@@ -224,6 +224,14 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
+                .llvm_name = "el2vmsa",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "el3",
+                .omit = true,
+            },
+            .{
                 .llvm_name = "execute-only",
                 .omit = true,
             },

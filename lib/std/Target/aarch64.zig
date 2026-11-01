@@ -41,8 +41,6 @@ pub const Feature = enum {
     dit,
     dotprod,
     ecv,
-    el2vmsa,
-    el3,
     ete,
     f16f32dot,
     f16f32mm,
@@ -427,16 +425,6 @@ pub const all_features = blk: {
     result[@backingInt(Feature.ecv)] = .{
         .llvm_name = "ecv",
         .description = "Enable enhanced counter virtualization extension",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.el2vmsa)] = .{
-        .llvm_name = "el2vmsa",
-        .description = "Enable Exception Level 2 Virtual Memory System Architecture",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.el3)] = .{
-        .llvm_name = "el3",
-        .description = "Enable Exception Level 3",
         .dependencies = featureSet(&[_]Feature{}),
     };
     result[@backingInt(Feature.ete)] = .{
@@ -1436,10 +1424,7 @@ pub const all_features = blk: {
     result[@backingInt(Feature.v8a)] = .{
         .llvm_name = "v8a",
         .description = "Support ARM v8a architecture",
-        .dependencies = featureSet(&[_]Feature{
-            .el2vmsa,
-            .el3,
-        }),
+        .dependencies = featureSet(&[_]Feature{}),
     };
     result[@backingInt(Feature.v8r)] = .{
         .llvm_name = "v8r",
