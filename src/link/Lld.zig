@@ -873,7 +873,7 @@ fn elfLink(lld: *Lld, arena: Allocator) !void {
         });
 
         switch (target.cpu.arch) {
-            .armeb, .thumbeb => if (is_exe_or_dyn_lib and target.cpu.has(.arm, .has_v6)) try argv.append(gpa, "--be8"),
+            .armeb, .thumbeb => if (is_exe_or_dyn_lib and target.cpu.has(.arm, .v6)) try argv.append(gpa, "--be8"),
             else => {},
         }
 

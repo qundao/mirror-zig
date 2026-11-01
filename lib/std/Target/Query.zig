@@ -652,15 +652,15 @@ test parse {
     {
         const query = try Query.parse(.{
             .arch_os_abi = "arm-linux-musleabihf",
-            .cpu_features = "generic+v8a",
+            .cpu_features = "armv7a+no_unaligned_access",
         });
         const target = try std.zig.system.resolveTargetQuery(io, query);
 
         try std.testing.expect(target.os.tag == .linux);
         try std.testing.expect(target.abi == .musleabihf);
         try std.testing.expect(target.cpu.arch == .arm);
-        try std.testing.expect(target.cpu.model == &Target.arm.cpu.generic);
-        try std.testing.expect(target.cpu.has(.arm, .v8a));
+        try std.testing.expect(target.cpu.model == &Target.arm.cpu.armv7a);
+        try std.testing.expect(target.cpu.has(.arm, .no_unaligned_access));
 
         const text = try query.zigTriple(std.testing.allocator);
         defer std.testing.allocator.free(text);

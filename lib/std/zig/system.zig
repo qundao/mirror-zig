@@ -410,7 +410,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
     {
         // https://github.com/llvm/llvm-project/issues/105978
         if (result.cpu.arch.isArm() and result.abi.float() == .soft) {
-            result.cpu.features.removeFeature(@backingInt(Target.arm.Feature.vfp2));
+            result.cpu.features.removeFeature(@backingInt(Target.arm.Feature.fpregs));
         }
     }
 

@@ -383,13 +383,13 @@ pub inline fn spinLoopHint() void {
         // https://www.keil.com/support/man/docs/armasm/armasm_dom1361289926796.htm
         .arm,
         .armeb,
-        => if (comptime builtin.cpu.has(.arm, .has_v6k)) {
+        => if (comptime builtin.cpu.has(.arm, .v6k)) {
             asm volatile ("yield");
         },
 
         .thumb,
         .thumbeb,
-        => if (comptime builtin.cpu.hasAny(.arm, &.{ .has_v6m, .thumb2 })) {
+        => if (comptime builtin.cpu.hasAny(.arm, &.{ .v6m, .thumb2 })) {
             asm volatile ("yield");
         },
 

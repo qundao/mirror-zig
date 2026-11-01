@@ -86,9 +86,16 @@ pub const Options = struct {
     target: *const std.Target = &builtin.target,
 };
 
-fn subArchName(target: *const std.Target, comptime family: std.Target.Cpu.Arch.Family, mappings: anytype) ?[]const u8 {
-    inline for (mappings) |mapping| {
-        if (target.cpu.has(family, mapping[0])) return mapping[1];
+fn subArchName(
+    target: *const std.Target,
+    comptime family: std.Target.Cpu.Arch.Family,
+    mappings: []const struct {
+        []const @field(std.Target, @tagName(family)).Feature,
+        []const u8,
+    },
+) ?[]const u8 {
+    for (mappings) |mapping| {
+        if (target.cpu.hasAll(family, mapping[0])) return mapping[1];
     }
 
     return null;
@@ -171,65 +178,64 @@ pub fn tripleForTarget(allocator: Allocator, target: *const std.Target) ![]const
     try llvm_triple.appendSlice(allocator, llvm_arch);
 
     const llvm_sub_arch: ?[]const u8 = switch (target.cpu.arch) {
-        .arm, .armeb, .thumb, .thumbeb => subArchName(target, .arm, .{
-            .{ .v4t, "v4t" },
-            .{ .v5t, "v5t" },
-            .{ .v5te, "v5te" },
-            .{ .v5tej, "v5tej" },
-            .{ .v6, "v6" },
-            .{ .v6k, "v6k" },
-            .{ .v6kz, "v6kz" },
-            .{ .v6m, "v6m" },
-            .{ .v6t2, "v6t2" },
-            .{ .v7a, "v7a" },
-            .{ .v7em, "v7em" },
-            .{ .v7m, "v7m" },
-            .{ .v7r, "v7r" },
-            .{ .v7ve, "v7ve" },
-            .{ .v8a, "v8a" },
-            .{ .v8_1a, "v8.1a" },
-            .{ .v8_2a, "v8.2a" },
-            .{ .v8_3a, "v8.3a" },
-            .{ .v8_4a, "v8.4a" },
-            .{ .v8_5a, "v8.5a" },
-            .{ .v8_6a, "v8.6a" },
-            .{ .v8_7a, "v8.7a" },
-            .{ .v8_8a, "v8.8a" },
-            .{ .v8_9a, "v8.9a" },
-            .{ .v8m, "v8m.base" },
-            .{ .v8m_main, "v8m.main" },
-            .{ .v8_1m_main, "v8.1m.main" },
-            .{ .v8r, "v8r" },
-            .{ .v9a, "v9a" },
-            .{ .v9_1a, "v9.1a" },
-            .{ .v9_2a, "v9.2a" },
-            .{ .v9_3a, "v9.3a" },
-            .{ .v9_4a, "v9.4a" },
-            .{ .v9_5a, "v9.5a" },
-            .{ .v9_6a, "v9.6a" },
-            .{ .v9_7a, "v9.7a" },
-        }),
+        .arm, .armeb, .thumb, .thumbeb => subArchName(target, .arm, &.{
+            .{ &.{ .rclass, .v8 }, "v8r" },
+            .{ &.{.v9_7a}, "v9.7a" },
+            .{ &.{.v9_6a}, "v9.6a" },
+            .{ &.{.v9_5a}, "v9.5a" },
+            .{ &.{.v9_4a}, "v9.4a" },
+            .{ &.{.v9_3a}, "v9.3a" },
+            .{ &.{.v9_2a}, "v9.2a" },
+            .{ &.{.v9_1a}, "v9.1a" },
+            .{ &.{.v9a}, "v9a" },
+            .{ &.{.v8_9a}, "v8.9a" },
+            .{ &.{.v8_8a}, "v8.8a" },
+            .{ &.{.v8_7a}, "v8.7a" },
+            .{ &.{.v8_6a}, "v8.6a" },
+            .{ &.{.v8_5a}, "v8.5a" },
+            .{ &.{.v8_4a}, "v8.4a" },
+            .{ &.{.v8_3a}, "v8.3a" },
+            .{ &.{.v8_2a}, "v8.2a" },
+            .{ &.{.v8_1a}, "v8.1a" },
+            .{ &.{.v8}, "v8a" },
+            .{ &.{.v8_1m_main}, "v8.1m.main" },
+            .{ &.{.v8m_main}, "v8m.main" },
+            .{ &.{ .mclass, .dsp, .v7 }, "v7em" },
+            .{ &.{ .mclass, .v7 }, "v7m" },
+            .{ &.{ .rclass, .v7 }, "v7r" },
+            .{ &.{ .v7, .virtualization }, "v7ve" },
+            .{ &.{.v7}, "v7a" },
+            .{ &.{.v6t2}, "v6t2" },
+            .{ &.{.v8m}, "v8m.base" },
+            .{ &.{.v6m}, "v6m" },
+            .{ &.{ .trustzone, .v6k }, "v6kz" },
+            .{ &.{.v6k}, "v6k" },
+            .{ &.{.v6}, "v6" },
+            .{ &.{.v5te}, "v5te" },
+            .{ &.{.v5t}, "v5t" },
+            .{ &.{.v4t}, "v4t" },
+        }) orelse "v4",
         .spirv32 => switch (target.os.tag) {
-            .vulkan, .opengl => subArchName(target, .spirv, .{
-                .{ .v1_6, "1.6" },
-                .{ .v1_5, "1.5" },
+            .vulkan, .opengl => subArchName(target, .spirv, &.{
+                .{ &.{.v1_6}, "1.6" },
+                .{ &.{.v1_5}, "1.5" },
             }),
-            else => subArchName(target, .spirv, .{
-                .{ .v1_6, "v1.6" },
-                .{ .v1_5, "v1.5" },
-                .{ .v1_4, "v1.4" },
-                .{ .v1_3, "v1.3" },
-                .{ .v1_2, "v1.2" },
-                .{ .v1_1, "v1.1" },
+            else => subArchName(target, .spirv, &.{
+                .{ &.{.v1_6}, "v1.6" },
+                .{ &.{.v1_5}, "v1.5" },
+                .{ &.{.v1_4}, "v1.4" },
+                .{ &.{.v1_3}, "v1.3" },
+                .{ &.{.v1_2}, "v1.2" },
+                .{ &.{.v1_1}, "v1.1" },
             }),
         },
-        .spirv64 => subArchName(target, .spirv, .{
-            .{ .v1_6, "v1.6" },
-            .{ .v1_5, "v1.5" },
-            .{ .v1_4, "v1.4" },
-            .{ .v1_3, "v1.3" },
-            .{ .v1_2, "v1.2" },
-            .{ .v1_1, "v1.1" },
+        .spirv64 => subArchName(target, .spirv, &.{
+            .{ &.{.v1_6}, "v1.6" },
+            .{ &.{.v1_5}, "v1.5" },
+            .{ &.{.v1_4}, "v1.4" },
+            .{ &.{.v1_3}, "v1.3" },
+            .{ &.{.v1_2}, "v1.2" },
+            .{ &.{.v1_1}, "v1.1" },
         }),
         else => null,
     };

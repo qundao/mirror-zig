@@ -45,7 +45,7 @@ comptime {
                 symbol(&__aeabi_read_tp, "__aeabi_read_tp");
             }
 
-            if (builtin.target.cpu.has(.arm, .has_v4t)) {
+            if (builtin.target.cpu.has(.arm, .v4t)) {
                 symbol(&__gnu_thumb1_case_sqi, "__gnu_thumb1_case_sqi");
                 symbol(&__gnu_thumb1_case_uqi, "__gnu_thumb1_case_uqi");
                 symbol(&__gnu_thumb1_case_shi, "__gnu_thumb1_case_shi");
