@@ -1798,9 +1798,16 @@ fn derivePtr(cg: *CodeGen, as: std.lang.AddressSpace, derivation: Value.PointerD
             }
             if (target_util.addrSpaceIsLogical(target, as)) return var_id;
 
-            const nav_ty_id = try cg.resolveType(nav_ty, .indirect);
+            // Match the pointee the variable was declared with. The
+            // undecorated variant is emitted even if unreferenced, leaving a
+            // buffer struct without Block that Vulkan rejects.
+            const is_block_root = cg.needsLayout(as, nav_ty);
+            const nav_ty_id = try cg.pointeeType(as, nav_ty, is_block_root);
             const decl_ptr_ty_id = try cg.ptrType(nav_ty_id, cg.storageClass(as));
-            const result_ty_id = try cg.derivedPtrType(as, derivation);
+            const result_ty_id = try cg.ptrType(
+                try cg.pointeeType(as, derivation.elem_ty, is_block_root),
+                cg.storageClass(as),
+            );
             if (decl_ptr_ty_id == result_ty_id) return var_id;
 
             const casted_ptr_id = cg.allocId();
