@@ -1870,32 +1870,32 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "armv8.4-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8.5-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8.6-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8.7-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8.8-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8.9-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv8-a",
@@ -1919,35 +1919,42 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "armv9.1-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9.2-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9.3-a",
                 .flatten = true,
-                .omit_deps = &.{"crypto"},
+                .omit_deps = &.{ "crypto", "dotprod" },
             },
             .{
                 .llvm_name = "armv9.4-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9.5-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9.6-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9.7-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "armv9-a",
                 .flatten = true,
+                .omit_deps = &.{"dotprod"},
             },
             .{
                 .llvm_name = "cortex-a78",
@@ -2150,6 +2157,14 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "v4t",
                 .extra_deps = &.{"v4"},
+            },
+            .{
+                .llvm_name = "v8.4a",
+                .omit_deps = &.{"dotprod"},
+            },
+            .{
+                .llvm_name = "v8.6a",
+                .omit_deps = &.{ "bf16", "i8mm" },
             },
         },
         .extra_features = &.{
