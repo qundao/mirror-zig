@@ -245,10 +245,10 @@ const m68k = struct {
             model: ?*const Target.Cpu.Model = null,
 
             const cpu_names = .{
-                .{ "68020", &Target.m68k.cpu.M68020 },
-                .{ "68030", &Target.m68k.cpu.M68030 },
-                .{ "68040", &Target.m68k.cpu.M68040 },
-                .{ "68060", &Target.m68k.cpu.M68060 },
+                .{ "68020", &Target.m68k.cpu.m68020 },
+                .{ "68030", &Target.m68k.cpu.m68030 },
+                .{ "68040", &Target.m68k.cpu.m68040 },
+                .{ "68060", &Target.m68k.cpu.m68060 },
             };
 
             fn lineHook(self: *Impl, key: []const u8, value: []const u8) !bool {
