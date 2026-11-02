@@ -12903,20 +12903,39 @@ fn ensurePltEntry(elf: *Elf, gsi: Symbol.Global.Index) Error!bool {
 }
 fn flushMovedPltSection(elf: *Elf, which: enum { plt, plt_sec, got_plt }, old_addr: u64, addr: u64) void {
     const target_endian = elf.targetEndian();
+
+    const update_plt_relocs: bool = switch (which) {
+        .plt => elf.targetPltInfo().plt_sec == null,
+        .plt_sec => true,
+        .got_plt => false,
+    };
+    if (update_plt_relocs) {
+        for (elf.plt.keys()) |gsi| {
+            const sym_id: Symbol.Id = .global(gsi);
+            if (gsi.dynsymIndex(elf) != null and
+                !gsi.defined(elf) and
+                sym_id.value(elf) != 0)
+            {
+                // Non-zero value on an undefined symbol in the PLT means we are treating the PLT
+                // entry as canonical, so we need to update the symbol's address (this call will
+                // re-apply relocations for us).
+                sym_id.flushMoved(elf, sym_id.value(elf) - old_addr + addr);
+            } else {
+                // Just re-apply the PLT relocations. If a symbol is in the PLT then probably most
+                // of its relocations are PLT relocations, so we don't bother specifically tracking
+                // PLT relocations---instead just re-apply all relocations targeting this symbol.
+                sym_id.applyTargetRelocs(elf);
+            }
+        }
+    }
+
     switch (elf.ehdrMachine()) {
         .AARCH64, .PPC64, .RISCV => |machine| @panic(@tagName(machine)),
         .X86_64 => {
             switch (which) {
                 .plt => return,
                 .plt_sec => {
-                    // Re-apply all PLT relocations. If a symbol is in the PLT then the majority of
-                    // its relocations are probably going through the PLT, so we don't bother with
-                    // specific tracking for PLT relocations---instead just re-apply all relocations
-                    // targeting symbols with PLT entries.
-                    for (elf.plt.keys()) |gsi| {
-                        Symbol.Id.global(gsi).applyTargetRelocs(elf);
-                    }
-                    // We also need to update all of the references from `.plt.sec` to `.got.plt`.
+                    // We need to update all of the references from `.plt.sec` to `.got.plt`.
                     // However, if there's also a flush pending for `.got.plt`, don't bother doing
                     // this now, because we'll do it when `.got.plt` is flushed anyway.
                     if (elf.shndx.got_plt.node(elf).hasMoved(&elf.mf)) {
@@ -12966,16 +12985,9 @@ fn flushMovedPltSection(elf: *Elf, which: enum { plt, plt_sec, got_plt }, old_ad
         .LOONGARCH => {
             switch (which) {
                 .plt => {
-                    // Re-apply all PLT relocations. If a symbol is in the PLT then the majority of
-                    // its relocations are probably going through the PLT, so we don't bother with
-                    // specific tracking for PLT relocations---instead just re-apply all relocations
-                    // targeting symbols with PLT entries.
-                    for (elf.plt.keys()) |gsi| {
-                        Symbol.Id.global(gsi).applyTargetRelocs(elf);
-                    }
-                    // We also need to update all of the references from `.plt` to `.got.plt`.
-                    // However, if there's also a flush pending for `.got.plt`, don't bother doing
-                    // this now, because we'll do it when `.got.plt` is flushed anyway.
+                    // We need to update all of the references from `.plt` to `.got.plt`. However,
+                    // if there's also a flush pending for `.got.plt`, don't bother doing this now,
+                    // because we'll do it when `.got.plt` is flushed anyway.
                     if (elf.shndx.got_plt.node(elf).hasMoved(&elf.mf)) {
                         return;
                     }
@@ -13032,13 +13044,6 @@ fn flushMovedPltSection(elf: *Elf, which: enum { plt, plt_sec, got_plt }, old_ad
         },
         .SPARCV9 => switch (which) {
             .plt => {
-                // Re-apply all PLT relocations. If a symbol is in the PLT then the majority of
-                // its relocations are probably going through the PLT, so we don't bother with
-                // specific tracking for PLT relocations---instead just re-apply all relocations
-                // targeting symbols with PLT entries.
-                for (elf.plt.keys()) |gsi| {
-                    Symbol.Id.global(gsi).applyTargetRelocs(elf);
-                }
                 // Update the offsets of the relocation entries in `.rela.plt`.
                 const rela_plt_shndx = elf.shndx.rela_plt;
                 for (0..elf.plt.count()) |plt_index| {
