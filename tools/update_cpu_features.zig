@@ -3463,6 +3463,11 @@ const targets = [_]ArchTarget{
                 .llvm_name = "reserve-d7",
                 .omit = true,
             },
+
+            .{
+                .llvm_name = "isa-68040",
+                .omit_deps = &.{"isa_68882"},
+            },
         },
         .model_overrides = &.{
             .{
