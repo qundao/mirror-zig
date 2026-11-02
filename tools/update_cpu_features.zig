@@ -5804,6 +5804,11 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{ "fpu", "v8" },
             },
             .{
+                .llvm_name = "crypto",
+                .omit_deps = &.{"osa2011"},
+                .extra_deps = &.{ "fpu", "v9" },
+            },
+            .{
                 .llvm_name = "hasleoncasa",
                 .extra_deps = &.{"v8"},
             },
@@ -5817,15 +5822,22 @@ const targets = [_]ArchTarget{
             },
             .{
                 .llvm_name = "osa2011",
-                .extra_deps = &.{"ua2007"},
+                .omit_deps = &.{ "vis", "vis2", "vis3" },
             },
             .{
                 .llvm_name = "popc",
                 .extra_deps = &.{"v9"},
             },
             .{
+                .llvm_name = "ua2005",
+                .omit_deps = &.{ "vis", "vis2" },
+            },
+            .{
                 .llvm_name = "ua2007",
-                .extra_deps = &.{"ua2005"},
+                .zig_name = "fmaf",
+                .desc = "Enable fused multiply-add instructions",
+                .omit_deps = &.{ "vis", "vis2" },
+                .extra_deps = &.{"fpu"},
             },
             .{
                 .llvm_name = "deprecated-v8",
