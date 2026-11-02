@@ -3303,6 +3303,10 @@ const targets = [_]ArchTarget{
             },
 
             .{
+                .llvm_name = "frecipe",
+                .extra_deps = &.{"f"},
+            },
+            .{
                 .llvm_name = "ual",
                 .zig_name = "unaligned_access",
             },

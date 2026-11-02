@@ -69,7 +69,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.frecipe)] = .{
         .llvm_name = "frecipe",
         .description = "Support frecipe.{s/d} and frsqrte.{s/d} instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .f,
+        }),
     };
     result[@backingInt(Feature.lam_bh)] = .{
         .llvm_name = "lam-bh",
