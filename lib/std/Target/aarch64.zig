@@ -983,7 +983,8 @@ pub const all_features = blk: {
         .description = "Enable Scalable Matrix Extension (SME)",
         .dependencies = featureSet(&[_]Feature{
             .bf16,
-            .fullfp16,
+            .complxnum,
+            .fp16fml,
         }),
     };
     result[@backingInt(Feature.sme2)] = .{
@@ -1004,7 +1005,9 @@ pub const all_features = blk: {
         .llvm_name = "sme2p2",
         .description = "Enable Armv9.6-A Scalable Matrix Extension 2.2 instructions",
         .dependencies = featureSet(&[_]Feature{
-            .sme2p1,
+            .sme_mop4,
+            .sme_tmop,
+            .ssve_fexpa,
         }),
     };
     result[@backingInt(Feature.sme2p3)] = .{
@@ -1078,14 +1081,14 @@ pub const all_features = blk: {
         .llvm_name = "sme-mop4",
         .description = "Enable SME Quarter-tile outer product instructions",
         .dependencies = featureSet(&[_]Feature{
-            .sme2,
+            .sme2p1,
         }),
     };
     result[@backingInt(Feature.sme_tmop)] = .{
         .llvm_name = "sme-tmop",
         .description = "Enable SME Structured sparsity outer product instructions.",
         .dependencies = featureSet(&[_]Feature{
-            .sme2,
+            .sme2p1,
         }),
     };
     result[@backingInt(Feature.spe)] = .{
@@ -1119,7 +1122,7 @@ pub const all_features = blk: {
         .llvm_name = "ssve-aes",
         .description = "Enable Armv9.6-A SVE AES support in streaming SVE mode",
         .dependencies = featureSet(&[_]Feature{
-            .sme2,
+            .sme2p1,
             .sve_aes,
         }),
     };
@@ -1127,7 +1130,7 @@ pub const all_features = blk: {
         .llvm_name = "ssve-bitperm",
         .description = "Enable Armv9.6-A SVE BitPerm support in streaming SVE mode",
         .dependencies = featureSet(&[_]Feature{
-            .sme2,
+            .sme2p1,
             .sve_bitperm,
         }),
     };
@@ -1135,7 +1138,7 @@ pub const all_features = blk: {
         .llvm_name = "ssve-fexpa",
         .description = "Enable SVE FEXPA instruction in Streaming SVE mode",
         .dependencies = featureSet(&[_]Feature{
-            .sme2,
+            .sme2p1,
         }),
     };
     result[@backingInt(Feature.ssve_fp8dot2)] = .{
@@ -1244,12 +1247,16 @@ pub const all_features = blk: {
     result[@backingInt(Feature.sve_aes2)] = .{
         .llvm_name = "sve-aes2",
         .description = "Enable Armv9.6-A SVE multi-vector AES and multi-vector quadword polynomial multiply instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .sve_aes,
+        }),
     };
     result[@backingInt(Feature.sve_b16b16)] = .{
         .llvm_name = "sve-b16b16",
         .description = "Enable SVE2 non-widening and SME2 Z-targeting non-widening BFloat16 instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .fullfp16,
+        }),
     };
     result[@backingInt(Feature.sve_b16mm)] = .{
         .llvm_name = "sve-b16mm",
@@ -1261,12 +1268,16 @@ pub const all_features = blk: {
     result[@backingInt(Feature.sve_bfscale)] = .{
         .llvm_name = "sve-bfscale",
         .description = "Enable Armv9.6-A SVE BFloat16 scaling instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .sve_b16b16,
+        }),
     };
     result[@backingInt(Feature.sve_bitperm)] = .{
         .llvm_name = "sve-bitperm",
         .description = "Enable bit permutation SVE2 instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .fullfp16,
+        }),
     };
     result[@backingInt(Feature.sve_f16f32mm)] = .{
         .llvm_name = "sve-f16f32mm",
@@ -2044,11 +2055,9 @@ pub const cpu = struct {
             .amvs,
             .arith_bcc_fusion,
             .arith_cbz_fusion,
-            .complxnum,
             .dotprod,
             .fast_ld1_single,
             .fgt,
-            .fp16fml,
             .fpac,
             .fuse_address,
             .fuse_adrp_add,
@@ -2091,12 +2100,10 @@ pub const cpu = struct {
             .amvs,
             .arith_bcc_fusion,
             .arith_cbz_fusion,
-            .complxnum,
             .cssc,
             .dotprod,
             .fast_ld1_single,
             .fgt,
-            .fp16fml,
             .fpac,
             .fuse_address,
             .fuse_adrp_add,
@@ -2347,11 +2354,9 @@ pub const cpu = struct {
             .amvs,
             .arith_bcc_fusion,
             .arith_cbz_fusion,
-            .complxnum,
             .dotprod,
             .fast_ld1_single,
             .fgt,
-            .fp16fml,
             .fpac,
             .fuse_address,
             .fuse_adrp_add,
@@ -2394,12 +2399,10 @@ pub const cpu = struct {
             .amvs,
             .arith_bcc_fusion,
             .arith_cbz_fusion,
-            .complxnum,
             .cssc,
             .dotprod,
             .fast_ld1_single,
             .fgt,
-            .fp16fml,
             .fpac,
             .fuse_address,
             .fuse_adrp_add,
@@ -2881,11 +2884,9 @@ pub const cpu = struct {
             .ccidx,
             .chk,
             .clrbhb,
-            .complxnum,
             .dotprod,
             .ete,
             .fgt,
-            .fp16fml,
             .fpac,
             .fptoint,
             .fuse_adrp_add,
@@ -2920,11 +2921,9 @@ pub const cpu = struct {
             .ccidx,
             .chk,
             .clrbhb,
-            .complxnum,
             .dotprod,
             .ete,
             .fgt,
-            .fp16fml,
             .fpac,
             .fptoint,
             .fuse_adrp_add,
@@ -2963,11 +2962,9 @@ pub const cpu = struct {
             .chk,
             .clrbhb,
             .cmp_bcc_fusion,
-            .complxnum,
             .dotprod,
             .ete,
             .fgt,
-            .fp16fml,
             .fpac,
             .fptoint,
             .fuse_adrp_add,
@@ -3006,11 +3003,9 @@ pub const cpu = struct {
             .ccidx,
             .chk,
             .clrbhb,
-            .complxnum,
             .dotprod,
             .ete,
             .fgt,
-            .fp16fml,
             .fpac,
             .fptoint,
             .fuse_adrp_add,

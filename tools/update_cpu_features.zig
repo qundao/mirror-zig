@@ -769,6 +769,22 @@ const targets = [_]ArchTarget{
                 .desc = "Enable RW operand Context ID Register (EL2)",
             },
             .{
+                .llvm_name = "sme",
+                .extra_deps = &.{ "complxnum", "fp16fml" },
+            },
+            .{
+                .llvm_name = "sme-mop4",
+                .extra_deps = &.{"sme2p1"},
+            },
+            .{
+                .llvm_name = "sme-tmop",
+                .extra_deps = &.{"sme2p1"},
+            },
+            .{
+                .llvm_name = "sme2p2",
+                .extra_deps = &.{ "sme_mop4", "sme_tmop", "ssve_fexpa" },
+            },
+            .{
                 .llvm_name = "v8r",
                 .zig_name = "rclass",
                 .desc = "Is realtime profile ('R' series)",
@@ -776,8 +792,36 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{"lse2"},
             },
             .{
+                .llvm_name = "ssve-aes",
+                .extra_deps = &.{"sme2p1"},
+            },
+            .{
+                .llvm_name = "ssve-bitperm",
+                .extra_deps = &.{"sme2p1"},
+            },
+            .{
+                .llvm_name = "ssve-fexpa",
+                .extra_deps = &.{"sme2p1"},
+            },
+            .{
                 .llvm_name = "strict-align",
                 .zig_name = "no_unaligned_access",
+            },
+            .{
+                .llvm_name = "sve-aes2",
+                .extra_deps = &.{"sve_aes"},
+            },
+            .{
+                .llvm_name = "sve-b16b16",
+                .extra_deps = &.{"fullfp16"},
+            },
+            .{
+                .llvm_name = "sve-bfscale",
+                .extra_deps = &.{"sve_b16b16"},
+            },
+            .{
+                .llvm_name = "sve-bitperm",
+                .extra_deps = &.{"fullfp16"},
             },
             .{
                 .llvm_name = "v8.1a",
