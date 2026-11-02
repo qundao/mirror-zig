@@ -2778,6 +2778,55 @@ const targets = [_]ArchTarget{
                 .llvm_name = "ck860v",
                 .flatten = true,
             },
+
+            .{
+                .llvm_name = "fdivdu",
+                .extra_deps = &.{"fpuv2_df"},
+            },
+            .{
+                .llvm_name = "float1e2",
+                .extra_deps = &.{"floate1"},
+            },
+            .{
+                .llvm_name = "float1e3",
+                .extra_deps = &.{"fpuv2_sf"},
+            },
+            .{
+                .llvm_name = "float3e4",
+                .extra_deps = &.{"fpuv2_df"},
+            },
+            .{
+                .llvm_name = "fpuv2_df",
+                .extra_deps = &.{ "float1e2", "fpuv2_sf" },
+            },
+            .{
+                .llvm_name = "fpuv2_sf",
+                .extra_deps = &.{"floate1"},
+            },
+            .{
+                .llvm_name = "fpuv3_df",
+                .extra_deps = &.{"fpuv3_sf"},
+            },
+            .{
+                .llvm_name = "fpuv3_hf",
+                .extra_deps = &.{"float7e60"},
+            },
+            .{
+                .llvm_name = "fpuv3_hi",
+                .extra_deps = &.{"fpuv3_hf"},
+            },
+            .{
+                .llvm_name = "fpuv3_sf",
+                .extra_deps = &.{"float7e60"},
+            },
+            .{
+                .llvm_name = "vdsp2e3",
+                .extra_deps = &.{"vdspv2"},
+            },
+            .{
+                .llvm_name = "vdsp2e60f",
+                .extra_deps = &.{"vdspv2"},
+            },
         },
         .model_overrides = &.{
             .{
