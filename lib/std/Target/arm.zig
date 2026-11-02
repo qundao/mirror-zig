@@ -297,7 +297,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.d32)] = .{
         .llvm_name = "d32",
         .description = "Extend FP to 32 double registers",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .fpregs,
+        }),
     };
     result[@backingInt(Feature.db)] = .{
         .llvm_name = "db",

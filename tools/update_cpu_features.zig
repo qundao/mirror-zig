@@ -2151,6 +2151,10 @@ const targets = [_]ArchTarget{
             },
 
             .{
+                .llvm_name = "d32",
+                .extra_deps = &.{"fpregs"},
+            },
+            .{
                 .llvm_name = "fp16",
                 .extra_deps = &.{"vfp3d16sp"},
             },
