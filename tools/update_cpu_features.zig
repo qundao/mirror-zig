@@ -5715,6 +5715,15 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
 
+            .{
+                .llvm_name = "xsfvfbfexp16e",
+                .extra_deps = &.{"zve32f"},
+            },
+            .{
+                .llvm_name = "xtheadfmemidx",
+                .extra_deps = &.{"f"},
+            },
+
             // Future ISA extensions; omit until they are stabilized.
             .{
                 .llvm_name = "experimental",

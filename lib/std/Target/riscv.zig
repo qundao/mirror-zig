@@ -1232,7 +1232,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.xsfvfbfexp16e)] = .{
         .llvm_name = "xsfvfbfexp16e",
         .description = "'XSfvfbfexp16e' (SiFive Vector Floating-Point Exponential Function Instruction, BFloat16)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .zve32f,
+        }),
     };
     result[@backingInt(Feature.xsfvfexp16e)] = .{
         .llvm_name = "xsfvfexp16e",
@@ -1346,7 +1348,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.xtheadfmemidx)] = .{
         .llvm_name = "xtheadfmemidx",
         .description = "'XTHeadFMemIdx' (T-Head FP Indexed Memory Operations)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .f,
+        }),
     };
     result[@backingInt(Feature.xtheadmac)] = .{
         .llvm_name = "xtheadmac",
