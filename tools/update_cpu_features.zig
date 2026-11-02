@@ -7744,6 +7744,10 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{ "486", "nopl" },
             },
             .{
+                .llvm_name = "amx-avx512",
+                .extra_deps = &.{"avx512f"},
+            },
+            .{
                 .llvm_name = "sse4.2",
                 .extra_deps = &.{"crc32"},
             },

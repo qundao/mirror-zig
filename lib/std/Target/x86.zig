@@ -355,6 +355,7 @@ pub const all_features = blk: {
         .description = "Support AMX-AVX512 instructions",
         .dependencies = featureSet(&[_]Feature{
             .amx_tile,
+            .avx512f,
         }),
     };
     result[@backingInt(Feature.amx_bf16)] = .{
