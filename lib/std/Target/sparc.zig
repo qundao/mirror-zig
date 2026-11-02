@@ -32,7 +32,6 @@ pub const Feature = enum {
     ua2007,
     v8,
     v8_deprecated,
-    v8e,
     v9,
     vis,
     vis2,
@@ -206,11 +205,6 @@ pub const all_features = blk: {
         .dependencies = featureSet(&[_]Feature{
             .v9,
         }),
-    };
-    result[@backingInt(Feature.v8e)] = .{
-        .llvm_name = null,
-        .description = "Enable SPARC-V8E instructions",
-        .dependencies = featureSet(&[_]Feature{}),
     };
     result[@backingInt(Feature.v9)] = .{
         .llvm_name = "v9",
@@ -493,7 +487,6 @@ pub const cpu = struct {
         .name = "sparclet",
         .llvm_name = "sparclet",
         .features = featureSet(&[_]Feature{
-            .divscc,
             .fpu,
             .scan,
         }),
