@@ -2350,10 +2350,6 @@ pub fn failWithUseOfUndef(sema: *Sema, block: *Block, src: LazySrcLoc, vector_in
     });
 }
 
-pub fn failWithUndefSliceLen(sema: *Sema, block: *Block, src: LazySrcLoc) CompileError {
-    return sema.fail(block, src, "use of slice with undefined length here causes illegal behavior", .{});
-}
-
 pub fn failWithDivideByZero(sema: *Sema, block: *Block, src: LazySrcLoc) CompileError {
     return sema.fail(block, src, "division by zero here causes illegal behavior", .{});
 }
@@ -3097,9 +3093,8 @@ fn zirDeref(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.I
     const ptr_src = block.src(.{ .node_offset_deref_ptr = inst_data.src_node });
     const operand = sema.resolveInst(inst_data.operand);
 
-    try sema.validateDeref(block, src, operand, sema.typeOf(operand));
-
-    return sema.analyzeLoad(block, src, operand, ptr_src);
+    const ptr = try sema.preparePtrForDeref(block, src, operand);
+    return sema.analyzeLoad(block, src, ptr, ptr_src);
 }
 
 fn zirRefDeref(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -3108,73 +3103,91 @@ fn zirRefDeref(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
     const inst_data = sema.code.instructions.items(.data)[@backingInt(inst)].un_node;
     const src = block.nodeOffset(inst_data.src_node);
     const operand = sema.resolveInst(inst_data.operand);
-    const operand_ty = sema.typeOf(operand);
 
-    try sema.validateDeref(block, src, operand, operand_ty);
-
-    const ptr_info = operand_ty.ptrInfo(zcu);
-    return single_ptr: switch (ptr_info.flags.size) {
-        .many => unreachable, // cannot be dereferenced directly
-        .slice => {
-            const slice_val = sema.resolveValue(operand).?;
-            const slice = zcu.intern_pool.indexToKey(slice_val.toIntern()).slice;
-            break :single_ptr .fromValue(try pt.sliceToArrayPtr(slice));
-        },
-        .c => {
+    const ptr = try sema.preparePtrForDeref(block, src, operand);
+    const ptr_ty = sema.typeOf(ptr);
+    return switch (ptr_ty.ptrSize(zcu)) {
+        .many, .slice => unreachable, // cannot be dereferenced directly
+        .c => single_ptr: {
             const single_ptr_ty = try pt.ptrType(p: {
-                var p = ptr_info;
+                var p = ptr_ty.ptrInfo(zcu);
                 p.flags.size = .one;
                 p.flags.is_allowzero = false;
                 break :p p;
             });
             // https://github.com/ziglang/zig/issues/6597
-            if (sema.resolveValue(operand)) |operand_val| {
-                if (!operand_val.isNull(zcu)) {
-                    break :single_ptr .fromValue(try pt.getCoerced(operand_val, single_ptr_ty));
+            if (sema.resolveValue(ptr)) |ptr_val| {
+                if (!ptr_val.isNull(zcu)) {
+                    break :single_ptr .fromValue(try pt.getCoerced(ptr_val, single_ptr_ty));
                 }
             }
             if (block.wantSafety()) {
-                const is_non_null = try block.addUnOp(.is_non_null, operand);
+                const is_non_null = try block.addUnOp(.is_non_null, ptr);
                 try sema.addSafetyCheck(block, src, is_non_null, .unwrap_null);
             }
-            const single_ptr = try block.addTyOp(.ptr_cast, single_ptr_ty, operand);
-            try sema.checkKnownAllocPtr(block, operand, single_ptr);
+            const single_ptr = try block.addTyOp(.ptr_cast, single_ptr_ty, ptr);
+            try sema.checkKnownAllocPtr(block, ptr, single_ptr);
             break :single_ptr single_ptr;
         },
-        .one => operand,
+        .one => ptr,
     };
 }
 
-fn validateDeref(
+fn preparePtrForDeref(
     sema: *Sema,
     block: *Block,
     src: LazySrcLoc,
     ref: Air.Inst.Ref,
-    ty: Type,
-) CompileError!void {
+) CompileError!Air.Inst.Ref {
     const pt = sema.pt;
     const zcu = pt.zcu;
-    const ip = &zcu.intern_pool;
+    const ty = sema.typeOf(ref);
     if (ty.zigTypeTag(zcu) != .pointer) {
         return sema.fail(block, src, "cannot dereference non-pointer type '{f}'", .{ty.fmt(zcu)});
     }
-    const size = ty.ptrSize(zcu);
-    switch (size) {
-        .many => return sema.fail(block, src, "index syntax required for unknown-length pointer type '{f}'", .{ty.fmt(zcu)}),
-        .one, .c, .slice => {},
+    if (ty.ptrSize(zcu) == .many) {
+        return sema.fail(block, src, "index syntax required for unknown-length pointer type '{f}'", .{ty.fmt(zcu)});
     }
     if (sema.resolveValue(ref)) |val| {
+        const ptr = if (ty.isSlice(zcu)) try sema.makeSliceDerefable(block, src, val) else val;
         // Error for deref of undef pointer, unless the pointee is OPV in which case it's legal.
-        if (val.isUndef(zcu) and ty.childType(zcu).classify(zcu) != .one_possible_value) {
+        if (ptr.isUndef(zcu) and ptr.typeOf(zcu).childType(zcu).classify(zcu) != .one_possible_value) {
             return sema.fail(block, src, "cannot dereference undefined value", .{});
         }
-        // We need a defined slice length for the array type the slice should be dereferenced to.
-        if (size == .slice and ip.indexToKey(val.toIntern()).slice.len == .undef_usize) {
-            return sema.fail(block, src, "cannot dereference slice with undefined length", .{});
-        }
-    } else if (size == .slice) {
+        return .fromValue(ptr);
+    }
+    if (ty.isSlice(zcu)) {
         return sema.fail(block, src, "index syntax required to access runtime-known slice", .{});
     }
+    return ref;
+}
+
+/// Asserts that `slice_val` is of a slice type.
+fn makeSliceDerefable(sema: *Sema, block: *Block, src: LazySrcLoc, slice_val: Value) CompileError!Value {
+    const pt = sema.pt;
+    const zcu = pt.zcu;
+    assert(slice_val.typeOf(zcu).isSlice(zcu));
+    if (slice_val.isUndef(zcu)) {
+        return sema.fail(block, src, "cannot dereference undefined value", .{});
+    }
+    const slice = zcu.intern_pool.indexToKey(slice_val.toIntern()).slice;
+    if (slice.len == .undef_usize) {
+        return sema.fail(block, src, "cannot dereference slice with undefined length", .{});
+    }
+    const slice_info = Type.fromInterned(slice.ty).ptrInfo(zcu);
+    const array_ptr_ty = try pt.ptrType(.{
+        .child = (try pt.arrayType(.{
+            .len = Value.fromInterned(slice.len).toUnsignedInt(zcu),
+            .child = slice_info.child,
+            .sentinel = slice_info.sentinel,
+        })).toIntern(),
+        .flags = flags: {
+            var flags = slice_info.flags;
+            flags.size = .one;
+            break :flags flags;
+        },
+    });
+    return pt.getCoerced(.fromInterned(slice.ptr), array_ptr_ty);
 }
 
 fn zirEnsureResultUsed(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!void {
@@ -28480,7 +28493,20 @@ fn coerceExtra(
                         }
                     }
 
-                    const array_ptr = try pt.sliceToArrayPtr(slice);
+                    const slice_info = Type.fromInterned(slice.ty).ptrInfo(zcu);
+                    const array_ptr_ty = try pt.ptrType(.{
+                        .child = (try pt.arrayType(.{
+                            .len = slice_len,
+                            .child = slice_info.child,
+                            .sentinel = slice_info.sentinel,
+                        })).toIntern(),
+                        .flags = flags: {
+                            var flags = slice_info.flags;
+                            flags.size = .one;
+                            break :flags flags;
+                        },
+                    });
+                    const array_ptr = try pt.getCoerced(.fromInterned(slice.ptr), array_ptr_ty);
                     return sema.coerceCompatiblePtrs(block, dest_ty, .fromValue(array_ptr), inst_src);
                 },
                 .slice => to_slice: {
@@ -31227,6 +31253,10 @@ fn analyzeLoad(
         .pointer => ptr_ty.childType(zcu),
         else => return sema.fail(block, ptr_src, "expected pointer, found '{f}'", .{ptr_ty.fmt(zcu)}),
     };
+    switch (ptr_ty.ptrSize(zcu)) {
+        .one, .c => {},
+        .many, .slice => unreachable, // cannot be loaded directly
+    }
 
     try sema.ensureLayoutResolved(elem_ty, src, .ptr_access);
 
@@ -31256,10 +31286,7 @@ fn analyzeLoad(
     };
 
     if (try sema.resolveDefinedValue(block, ptr_src, ptr)) |ptr_val| {
-        if (switch (ptr_ty.ptrSize(zcu)) {
-            .slice => try sema.maybeDerefSliceAsArray(block, src, ptr_val),
-            else => try sema.pointerDeref(block, src, ptr_val, ptr_ty),
-        }) |elem_val| {
+        if (try sema.pointerDeref(block, src, ptr_val, ptr_ty)) |elem_val| {
             return .fromValue(elem_val);
         }
     }
@@ -34988,14 +35015,8 @@ fn maybeDerefSliceAsArray(
         .one => return sema.pointerDeref(block, src, slice_val, slice_ty),
         .many, .c => unreachable,
     }
-    const slice = switch (zcu.intern_pool.indexToKey(slice_val.toIntern())) {
-        .undef => return sema.failWithUseOfUndef(block, src, null),
-        .slice => |slice| slice,
-        else => unreachable,
-    };
-    if (slice.len == .undef_usize) return sema.failWithUndefSliceLen(block, src);
-    const casted_ptr = try pt.sliceToArrayPtr(slice);
-    return sema.pointerDeref(block, src, casted_ptr, casted_ptr.typeOf(zcu));
+    const coerced_ptr = try sema.makeSliceDerefable(block, src, slice_val);
+    return sema.pointerDeref(block, src, coerced_ptr, coerced_ptr.typeOf(zcu));
 }
 
 fn analyzeUnreachable(sema: *Sema, block: *Block, src: LazySrcLoc, safety_check: bool) !void {
