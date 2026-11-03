@@ -120,7 +120,6 @@ pub fn build(b: *std.Build) !void {
     const skip_non_native = b.option(bool, "skip-non-native", "Main test suite skips non-native builds") orelse no_matrix;
     const skip_libc = b.option(bool, "skip-libc", "Main test suite skips tests that link libc") orelse false;
     const skip_single_threaded = b.option(bool, "skip-single-threaded", "Main test suite skips tests that are single-threaded") orelse false;
-    const skip_compile_errors = b.option(bool, "skip-compile-errors", "Main test suite skips compile error tests") orelse false;
     const skip_spirv = b.option(bool, "skip-spirv", "Main test suite skips targets with spirv32/spirv64 architecture") orelse false;
     const skip_wasm = b.option(bool, "skip-wasm", "Main test suite skips targets with wasm32/wasm64 architecture") orelse false;
     const skip_freebsd = b.option(bool, "skip-freebsd", "Main test suite skips targets with freebsd OS") orelse false;
@@ -477,7 +476,7 @@ pub fn build(b: *std.Build) !void {
         null;
 
     const fmt_include_paths = b.pathList(&.{ "lib", "src", "test", "tools", "build.zig", "build.zig.zon" });
-    const fmt_exclude_paths = b.pathList(&.{ "test/cases", "test/behavior/zon" });
+    const fmt_exclude_paths = b.pathList(&.{"test/behavior/zon"});
     const do_fmt = b.addFmt(.{
         .paths = fmt_include_paths,
         .exclude_paths = fmt_exclude_paths,
@@ -491,25 +490,6 @@ pub fn build(b: *std.Build) !void {
         .check = true,
     }).step);
     test_step.dependOn(check_fmt);
-
-    const test_cases_step = b.step("test-cases", "Run the main compiler test cases");
-    try tests.addCases(b, test_cases_step, .{
-        .test_filters = test_filters,
-        .test_target_filters = test_target_filters,
-        .skip_compile_errors = skip_compile_errors,
-        .skip_non_native = skip_non_native,
-        .skip_spirv = skip_spirv,
-        .skip_wasm = skip_wasm,
-        .skip_freebsd = skip_freebsd,
-        .skip_netbsd = skip_netbsd,
-        .skip_openbsd = skip_openbsd,
-        .skip_windows = skip_windows,
-        .skip_darwin = skip_darwin,
-        .skip_linux = skip_linux,
-        .skip_llvm = skip_llvm,
-        .skip_libc = skip_libc,
-    });
-    test_step.dependOn(test_cases_step);
 
     const test_modules_step = b.step("test-modules", "Run the per-target module tests");
     test_step.dependOn(test_modules_step);
@@ -684,36 +664,6 @@ pub fn build(b: *std.Build) !void {
         .skip_libc = skip_libc,
         .max_rss = 100_000_000,
     }));
-    test_step.dependOn(tests.addStackTraceTests(b, .{
-        .test_filters = test_filters,
-        .test_target_filters = test_target_filters,
-        .test_extra_targets = test_extra_targets,
-        .optimize_modes = optimize_modes,
-        .skip_non_native = skip_non_native,
-        .skip_freebsd = skip_freebsd,
-        .skip_netbsd = skip_netbsd,
-        .skip_openbsd = skip_openbsd,
-        .skip_windows = skip_windows,
-        .skip_darwin = skip_darwin,
-        .skip_linux = skip_linux,
-        .skip_llvm = skip_llvm,
-        .skip_libc = skip_libc,
-    }));
-    test_step.dependOn(tests.addErrorTraceTests(b, .{
-        .test_filters = test_filters,
-        .test_target_filters = test_target_filters,
-        .test_extra_targets = test_extra_targets,
-        .optimize_modes = optimize_modes,
-        .skip_non_native = skip_non_native,
-        .skip_freebsd = skip_freebsd,
-        .skip_netbsd = skip_netbsd,
-        .skip_openbsd = skip_openbsd,
-        .skip_windows = skip_windows,
-        .skip_darwin = skip_darwin,
-        .skip_linux = skip_linux,
-        .skip_llvm = skip_llvm,
-        .skip_libc = skip_libc,
-    }));
     test_step.dependOn(tests.addCliTests(b));
 
     try addWasiUpdateStep(b, version);
@@ -793,11 +743,13 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .root_source_file = b.path("test/Runner.zig"),
             .target = b.graph.host,
+            .optimize = optimize,
         }),
     });
     const runner_opts: tests.RunnerOptions = .{
         .test_filters = test_filters,
         .test_target_filters = test_target_filters,
+        .test_extra_targets = test_extra_targets,
         .skip_non_native = skip_non_native,
         .skip_wasm = skip_wasm,
         .skip_freebsd = skip_freebsd,
@@ -816,11 +768,23 @@ pub fn build(b: *std.Build) !void {
         .lldb = b.option([]const u8, "lldb", "path to lldb binary"),
     };
 
+    const test_compiler_step = b.step("test-compiler", "Run the compiler tests");
+    try tests.addRunnerTests(b, runner, test_compiler_step, "test/compiler", @import("test/compiler/matrix.zon"), runner_opts);
+    test_step.dependOn(test_compiler_step);
+
     const test_debugger_step = b.step("test-debugger", "Run the debugger tests");
     if (runner_opts.gdb != null or runner_opts.lldb != null) {
         try tests.addRunnerTests(b, runner, test_debugger_step, "test/debugger", @import("test/debugger/matrix.zon"), runner_opts);
         test_step.dependOn(test_debugger_step);
     } else test_debugger_step.dependOn(&b.addFail("test-debugger requires -Dgdb and/or -Dlldb").step);
+
+    const test_errors_step = b.step("test-errors", "Run the compile error tests");
+    try tests.addRunnerTests(b, runner, test_errors_step, "test/errors", @import("test/errors/matrix.zon"), runner_opts);
+    test_step.dependOn(test_errors_step);
+
+    const test_error_traces_step = b.step("test-error-traces", "Run the error trace tests");
+    try tests.addRunnerTests(b, runner, test_error_traces_step, "test/error_traces", @import("test/error_traces/matrix.zon"), runner_opts);
+    test_step.dependOn(test_error_traces_step);
 
     const test_incremental_step = b.step("test-incremental", "Run the incremental compilation tests");
     try tests.addRunnerTests(b, runner, test_incremental_step, "test/incremental", @import("test/incremental/matrix.zon"), runner_opts);
@@ -829,6 +793,14 @@ pub fn build(b: *std.Build) !void {
     const test_llvm_step = b.step("test-llvm", "Run the LLVM IR tests");
     try tests.addRunnerTests(b, runner, test_llvm_step, "test/llvm", @import("test/llvm/matrix.zon"), runner_opts);
     test_step.dependOn(test_llvm_step);
+
+    const test_safety_step = b.step("test-safety", "Run the safety check tests");
+    try tests.addRunnerTests(b, runner, test_safety_step, "test/safety", @import("test/safety/matrix.zon"), runner_opts);
+    test_step.dependOn(test_safety_step);
+
+    const test_stack_traces_step = b.step("test-stack-traces", "Run the stack trace tests");
+    try tests.addRunnerTests(b, runner, test_stack_traces_step, "test/stack_traces", @import("test/stack_traces/matrix.zon"), runner_opts);
+    test_step.dependOn(test_stack_traces_step);
 
     // Provide steps for manually building commands which are usually JIT-compiled. This can be
     // useful during development, e.g. for using incremental compilation.
