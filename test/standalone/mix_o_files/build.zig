@@ -1,9 +1,6 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
-
     const optimize: std.builtin.Optimize = .debug;
     const target = b.graph.host;
 
@@ -32,7 +29,9 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addObject(obj);
 
-    b.default_step.dependOn(&exe.step);
+    const test_step = b.step("test", "Test it");
+    test_step.dependOn(&exe.step);
+    b.setDefaultStep(test_step);
 
     const run_cmd = b.addRunArtifact(exe);
     test_step.dependOn(&run_cmd.step);

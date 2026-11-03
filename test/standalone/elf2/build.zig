@@ -4,7 +4,7 @@ pub fn build(b: *Build) void {
     const skip_non_native = b.option(bool, "skip_non_native", "Skip non-native targets") orelse false;
 
     const test_step = b.step("test", "Test the new ELF linker");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     if (b.graph.host.result.cpu.arch == .x86_64 and b.graph.host.result.os.tag == .linux) {
         addOne(b, test_step, b.graph.host, false, .static, false, false, "elf2-hello-native-selfhosted-static");

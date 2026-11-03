@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const skip_non_native = b.option(bool, "skip_non_native", "Skip non-native targets") orelse false;
 
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .x86_64,

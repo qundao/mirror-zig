@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) !void {
     const skip_non_native = b.option(bool, "skip_non_native", "Skip non-native targets") orelse false;
 
     const test_step = b.step("test", "Test the program");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const is_macos = b.graph.host.result.os.tag == .macos;
 

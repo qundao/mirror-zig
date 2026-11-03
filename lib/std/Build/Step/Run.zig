@@ -385,7 +385,7 @@ pub fn addFileArg2(run: *Run, lp: std.Build.LazyPath, options: PathArgOptions) v
 
     const prefixed_file_source: DecoratedLazyPath = .{
         .prefix = graph.dupeString(options.prefix),
-        .lazy_path = lp.dupe(graph),
+        .lazy_path = lp.dupe(arena),
         .suffix = graph.dupeString(options.suffix),
         .make_absolute = options.make_absolute,
     };
@@ -429,12 +429,12 @@ pub fn addFileContentArg2(run: *Run, lp: std.Build.LazyPath, options: ArgOptions
     // transparent/readable, but the content of the file specified by `lp` remains completely
     // opaque until its path can be resolved during the make phase.
     if (run.argv.items.len == 0) {
-        @panic("'addFileContentArg'/'addPrefixedFileContentArg' cannot be first argument");
+        @panic("addFileContentArg and addPrefixedFileContentArg not eligible as first argument");
     }
 
     const file_content: DecoratedFileContent = .{
         .prefix = graph.dupeString(options.prefix),
-        .lazy_path = lp.dupe(graph),
+        .lazy_path = lp.dupe(arena),
         .suffix = graph.dupeString(options.suffix),
     };
     run.argv.append(arena, .{ .file_content = file_content }) catch @panic("OOM");
@@ -524,7 +524,7 @@ pub fn addDirectoryArg2(
     const arena = graph.arena;
     run.argv.append(arena, .{ .decorated_directory = .{
         .prefix = graph.dupeString(options.prefix),
-        .lazy_path = lazy_directory.dupe(graph),
+        .lazy_path = lazy_directory.dupe(arena),
         .suffix = graph.dupeString(options.suffix),
         .make_absolute = options.make_absolute,
     } }) catch @panic("OOM");
@@ -654,7 +654,7 @@ pub fn setStdIn(run: *Run, stdin: StdIn) void {
 pub fn setCwd(run: *Run, cwd: Build.LazyPath) void {
     const graph = run.step.owner.graph;
     cwd.addStepDependencies(&run.step);
-    run.cwd = cwd.dupe(graph);
+    run.cwd = cwd.dupe(graph.arena);
 }
 
 pub fn clearEnvironment(run: *Run) void {
@@ -816,5 +816,5 @@ pub fn addFileInput(run: *Run, file_input: std.Build.LazyPath) void {
     const graph = run.step.owner.graph;
     const arena = graph.arena;
     file_input.addStepDependencies(&run.step);
-    run.file_inputs.append(arena, file_input.dupe(graph)) catch @panic("OOM");
+    run.file_inputs.append(arena, file_input.dupe(arena)) catch @panic("OOM");
 }

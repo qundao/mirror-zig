@@ -203,7 +203,7 @@ pub fn main(init: process.Init.Minimal) !void {
     try Serialize.packageOptions(root_package, &graph.wip_configuration);
     try Serialize.systemIntegrationOptions(&graph, &graph.wip_configuration);
 
-    root_build.serializeConfigurationExiting();
+    root_package.serializeConfigurationExiting();
 }
 
 fn nextArg(args: []const [:0]const u8, idx: *usize) ?[:0]const u8 {

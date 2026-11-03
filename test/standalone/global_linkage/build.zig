@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Test the program");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const optimize: std.builtin.Optimize = .debug;
     const target = b.graph.host;

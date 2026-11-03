@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const step = b.step("test", "Run standalone test cases");
-    b.default_step = step;
+    b.setDefaultStep(step);
 
     const enable_ios_sdk = b.option(bool, "enable_ios_sdk", "Run tests requiring presence of iOS SDK and frameworks") orelse false;
     const enable_macos_sdk = b.option(bool, "enable_macos_sdk", "Run tests requiring presence of macOS SDK and frameworks") orelse enable_ios_sdk;
@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
         .skip_release_fast = simple_skip_release_fast,
         .skip_release_small = simple_skip_release_small,
     });
-    const simple_dep_step = simple_dep.builder.default_step;
+    const simple_dep_step = simple_dep.package.default_step;
     simple_dep_step.name = "standalone_test_cases.simple";
     step.dependOn(simple_dep_step);
 
@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
         tools_tests_step.dependOn(&run.step);
     }
 
-    add_dep_steps: for (b.available_deps) |available_dep| {
+    add_dep_steps: for (b.package.?.available_deps) |available_dep| {
         const dep_name, const dep_hash = available_dep;
 
         // The 'simple' dependency was already handled manually above.
@@ -131,7 +131,7 @@ pub fn build(b: *std.Build) void {
             b.dependency(dep_name, .{ .skip_non_native = skip_non_native })
         else
             b.dependency(dep_name, .{});
-        const dep_step = dep.builder.default_step;
+        const dep_step = dep.package.default_step;
         dep_step.name = b.fmt("standalone_test_cases.{s}", .{dep_name});
         step.dependOn(dep_step);
     }

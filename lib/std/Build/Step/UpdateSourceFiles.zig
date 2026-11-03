@@ -39,7 +39,7 @@ pub fn addCopyFileToSource(usf: *UpdateSourceFiles, src_file: std.Build.LazyPath
 
     usf.copies.append(arena, .{
         .sub_path = wc.addString(sub_path) catch @panic("OOM"),
-        .src_file = src_file.dupe(graph),
+        .src_file = src_file.dupe(arena),
     }) catch @panic("OOM");
 
     src_file.addStepDependencies(&usf.step);

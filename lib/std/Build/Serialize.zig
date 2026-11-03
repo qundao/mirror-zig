@@ -14,11 +14,10 @@ package_map: std.array_hash_map.Auto(*const std.Build.Package, Configuration.Pac
 /// Index corresponds to `Configuration.steps` index.
 step_map: std.array_hash_map.Auto(*Step, void) = .empty,
 
-pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Writer) !void {
-    const graph = root_build.graph;
+pub fn write(root_package: *std.Build.Package, wc: *Configuration.Wip, writer: *std.Io.Writer) !void {
+    const graph = root_package.install_tls.step.owner.graph;
     const arena = graph.arena;
     const gpa = wc.gpa;
-    const root_package = root_build.package.?;
 
     var s: Serialize = .{ .wc = wc, .arena = arena };
 
@@ -85,13 +84,13 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
 
             const extended: u32 = switch (step.tag) {
                 .top_level => e: {
-                    const top_level: *Step.TopLevel = @fieldParentPtr("step", step);
+                    const top_level: *const Step.TopLevel = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.TopLevel, .{
                         .description = try wc.addString(top_level.description),
                     });
                 },
                 .compile => e: {
-                    const c: *Step.Compile = @fieldParentPtr("step", step);
+                    const c: *const Step.Compile = @fieldParentPtr("step", step);
                     const installed_headers: []u32 = try arena.alloc(u32, c.installed_headers.items.len);
                     for (installed_headers, c.installed_headers.items) |*dst, src| switch (src) {
                         .file => |file| {
@@ -276,7 +275,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .install_artifact => e: {
-                    const ia: *Step.InstallArtifact = @fieldParentPtr("step", step);
+                    const ia: *const Step.InstallArtifact = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.InstallArtifact, .{
                         .flags = .{
                             .dylib_symlinks = ia.dylib_symlinks,
@@ -294,7 +293,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .install_file => e: {
-                    const sif: *Step.InstallFile = @fieldParentPtr("step", step);
+                    const sif: *const Step.InstallFile = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.InstallFile, .{
                         .source = try s.addLazyPath(sif.source),
                         .dest_dir = try addInstallDir(wc, sif.dir),
@@ -302,7 +301,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .install_dir => e: {
-                    const sid: *Step.InstallDir = @fieldParentPtr("step", step);
+                    const sid: *const Step.InstallDir = @fieldParentPtr("step", step);
                     const dest_sub_path: ?[]const u8 = if (sid.options.install_subdir.len != 0)
                         sid.options.install_subdir
                     else
@@ -325,20 +324,20 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .fail => e: {
-                    const sf: *Step.Fail = @fieldParentPtr("step", step);
+                    const sf: *const Step.Fail = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.Fail, .{
                         .msg = sf.error_msg,
                     });
                 },
                 .find_program => e: {
-                    const fp: *Step.FindProgram = @fieldParentPtr("step", step);
+                    const fp: *const Step.FindProgram = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.FindProgram, .{
                         .names = fp.names,
                         .found_path = fp.found_path,
                     });
                 },
                 .fmt => e: {
-                    const sf: *Step.Fmt = @fieldParentPtr("step", step);
+                    const sf: *const Step.Fmt = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.Fmt, .{
                         .flags = .{
                             .paths = sf.paths.len != 0,
@@ -350,7 +349,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .translate_c => e: {
-                    const tc: *Step.TranslateC = @fieldParentPtr("step", step);
+                    const tc: *const Step.TranslateC = @fieldParentPtr("step", step);
 
                     const system_libs = try arena.alloc(Configuration.SystemLib.Index, tc.system_libs.items.len);
                     for (system_libs, tc.system_libs.items) |*dest, *src| dest.* = try s.addSystemLib(src);
@@ -372,7 +371,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .write_file => e: {
-                    const wf: *Step.WriteFile = @fieldParentPtr("step", step);
+                    const wf: *const Step.WriteFile = @fieldParentPtr("step", step);
 
                     const directories = try arena.alloc(
                         Configuration.Step.WriteFile.Directory,
@@ -407,7 +406,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .update_source_files => e: {
-                    const usf: *Step.UpdateSourceFiles = @fieldParentPtr("step", step);
+                    const usf: *const Step.UpdateSourceFiles = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.UpdateSourceFiles, .{
                         .flags = .{
                             .embeds = usf.embeds.items.len != 0,
@@ -418,7 +417,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .run => e: {
-                    const run: *Step.Run = @fieldParentPtr("step", step);
+                    const run: *const Step.Run = @fieldParentPtr("step", step);
                     var expect_stderr_exact: ?Configuration.Bytes = null;
                     var expect_stdout_exact: ?Configuration.Bytes = null;
                     var expect_stderr_match: std.ArrayList(Configuration.Bytes) = .empty;
@@ -532,7 +531,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .check_file => e: {
-                    const cf: *Step.CheckFile = @fieldParentPtr("step", step);
+                    const cf: *const Step.CheckFile = @fieldParentPtr("step", step);
                     break :e try wc.addExtraErased(Configuration.Step.CheckFile, .{
                         .flags = .{
                             .expected_exact = cf.expected_exact != null,
@@ -546,7 +545,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .config_header => e: {
-                    const ch: *Step.ConfigHeader = @fieldParentPtr("step", step);
+                    const ch: *const Step.ConfigHeader = @fieldParentPtr("step", step);
                     const lazy_path: ?std.Build.LazyPath = ch.style.getPath();
                     const pairs = try arena.alloc(Configuration.Step.ConfigHeader.Value.Pair, ch.values.count());
                     for (pairs, ch.values.keys(), ch.values.values()) |*pair, key, value| pair.* = .{
@@ -601,7 +600,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .obj_copy => e: {
-                    const oc: *Step.ObjCopy = @fieldParentPtr("step", step);
+                    const oc: *const Step.ObjCopy = @fieldParentPtr("step", step);
 
                     const debug_basename: ?Configuration.String = if (oc.debug_file) |df|
                         df.basename.unwrap()
@@ -647,7 +646,7 @@ pub fn write(root_build: *std.Build, wc: *Configuration.Wip, writer: *std.Io.Wri
                     });
                 },
                 .options => e: {
-                    const so: *Step.Options = @fieldParentPtr("step", step);
+                    const so: *const Step.Options = @fieldParentPtr("step", step);
 
                     const files = try arena.alloc(Configuration.Step.Options.NamedPath, so.files.items.len);
                     for (files, so.files.items) |*dest, src| dest.* = .{

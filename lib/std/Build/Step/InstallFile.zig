@@ -29,7 +29,7 @@ pub fn create(
             .name = owner.fmt("install {f} to {s}", .{ source, dest_rel_path }),
             .owner = owner,
         }),
-        .source = source.dupe(graph),
+        .source = source.dupe(arena),
         .dir = dir.dupe(graph),
         .dest_rel_path = graph.dupePath(dest_rel_path),
     };

@@ -29,7 +29,7 @@ pub const Options = struct {
 pub fn create(owner: *std.Build, options: Options) *TranslateC {
     const graph = owner.graph;
     const translate_c = graph.create(TranslateC);
-    const source = options.root_source_file.dupe(graph);
+    const source = options.root_source_file.dupe(graph.arena);
     translate_c.* = .{
         .step = .init(.{
             .tag = base_tag,

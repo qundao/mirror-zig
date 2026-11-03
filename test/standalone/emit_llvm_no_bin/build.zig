@@ -1,9 +1,6 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
-
     const optimize: std.builtin.Optimize = .debug;
 
     const obj = b.addObject(.{
@@ -16,7 +13,10 @@ pub fn build(b: *std.Build) void {
     });
     _ = obj.getEmittedLlvmIr();
     _ = obj.getEmittedLlvmBc();
-    b.default_step.dependOn(&obj.step);
+
+    const test_step = b.step("test", "Test it");
+    test_step.dependOn(&obj.step);
+    b.setDefaultStep(test_step);
 
     test_step.dependOn(&obj.step);
 }

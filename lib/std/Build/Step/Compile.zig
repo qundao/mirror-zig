@@ -314,7 +314,7 @@ pub const HeaderInstallation = union(enum) {
 
         pub fn dupe(file: File, graph: *const std.Build.Graph) File {
             return .{
-                .source = file.source.dupe(graph),
+                .source = file.source.dupe(graph.arena),
                 .dest_rel_path = graph.dupePath(file.dest_rel_path),
             };
         }
@@ -343,7 +343,7 @@ pub const HeaderInstallation = union(enum) {
 
         pub fn dupe(dir: Directory, graph: *const std.Build.Graph) Directory {
             return .{
-                .source = dir.source.dupe(graph),
+                .source = dir.source.dupe(graph.arena),
                 .dest_rel_path = graph.dupePath(dir.dest_rel_path),
                 .options = dir.options.dupe(graph),
             };
@@ -439,13 +439,13 @@ pub fn create(owner: *std.Build, options: Options) *Compile {
     };
 
     if (options.zig_lib_dir) |lp| {
-        compile.zig_lib_dir = lp.dupe(graph);
+        compile.zig_lib_dir = lp.dupe(arena);
         lp.addStepDependencies(&compile.step);
     }
 
     if (options.test_runner) |runner| {
         compile.test_runner = .{
-            .path = runner.path.dupe(graph),
+            .path = runner.path.dupe(arena),
             .mode = runner.mode,
         };
         runner.path.addStepDependencies(&compile.step);
@@ -455,20 +455,20 @@ pub fn create(owner: *std.Build, options: Options) *Compile {
     // gets embedded, so for any other target the manifest file is just ignored.
     if (target.ofmt == .coff) {
         if (options.win32_manifest) |lp| {
-            compile.win32_manifest = lp.dupe(graph);
+            compile.win32_manifest = lp.dupe(arena);
             lp.addStepDependencies(&compile.step);
         }
         if (compile.kind == .lib and compile.linkage != null and compile.linkage.? == .dynamic) {
             // Building a Win32 DLL, check for win32 .def file.
             if (options.win32_module_definition) |lp| {
-                compile.win32_module_definition = lp.dupe(graph);
+                compile.win32_module_definition = lp.dupe(arena);
                 lp.addStepDependencies(&compile.step);
             }
         }
     }
 
     if (options.entitlements) |lp| {
-        compile.entitlements = lp.dupe(graph);
+        compile.entitlements = lp.dupe(arena);
         lp.addStepDependencies(&compile.step);
     }
 
@@ -482,7 +482,7 @@ pub fn installHeader(cs: *Compile, source: LazyPath, dest_rel_path: []const u8) 
     const graph = cs.step.owner.graph;
     const arena = graph.arena;
     const installation: HeaderInstallation = .{ .file = .{
-        .source = source.dupe(graph),
+        .source = source.dupe(arena),
         .dest_rel_path = graph.dupePath(dest_rel_path),
     } };
     cs.installed_headers.append(arena, installation) catch @panic("OOM");
@@ -502,7 +502,7 @@ pub fn installHeadersDirectory(
     const graph = cs.step.owner.graph;
     const arena = graph.arena;
     const installation: HeaderInstallation = .{ .directory = .{
-        .source = source.dupe(graph),
+        .source = source.dupe(arena),
         .dest_rel_path = graph.dupePath(dest_rel_path),
         .options = options.dupe(graph),
     } };
@@ -575,7 +575,7 @@ pub fn addObjCopy(cs: *Compile, options: Step.ObjCopy.Options) *Step.ObjCopy {
 
 pub fn setLinkerScript(compile: *Compile, source: LazyPath) void {
     const graph = compile.step.owner.graph;
-    compile.linker_script = source.dupe(graph);
+    compile.linker_script = source.dupe(graph.arena);
     source.addStepDependencies(&compile.step);
 }
 

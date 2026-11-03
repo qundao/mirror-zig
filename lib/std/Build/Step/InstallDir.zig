@@ -31,7 +31,7 @@ pub const Options = struct {
 
     fn dupe(opts: Options, graph: *const std.Build.Graph) Options {
         return .{
-            .source_dir = opts.source_dir.dupe(graph),
+            .source_dir = opts.source_dir.dupe(graph.arena),
             .install_dir = opts.install_dir.dupe(graph),
             .install_subdir = graph.dupeString(opts.install_subdir),
             .exclude_extensions = graph.dupeStrings(opts.exclude_extensions),

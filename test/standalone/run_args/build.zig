@@ -7,7 +7,7 @@ const std = @import("std");
 /// absolute paths when build is run from anywhere other than the build root.
 pub fn build(b: *std.Build) !void {
     const step = b.step("test", "Run artifact args standalone test cases");
-    b.default_step = step;
+    b.setDefaultStep(step);
 
     const exe = b.addExecutable(.{
         .name = "exe",

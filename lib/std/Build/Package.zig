@@ -7,6 +7,7 @@ const Target = std.Target;
 const assert = std.debug.assert;
 const mem = std.mem;
 const log = std.log;
+const fatal = std.process.fatal;
 
 const Build = std.Build;
 const Step = std.Build.Step;
@@ -15,6 +16,7 @@ const Module = std.Build.Module;
 const LazyPath = std.Build.LazyPath;
 const Configuration = std.Build.Configuration;
 const ResolvedTarget = std.Build.ResolvedTarget;
+const Serialize = std.Build.Serialize;
 
 install_tls: Step.TopLevel,
 uninstall_tls: Step.TopLevel,
@@ -160,7 +162,7 @@ pub const Options = struct {
         }
     };
 
-    fn fromArgs(arena: Allocator, m: *Options.Map, args: anytype) void {
+    pub fn fromArgs(arena: Allocator, m: *Options.Map, args: anytype) void {
         const args_info = @typeInfo(@TypeOf(args)).@"struct";
         inline for (args_info.field_names, args_info.field_types) |field_name, field_type| {
             if (field_type == @TypeOf(null)) continue;
@@ -192,12 +194,12 @@ pub const Options = struct {
                 });
             },
             LazyPath => return if (maybe_value) |v| {
-                m.putAssumeCapacity(field_name, .{ .lazy_path = v.dupeInner(arena) });
+                m.putAssumeCapacity(field_name, .{ .lazy_path = v.dupe(arena) });
             },
             []const LazyPath => return if (maybe_value) |v| {
                 var list: std.ArrayList(LazyPath) = .empty;
                 const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
-                for (v, elems) |lp, *elem| elem.* = lp.dupeInner(arena);
+                for (v, elems) |lp, *elem| elem.* = lp.dupe(arena);
                 m.putAssumeCapacity(field_name, .{ .lazy_path_list = list });
             },
             []const u8 => return if (maybe_value) |v| {
@@ -557,4 +559,23 @@ pub fn findPkgHashOrFatal(p: *Package, name: []const u8) []const u8 {
     log.info("all dependencies used by build.zig must be declared in corresponding build.zig.zon", .{});
     if (p.pkg_hash.len == 0) std.debug.panic("no dependency named {s}", .{name});
     std.debug.panic("no dependency named {s} in {s} ({s})", .{ name, p.dep_prefix, p.pkg_hash });
+}
+
+/// Build system implementation detail.
+pub fn serializeConfigurationExiting(p: *Package) noreturn {
+    const graph = p.install_tls.step.owner.graph;
+    const io = graph.io;
+
+    var stdout_buffer: [1024]u8 = undefined;
+    var file_writer = Io.File.stdout().writerStreaming(io, &stdout_buffer);
+    Serialize.write(p, &graph.wip_configuration, &file_writer.interface) catch |err| switch (err) {
+        error.WriteFailed => fatal("failed to write configuration output: {t}", .{file_writer.err.?}),
+        error.OutOfMemory => @panic("OOM"),
+    };
+    file_writer.flush() catch |err| fatal("failed to write configuration output: {t}", .{err});
+
+    // This executable is short-lived and run in Debug mode, so we'd rather have `zig build` run
+    // faster than catch resource leaks in the user's build.zig script (or, frankly, this configure
+    // runner), therefore we call exit directly here rather than cleanExit.
+    std.process.exit(0);
 }

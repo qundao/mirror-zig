@@ -4,7 +4,7 @@ pub const Enum = enum { alfa, bravo, charlie };
 
 pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Test passing options to a dependency");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const none_specified = b.dependency("other", .{});
 

@@ -24,6 +24,7 @@ pub const Options = struct {
 
 pub fn create(owner: *std.Build, file: std.Build.LazyPath, options: Options) *CheckFile {
     const graph = owner.graph;
+    const arena = graph.arena;
     const check_file = graph.create(CheckFile);
     check_file.* = .{
         .step = .init(.{
@@ -31,7 +32,7 @@ pub fn create(owner: *std.Build, file: std.Build.LazyPath, options: Options) *Ch
             .name = "CheckFile",
             .owner = owner,
         }),
-        .file = file.dupe(graph),
+        .file = file.dupe(arena),
         .expected_matches = graph.addBytesList(options.expected_matches),
         .expected_exact = if (options.expected_exact) |b| graph.addBytes(b) else null,
         .max_bytes = options.max_bytes,

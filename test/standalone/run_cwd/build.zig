@@ -9,7 +9,7 @@ pub fn build(b: *Build) void {
     });
 
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     test_step.dependOn(addCheck(b, exe, ".", null));
     test_step.dependOn(addCheck(b, exe, "..", b.path("..")));

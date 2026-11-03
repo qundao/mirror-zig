@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const link_step = b.step("link", "Link with libcxx");
     const run_step = b.step("run", "Run executables");
-    b.default_step = link_step;
+    b.setDefaultStep(link_step);
 
     {
         const exe = b.addExecutable(.{

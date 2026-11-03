@@ -27,7 +27,7 @@ const cases = [_]Case{
 
 pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run POSIX standalone test cases");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const optimize = b.standardOptimizeOption(.{});
 

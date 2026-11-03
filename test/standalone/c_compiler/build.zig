@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     add(b, test_step, "test_c_debug", "test_cpp_debug", .debug);
     add(b, test_step, "test_c_fast", "test_cpp_fast", .fast);
@@ -38,7 +38,7 @@ fn add(
 
     const exe_cpp = b.addExecutable(.{ .name = cpp_name, .root_module = cpp_mod });
 
-    b.default_step.dependOn(&exe_cpp.step);
+    test_step.dependOn(&exe_cpp.step);
 
     switch (target.result.os.tag) {
         .windows => {
