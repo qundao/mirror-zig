@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     });
 
     b.installArtifact(exe);
-    b.default_step = run_step;
+    b.setDefaultStep(run_step);
 
     const run_artifact = b.addRunArtifact(exe);
     run_artifact.addFileArg(.cache_root);

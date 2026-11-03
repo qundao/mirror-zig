@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     if (skip_non_native and !std.zig.target.isNative(&target.query, &target.result, &b.graph.host.result)) return;
 
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const bootloader = b.addExecutable(.{
         .name = "bootloader",

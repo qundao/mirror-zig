@@ -1637,7 +1637,7 @@ pub const Dependency = struct {
 
     pub fn module(d: *Dependency, name: []const u8) *Module {
         return d.package.modules.get(name) orelse {
-            const graph = d.package.install_tls.owner.graph;
+            const graph = d.package.install_tls.step.owner.graph;
             if (graph.unlazy_deps.count() != 0) {
                 d.package.serializeConfigurationExiting();
             }
@@ -1647,7 +1647,7 @@ pub const Dependency = struct {
 
     pub fn namedWriteFiles(d: *Dependency, name: []const u8) *Step.WriteFile {
         return d.package.named_writefiles.get(name) orelse {
-            const graph = d.package.install_tls.owner.graph;
+            const graph = d.package.install_tls.step.owner.graph;
             if (graph.unlazy_deps.count() != 0) {
                 d.package.serializeConfigurationExiting();
             }
@@ -1657,7 +1657,7 @@ pub const Dependency = struct {
 
     pub fn namedLazyPath(d: *Dependency, name: []const u8) LazyPath {
         return d.package.named_lazy_paths.get(name) orelse {
-            const graph = d.package.install_tls.owner.graph;
+            const graph = d.package.install_tls.step.owner.graph;
             if (graph.unlazy_deps.count() != 0) {
                 d.package.serializeConfigurationExiting();
             }
@@ -1759,7 +1759,7 @@ pub fn dependency(b: *Build, name: []const u8, args: anytype) *Dependency {
     return dependencyAdvanced(b, name, @returnAddress(), .{}, args) catch |err| switch (err) {
         error.LazyDependencyNeeded => {
             assert(b.graph.unlazy_deps.count() != 0);
-            serializeConfigurationExiting(b);
+            b.getPackage().serializeConfigurationExiting();
         },
     };
 }
@@ -1777,7 +1777,7 @@ pub fn dependencyCanonical(b: *Build, name: []const u8, args: anytype) *Dependen
     }, args) catch |err| switch (err) {
         error.LazyDependencyNeeded => {
             assert(b.graph.unlazy_deps.count() != 0);
-            serializeConfigurationExiting(b);
+            b.getPackage().serializeConfigurationExiting();
         },
     };
 }
@@ -2068,8 +2068,8 @@ fn instantiatePackage(
         },
     };
 
-    const child_package = try arena.create(Package);
-    const child_build = try arena.create(Build);
+    const child_package = arena.create(Package) catch @panic("OOM");
+    const child_build = arena.create(Build) catch @panic("OOM");
     child_build.* = .{
         .graph = graph,
         .allocator = arena,
@@ -2078,9 +2078,7 @@ fn instantiatePackage(
         .deduplicated_dependencies = .empty,
     };
     child_package.* = .{
-        .graph = graph,
         .root = dep_root,
-        .allocator = arena,
         .install_tls = .{
             .step = .init(.{
                 .tag = .top_level,
@@ -2108,8 +2106,8 @@ fn instantiatePackage(
         .pkg_hash = entry.hash,
         .available_deps = entry.deps,
     };
-    try child_package.top_level_steps.put(arena, child_package.install_tls.step.name, &child_package.install_tls);
-    try child_package.top_level_steps.put(arena, child_package.uninstall_tls.step.name, &child_package.uninstall_tls);
+    child_package.top_level_steps.put(arena, child_package.install_tls.step.name, &child_package.install_tls) catch @panic("OOM");
+    child_package.top_level_steps.put(arena, child_package.uninstall_tls.step.name, &child_package.uninstall_tls) catch @panic("OOM");
 
     if (entry.run_build) |run_build| {
         run_build(child_build);
@@ -2130,7 +2128,7 @@ fn instantiatePackage(
 
     if (versioned) {
         const key: u32 = @intCast(graph.package_instances.count() - 1);
-        graph.deduplicated_dependencies.putContext(arena, key, canonical, .{
+        parent_build.deduplicated_dependencies.putContext(arena, key, canonical, .{
             .instances = &graph.package_instances,
         }) catch @panic("OOM");
     }
@@ -2370,24 +2368,18 @@ pub const LazyPath = union(enum) {
         }
     }
 
-    /// Copies the internal strings.
-    ///
-    /// The `graph` parameter is only used for the global arena allocator.
-    pub fn dupe(lazy_path: LazyPath, graph: *const Graph) LazyPath {
-        return dupeInner(lazy_path, graph.arena);
-    }
-
     /// Copies the slice of paths and all internal strings.
     ///
     /// The `graph` parameter is only used for the global arena allocator.
     pub fn dupeList(lazy_paths: []const LazyPath, graph: *const Graph) []const LazyPath {
         const arena = graph.arena;
         const result = graph.alloc(LazyPath, lazy_paths.len);
-        for (result, lazy_paths) |*d, s| d.* = dupeInner(s, arena);
+        for (result, lazy_paths) |*d, s| d.* = LazyPath.dupe(s, arena);
         return result;
     }
 
-    fn dupeInner(lazy_path: LazyPath, arena: Allocator) LazyPath {
+    /// Copies the internal strings.
+    pub fn dupe(lazy_path: LazyPath, arena: Allocator) LazyPath {
         return switch (lazy_path) {
             .src_path => |sp| .{ .src_path = .{
                 .owner = sp.owner,
@@ -2407,7 +2399,7 @@ pub const LazyPath = union(enum) {
         };
     }
 
-    fn eql(a: LazyPath, b: LazyPath) bool {
+    pub fn eql(a: LazyPath, b: LazyPath) bool {
         if (std.meta.activeTag(a) != b) return false;
         switch (a) {
             .src_path => |a_sp| {
@@ -2435,10 +2427,10 @@ pub const LazyPath = union(enum) {
         return true;
     }
 
-    fn hash(lp: LazyPath, hasher: *std.hash.Wyhash) void {
+    pub fn hash(lp: LazyPath, hasher: *std.hash.Wyhash) void {
         switch (lp) {
             .src_path => |sp| {
-                hasher.update(sp.owner.pkg_hash);
+                hasher.update(sp.owner.getPackage().pkg_hash);
                 hasher.update(sp.sub_path);
             },
             .generated => |gen| {
@@ -2454,7 +2446,7 @@ pub const LazyPath = union(enum) {
                 hasher.update(@ptrCast(&r.sub_path));
             },
             .dependency => |dep| {
-                hasher.update(dep.dependency.builder.pkg_hash);
+                hasher.update(dep.dependency.package.pkg_hash);
                 hasher.update(dep.sub_path);
             },
         }
@@ -2605,8 +2597,9 @@ pub fn systemIntegrationOption(
 pub fn dependOnFileContents(b: *Build, lazy_path: LazyPath) void {
     validateConfigureDependency(lazy_path);
     const graph = b.graph;
-    graph.configure_dependencies.append(graph.arena, .{
-        .lazy_path = lazy_path.dupe(graph),
+    const arena = graph.arena;
+    graph.configure_dependencies.append(arena, .{
+        .lazy_path = lazy_path.dupe(arena),
         .is_directory = false,
         .metadata_only = false,
     }) catch @panic("OOM");
@@ -2631,8 +2624,9 @@ pub fn dependOnFileContents(b: *Build, lazy_path: LazyPath) void {
 pub fn dependOnFileMetadata(b: *Build, lazy_path: LazyPath) void {
     validateConfigureDependency(lazy_path);
     const graph = b.graph;
-    graph.configure_dependencies.append(graph.arena, .{
-        .lazy_path = lazy_path.dupe(graph),
+    const arena = graph.arena;
+    graph.configure_dependencies.append(arena, .{
+        .lazy_path = lazy_path.dupe(arena),
         .is_directory = false,
         .metadata_only = true,
     }) catch @panic("OOM");
@@ -2661,8 +2655,9 @@ pub fn dependOnFileMetadata(b: *Build, lazy_path: LazyPath) void {
 pub fn dependOnDirectoryContents(b: *Build, lazy_path: LazyPath) void {
     validateConfigureDependency(lazy_path);
     const graph = b.graph;
-    graph.configure_dependencies.append(graph.arena, .{
-        .lazy_path = lazy_path.dupe(graph),
+    const arena = graph.arena;
+    graph.configure_dependencies.append(arena, .{
+        .lazy_path = lazy_path.dupe(arena),
         .is_directory = true,
         .metadata_only = false,
     }) catch @panic("OOM");
@@ -2689,8 +2684,9 @@ pub fn dependOnDirectoryContents(b: *Build, lazy_path: LazyPath) void {
 pub fn dependOnDirectoryMetadata(b: *Build, lazy_path: LazyPath) void {
     validateConfigureDependency(lazy_path);
     const graph = b.graph;
-    graph.configure_dependencies.append(graph.arena, .{
-        .lazy_path = lazy_path.dupe(graph),
+    const arena = graph.arena;
+    graph.configure_dependencies.append(arena, .{
+        .lazy_path = lazy_path.dupe(arena),
         .is_directory = true,
         .metadata_only = true,
     }) catch @panic("OOM");
@@ -2718,32 +2714,21 @@ fn validateConfigureDependency(lazy_path: LazyPath) void {
     }
 }
 
-/// Build system implementation detail.
-pub fn serializeConfigurationExiting(b: *Build) noreturn {
-    const graph = b.graph;
-    const io = graph.io;
-
-    var stdout_buffer: [1024]u8 = undefined;
-    var file_writer = Io.File.stdout().writerStreaming(io, &stdout_buffer);
-    Serialize.write(b, &graph.wip_configuration, &file_writer.interface) catch |err| switch (err) {
-        error.WriteFailed => fatal("failed to write configuration output: {t}", .{file_writer.err.?}),
-        error.OutOfMemory => @panic("OOM"),
-    };
-    file_writer.flush() catch |err| fatal("failed to write configuration output: {t}", .{err});
-
-    // This executable is short-lived and run in Debug mode, so we'd rather
-    // have `zig build` run faster than catch resource leaks in the user's
-    // build.zig script (or, frankly, this configure runner), therefore we call
-    // exit directly here rather than cleanExit.
-    process.exit(0);
-}
-
 pub fn getPackage(start: *const Build) *Package {
     var cur = start;
     while (true) {
         if (cur.package) |package| return package;
         cur = cur.parent.?;
     }
+}
+
+/// Path to the directory containing build.zig.
+pub fn root(b: *const Build) Cache.Path {
+    return b.getPackage().root;
+}
+
+pub fn setDefaultStep(b: *Build, new_default_step: *Step) void {
+    b.getPackage().default_step = new_default_step;
 }
 
 test {

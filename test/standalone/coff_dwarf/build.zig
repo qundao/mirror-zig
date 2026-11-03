@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     const host = b.graph.host;
 
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const optimize: std.builtin.Optimize = .debug;
     const target = switch (host.result.os.tag) {

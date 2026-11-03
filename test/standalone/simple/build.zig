@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const step = b.step("test", "Run simple standalone test cases");
-    b.default_step = step;
+    b.setDefaultStep(step);
 
     const skip_debug = b.option(bool, "skip_debug", "Skip debug builds") orelse false;
     const skip_release_safe = b.option(bool, "skip_release_safe", "Skip release-safe builds") orelse false;

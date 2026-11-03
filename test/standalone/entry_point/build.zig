@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) !void {
     diff_cmd.expectExitCode(0);
 
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
     test_step.dependOn(&diff_cmd.step);
 }
 const std = @import("std");

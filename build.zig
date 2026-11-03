@@ -304,7 +304,7 @@ pub fn build(b: *std.Build) !void {
         // Ensure git version changes get picked up.
         git: {
             const io = b.graph.io;
-            const git_file = b.root.openFile(io, ".git", .{ .allow_directory = false }) catch |err| switch (err) {
+            const git_file = b.root().openFile(io, ".git", .{ .allow_directory = false }) catch |err| switch (err) {
                 error.IsDir => {
                     b.dependOnFileMetadata(b.path(".git/logs/HEAD"));
                     break :git;
@@ -332,7 +332,7 @@ pub fn build(b: *std.Build) !void {
         var code: u8 = undefined;
         const git_describe_untrimmed = b.runAllowFail(&[_][]const u8{
             "git",
-            "-C", b.fmt("{f}", .{b.root}), // affects the --git-dir argument
+            "-C", b.fmt("{f}", .{b.root()}), // affects the --git-dir argument
             "--git-dir", ".git", // affected by the -C argument
             "describe", "--match",    "*.*.*", //
             "--tags",   "--abbrev=9",
@@ -1660,7 +1660,7 @@ fn generateLangRef(b: *std.Build, doctest_exe: *std.Build.Step.Compile, doc_dir_
     const io = b.graph.io;
     const arena = b.graph.arena;
 
-    const langref_path = try b.root.join(arena, doc_dir_path);
+    const langref_path = try b.root().join(arena, doc_dir_path);
 
     b.dependOnDirectoryContents(b.path(doc_dir_path));
     var dir = langref_path.root_dir.handle.openDir(io, langref_path.sub_path, .{ .iterate = true }) catch |err|

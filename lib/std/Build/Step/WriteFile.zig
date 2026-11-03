@@ -97,7 +97,7 @@ pub fn addCopyFile(wf: *WriteFile, src_file: std.Build.LazyPath, sub_path: []con
 
     wf.copies.append(arena, .{
         .sub_path = wc.addString(sub_path) catch @panic("OOM"),
-        .src_file = src_file.dupe(graph),
+        .src_file = src_file.dupe(arena),
     }) catch @panic("OOM");
 
     wf.maybeUpdateName();
@@ -135,7 +135,7 @@ pub fn addCopyDirectory(
 
     wf.directories.append(arena, .{
         .sub_path = wc.addString(sub_path) catch @panic("OOM"),
-        .src_path = src_path.dupe(graph),
+        .src_path = src_path.dupe(arena),
         .exclude_extensions = if (options.exclude_extensions.len != 0)
             .init(wc.addStringList(options.exclude_extensions) catch @panic("OOM"))
         else

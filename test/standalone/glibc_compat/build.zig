@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
     const skip_non_native = b.option(bool, "skip_non_native", "Skip non-native targets") orelse false;
 
     const test_step = b.step("test", "Test");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     for ([_][]const u8{ "aarch64-linux-gnu.2.27", "aarch64-linux-gnu.2.34" }) |t| {
         const target = b.resolveTargetQuery(std.Target.Query.parse(

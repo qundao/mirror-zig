@@ -2,9 +2,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
-    const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
-
     const optimize: std.builtin.Optimize = .debug;
     const target = b.graph.host;
 
@@ -43,7 +40,9 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addCMacro("QUX", "\"Q\" \"UX\"");
     exe.root_module.addCMacro("QUUX", "\"QU\\\"UX\"");
 
-    b.default_step.dependOn(&exe.step);
+    const test_step = b.step("test", "Test it");
+    test_step.dependOn(&exe.step);
+    b.setDefaultStep(test_step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.skip_foreign_checks = true;

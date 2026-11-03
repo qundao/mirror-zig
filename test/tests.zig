@@ -2265,9 +2265,9 @@ pub fn addStandaloneTests(
         .simple_skip_release_small = mem.findScalar(OptimizeMode, optimize_modes, .small) == null,
         .skip_non_native = skip_non_native,
     });
-    const test_cases_dep_step = test_cases_dep.builder.default_step;
+    const test_cases_dep_step = test_cases_dep.package.default_step;
     test_cases_dep_step.name = test_cases_dep_name;
-    step.dependOn(test_cases_dep.builder.default_step);
+    step.dependOn(test_cases_dep.package.default_step);
     return step;
 }
 
@@ -3129,7 +3129,7 @@ pub fn addRunnerTests(
     const tests_path = b.path(tests);
     b.dependOnDirectoryContents(tests_path);
 
-    var tests_dir = try b.root.openDir(b.graph.io, tests, .{ .iterate = true });
+    var tests_dir = try b.root().openDir(b.graph.io, tests, .{ .iterate = true });
     defer tests_dir.close(b.graph.io);
     var test_it = tests_dir.iterate();
     while (try test_it.next(b.graph.io)) |@"test"| {

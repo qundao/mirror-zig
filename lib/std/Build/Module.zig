@@ -123,7 +123,7 @@ pub const CSourceFile = struct {
 
     pub fn dupe(file: CSourceFile, graph: *const std.Build.Graph) CSourceFile {
         return .{
-            .file = file.file.dupe(graph),
+            .file = file.file.dupe(graph.arena),
             .flags = graph.dupeStrings(file.flags),
             .language = file.language,
         };
@@ -152,7 +152,7 @@ pub const RcSourceFile = struct {
 
     pub fn dupe(file: RcSourceFile, graph: *const std.Build.Graph) RcSourceFile {
         return .{
-            .file = file.file.dupe(graph),
+            .file = file.file.dupe(graph.arena),
             .flags = graph.dupeStrings(file.flags),
             .include_paths = LazyPath.dupeList(file.include_paths, graph),
         };
@@ -251,7 +251,7 @@ pub fn init(
         .options => |options| {
             m.* = .{
                 .owner = owner,
-                .root_source_file = if (options.root_source_file) |lp| lp.dupe(graph) else null,
+                .root_source_file = if (options.root_source_file) |lp| lp.dupe(arena) else null,
                 .import_table = .empty,
                 .resolved_target = options.target,
                 .optimize = options.optimize,
@@ -442,13 +442,13 @@ pub fn addWin32ResourceFile(m: *Module, source: RcSourceFile) void {
 pub fn addAssemblyFile(m: *Module, source: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.link_objects.append(arena, .{ .assembly_file = source.dupe(graph) }) catch @panic("OOM");
+    m.link_objects.append(arena, .{ .assembly_file = source.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addObjectFile(m: *Module, object: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.link_objects.append(arena, .{ .static_path = object.dupe(graph) }) catch @panic("OOM");
+    m.link_objects.append(arena, .{ .static_path = object.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addObject(m: *Module, object: *Step.Compile) void {
@@ -464,19 +464,19 @@ pub fn linkLibrary(m: *Module, library: *Step.Compile) void {
 pub fn addAfterIncludePath(m: *Module, lazy_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .path_after = lazy_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .path_after = lazy_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addSystemIncludePath(m: *Module, lazy_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .path_system = lazy_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .path_system = lazy_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addIncludePath(m: *Module, lazy_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .path = lazy_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .path = lazy_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addConfigHeader(m: *Module, config_header: *Step.ConfigHeader) void {
@@ -488,7 +488,7 @@ pub fn addConfigHeader(m: *Module, config_header: *Step.ConfigHeader) void {
 pub fn addSystemFrameworkPath(m: *Module, directory_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .framework_path_system = directory_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .framework_path_system = directory_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addFrameworkPath(m: *Module, directory_path: LazyPath) void {
@@ -500,19 +500,19 @@ pub fn addFrameworkPath(m: *Module, directory_path: LazyPath) void {
 pub fn addEmbedPath(m: *Module, lazy_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .embed_path = lazy_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .embed_path = lazy_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addLibraryPath(m: *Module, directory_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.lib_paths.append(arena, directory_path.dupe(graph)) catch @panic("OOM");
+    m.lib_paths.append(arena, directory_path.dupe(arena)) catch @panic("OOM");
 }
 
 pub fn addRPath(m: *Module, directory_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.rpaths.append(arena, .{ .lazy_path = directory_path.dupe(graph) }) catch @panic("OOM");
+    m.rpaths.append(arena, .{ .lazy_path = directory_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addRPathSpecial(m: *Module, bytes: []const u8) void {

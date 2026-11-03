@@ -5,7 +5,7 @@ pub const requires_ios_sdk = true;
 
 pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Test it");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .aarch64,

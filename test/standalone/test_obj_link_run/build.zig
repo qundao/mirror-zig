@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const test_step = b.step("test", "Test the program");
-    b.default_step = test_step;
+    b.setDefaultStep(test_step);
 
     const test_run = b.addRunArtifact(test_exe);
     test_run.addCheck(.{ .expect_stderr_match = "All 3 tests passed." });
