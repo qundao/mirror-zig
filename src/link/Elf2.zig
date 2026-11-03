@@ -3302,7 +3302,7 @@ fn addGlobalSymbol(elf: *Elf, opts: Symbol.Global.AddOptions) (error{
                     }),
                     .DYN, .EXEC => try elf.setGlobalSymbolValue(gsi, .{
                         .node = .none,
-                        .value = try elf.allocNobitsSpace(
+                        .value = elf.shndx.bss.vaddr(elf) + try elf.allocNobitsSpace(
                             elf.shndx.bss,
                             common_gop.value_ptr.@"align",
                             common_gop.value_ptr.size,
@@ -3436,7 +3436,7 @@ fn addGlobalSymbol(elf: *Elf, opts: Symbol.Global.AddOptions) (error{
             }),
             .DYN, .EXEC => try elf.setGlobalSymbolValue(gsi, .{
                 .node = .none,
-                .value = try elf.allocNobitsSpace(
+                .value = elf.shndx.bss.vaddr(elf) + try elf.allocNobitsSpace(
                     elf.shndx.bss,
                     common_align,
                     opts.size,
