@@ -101,11 +101,15 @@ unknown_globals: std.array_hash_map.Auto(Symbol.Global.Index, void),
 /// the other because it is an alias for another global (see `Symbol.Global.Index.resolveAlias`).
 defined_alias_globals: std.array_hash_map.Auto(Symbol.Global.Index, void),
 /// Key is an undef global for which we have created a "copy relocation" (`R_*_COPY`).
+///
+/// These globals are **not** in `bss_globals`, even though the copies are placed in `.bss`.
 copied_globals: std.array_hash_map.Auto(Symbol.Global.Index, struct {
-    node: MappedFile.Node.Index,
     /// The index of this global's runtime relocation in `.rela.dyn`.
     rela_index: Section.RelaIndex,
+    bss_offset: u64,
+    bss_size: u64,
 }),
+/// These globals are also in `bss_globals`.
 common_globals: std.array_hash_map.Auto(Symbol.Global.Index, struct {
     size: u64,
     @"align": Alignment,
@@ -315,11 +319,6 @@ const Node = union(enum) {
     section_manual_size: Section.Index,
     /// May contain relocations.
     input_section: InputSection.Index,
-    /// Value is a global which has an entry in `elf.copied_globals`, so, a global for which we have
-    /// emitted a copy relocation.
-    ///
-    /// TODO it would be better to emit these into `.bss` or `.bss.rel.ro`, once we support those.
-    copied_global: Symbol.Global.Index,
     /// May contain relocations.
     nav: NavMapIndex,
     /// May contain relocations.
@@ -522,9 +521,6 @@ const Node = union(enum) {
                         elf.getNodeShndx(isi.node(elf)).name(elf).slice(elf),
                     });
                 },
-                .copied_global => |gsi| try w.print("({q})", .{
-                    gsi.rawName(elf).slice(elf),
-                }),
                 .nav => |nmi| {
                     const ip = &elf.base.comp.zcu.?.intern_pool;
                     try w.print("({qf})", .{
@@ -3791,7 +3787,6 @@ fn updateGlobalDynamic(elf: *Elf, orig_gsi: Symbol.Global.Index, force_apply_rel
         .no => {
             if (elf.copied_globals.fetchSwapRemove(gsi)) |copied_global_kv| {
                 // We previously made a copy relocation, but now have deemed it unnecessary.
-                try elf.deleteNode(copied_global_kv.value.node);
                 elf.shndx.rela_dyn.relaDeleteOne(elf, copied_global_kv.value.rela_index);
                 apply_relocs = true;
             }
@@ -3815,9 +3810,7 @@ fn updateGlobalDynamic(elf: *Elf, orig_gsi: Symbol.Global.Index, force_apply_rel
         .copy_reloc => {
             const dso_global = maybe_dso_global.?;
 
-            const shndx: Section.Index = .data;
-
-            try shndx.ensureAligned(elf, dso_global.alignment);
+            try elf.shndx.bss.ensureAligned(elf, dso_global.alignment);
 
             switch (elf.symPtr(gsi.ptr(elf).symtab_index)) {
                 inline else => |sym| elf.targetStore(&sym.size, @intCast(dso_global.size)),
@@ -3827,31 +3820,39 @@ fn updateGlobalDynamic(elf: *Elf, orig_gsi: Symbol.Global.Index, force_apply_rel
             }
 
             const gop = try elf.copied_globals.getOrPut(gpa, gsi);
-            if (gop.found_existing) {
-                if (dso_global.alignment.compare(.gt, gop.value_ptr.node.alignment(&elf.mf))) {
-                    try gop.value_ptr.node.realign(gpa, &elf.mf, dso_global.alignment);
-                }
-                try gop.value_ptr.node.ensureMinimumSize(gpa, &elf.mf, dso_global.size);
-            } else {
-                errdefer assert(elf.copied_globals.pop().?.key == gsi);
-                try elf.nodes.ensureUnusedCapacity(gpa, 1);
-                const node = elf.addNodeAssumeCapacity(
-                    try shndx.node(elf).addFloatingChild(gpa, &elf.mf, .{
-                        .size = dso_global.alignment.forward(dso_global.size),
-                        .alignment = dso_global.alignment,
-                    }),
-                    .{ .copied_global = gsi },
+            if (!gop.found_existing or
+                !dso_global.alignment.check(gop.value_ptr.bss_offset) or
+                dso_global.size > gop.value_ptr.bss_size)
+            {
+                // Either we haven't created this copy relocation yet, or we have but it now needs
+                // to be bigger or to have a greater alignment.
+
+                errdefer if (!gop.found_existing) assert(elf.copied_globals.pop().?.key == gsi);
+
+                const bss_offset = try elf.allocNobitsSpace(
+                    elf.shndx.bss,
+                    dso_global.alignment,
+                    dso_global.size,
                 );
-                const vaddr = elf.computeNodeVAddr(node);
-                const rela_index = elf.shndx.rela_dyn.relaAddOneAssumeCapacity(elf, .{
-                    .type = .copy(elf),
-                    .offset = vaddr,
-                    .raw_sym_index = new_dynsym_index,
-                    .addend = 0,
-                });
+                const vaddr = elf.shndx.bss.vaddr(elf) + bss_offset;
+
+                const rela_index: Section.RelaIndex = if (gop.found_existing) rela_index: {
+                    elf.shndx.rela_dyn.relaSetOffset(elf, gop.value_ptr.rela_index, vaddr);
+                    break :rela_index gop.value_ptr.rela_index;
+                } else rela_index: {
+                    try elf.shndx.rela_dyn.relaEnsureAdditionalCapacity(elf, 1);
+                    break :rela_index elf.shndx.rela_dyn.relaAddOneAssumeCapacity(elf, .{
+                        .type = .copy(elf),
+                        .offset = vaddr,
+                        .raw_sym_index = new_dynsym_index,
+                        .addend = 0,
+                    });
+                };
+
                 gop.value_ptr.* = .{
-                    .node = node,
                     .rela_index = rela_index,
+                    .bss_offset = bss_offset,
+                    .bss_size = dso_global.size,
                 };
 
                 // We have added a copy relocation so we now own the canonical address of the symbol.
@@ -3863,12 +3864,13 @@ fn updateGlobalDynamic(elf: *Elf, orig_gsi: Symbol.Global.Index, force_apply_rel
                 }
                 apply_relocs = true;
             }
-            // For a copy relocation we should also set the shndx to `.data` in the dynamic symbol
+            assert(dso_global.alignment.check(gop.value_ptr.bss_offset));
+            // For a copy relocation we should also set the shndx to `.bss` in the dynamic symbol
             // table. We don't do it in the symtab, because if we did, `Symbol.Global.Index.defined`
             // would incorrectly believe there was actually a local definition.
             switch (elf.dynsymPtr(new_dynsym_index)) {
                 inline else => |dynsym| {
-                    elf.targetStore(&dynsym.shndx, Section.Index.data.toSection().?);
+                    elf.targetStore(&dynsym.shndx, elf.shndx.bss.toSection().?);
                 },
             }
         },
@@ -4195,7 +4197,6 @@ fn deleteOwnedDynsym(elf: *Elf, gsi: Symbol.Global.Index) std.mem.Allocator.Erro
 
     var apply_relocs: bool = false;
     if (elf.copied_globals.fetchSwapRemove(gsi)) |copied_global_kv| {
-        try elf.deleteNode(copied_global_kv.value.node);
         elf.shndx.rela_dyn.relaDeleteOne(elf, copied_global_kv.value.rela_index);
         apply_relocs = true;
     }
@@ -4748,8 +4749,8 @@ const Symbol = struct {
             }
             switch (resolved.unwrap()) {
                 .local => {},
-                .global => |gsi| if (elf.copied_globals.getPtr(gsi)) |copied_global| {
-                    return copied_global.node.hasMoved(&elf.mf);
+                .global => |gsi| if (elf.copied_globals.contains(gsi)) {
+                    return elf.bss_moved or elf.ni.data.hasMoved(&elf.mf);
                 },
             }
             return false;
@@ -4875,7 +4876,6 @@ pub fn symbolForAtom(elf: *Elf, atom: link.File.AtomId) link.File.SymbolId {
         .section,
         .section_manual_size,
         .input_section,
-        .copied_global,
         .debug_shared,
         .debug_addr,
         .eh_frame_footer,
@@ -6896,7 +6896,6 @@ fn getNodeShndx(elf: *const Elf, ni: MappedFile.Node.Index) Section.Index {
         => unreachable,
         .section, .section_manual_size => |shndx| shndx,
         .input_section,
-        .copied_global,
         .nav,
         .uav,
         .lazy_code,
@@ -6941,7 +6940,6 @@ fn getNodeVAddr(elf: *Elf, ni: MappedFile.Node.Index) u64 {
         .ehdr,
         .shdr,
         .segment,
-        .copied_global,
         => unreachable,
         .section, .section_manual_size => |shndx| shndx.vaddr(elf),
         .input_section => |isi| isi.ptrConst(elf).vaddr,
@@ -6996,7 +6994,7 @@ fn computeNodeVAddr(elf: *Elf, ni: MappedFile.Node.Index) u64 {
             inline else => |phdr| elf.targetLoad(&phdr[phndx].vaddr),
         },
         .section, .section_manual_size => |shndx| if (shndx == elf.shndx.tdata) 0 else shndx.vaddr(elf),
-        .input_section, .copied_global => unreachable,
+        .input_section => unreachable,
         inline .nav,
         .uav,
         .lazy_code,
@@ -7048,7 +7046,6 @@ pub fn resetNodeRelocs(elf: *Elf, ni: MappedFile.Node.Index) void {
         .ehdr,
         .shdr,
         .segment,
-        .copied_global,
         .debug_shared,
         .debug_addr,
         .eh_frame_footer,
@@ -11436,6 +11433,11 @@ pub fn idle(elf: *Elf) link.Error!bool {
                 elf.bss_inputs.items,
                 elf.bss_globals.keys(),
             );
+            for (elf.copied_globals.keys(), elf.copied_globals.values()) |copied_gsi, *copied| {
+                const copied_global_addr = new_bss_addr + copied.bss_offset;
+                elf.shndx.rela_dyn.relaSetOffset(elf, copied.rela_index, copied_global_addr);
+                Symbol.Id.global(copied_gsi).flushMoved(elf, copied_global_addr);
+            }
 
             break :task;
         }
@@ -12142,15 +12144,6 @@ fn flushMoved(elf: *Elf, ni: MappedFile.Node.Index) std.mem.Allocator.Error!void
                 .first_symbol_reloc = isi.ptrConst(elf).first_symbol_reloc,
             });
         },
-        .copied_global => |global_name| {
-            const copied_global = elf.copied_globals.getPtr(global_name).?;
-            assert(copied_global.node == ni);
-
-            const new_addr = elf.computeNodeVAddr(ni);
-            elf.shndx.rela_dyn.relaSetOffset(elf, copied_global.rela_index, new_addr);
-
-            Symbol.Id.global(global_name).flushMoved(elf, new_addr);
-        },
         inline .nav, .uav, .lazy_code, .lazy_const_data => |mi, tag| {
             const new_addr = elf.computeNodeVAddr(ni);
             Symbol.Id.local(mi.symbol(elf)).flushMoved(elf, new_addr);
@@ -12683,7 +12676,6 @@ fn flushResized(elf: *Elf, ni: MappedFile.Node.Index) std.mem.Allocator.Error!vo
         },
         .section_manual_size,
         .input_section,
-        .copied_global,
         .nav,
         .uav,
         .lazy_code,
@@ -12729,7 +12721,6 @@ fn flushPadding(elf: *Elf, ni: MappedFile.Node.Index) std.mem.Allocator.Error!vo
         .section,
         .section_manual_size,
         .input_section,
-        .copied_global,
         .nav,
         .uav,
         .lazy_code,
