@@ -27,37 +27,20 @@ pub const Configuration = @import("Build/Configuration.zig");
 pub const Serialize = @import("Build/Serialize.zig");
 pub const Package = @import("Build/Package.zig");
 
-/// Shared state among all Build instances.
+/// Shared state among all `Build` instances.
 graph: *Graph,
-install_tls: Step.TopLevel,
-uninstall_tls: Step.TopLevel,
+/// Convenience field. Alias of `graph.arena`.
 allocator: Allocator,
-default_step: *Step,
-top_level_steps: std.array_hash_map.String(*Step.TopLevel),
-/// Path to the directory containing build.zig.
-root: Cache.Path,
-/// Number of stack frames captured when a `StackTrace` is recorded for debug purposes,
-/// in particular at `Step` creation.
-/// Set to 0 to disable stack collection.
-debug_stack_frames_count: u8 = 8,
-
-user_input_options: PackageOptions.Map,
-available_options_map: std.array_hash_map.String(AvailableOption) = .empty,
-invalid_user_input: bool,
-
-dep_prefix: []const u8 = "",
-
-modules: std.array_hash_map.String(*Module),
-
-named_writefiles: std.array_hash_map.String(*Step.WriteFile),
-named_lazy_paths: std.array_hash_map.String(LazyPath),
-/// The hash of this instance's package. `""` means that this is the root package.
-pkg_hash: []const u8,
-/// A mapping from dependency names to package hashes.
-available_deps: AvailableDeps,
-/// Indexes of `Graph.deduplicated_dependencies` that should be downgraded to non-canonical after
-/// build.zig finishes running.
-pushed_canonical_instances: std.ArrayList(u32) = .empty,
+/// Each `Package` has one `Build` as a direct child. Each `Build` may have a child `Build` of its
+/// own which creates an independent version resolution namespace.
+package: ?*Package,
+/// Points to the `Build` instance that created this one. Used by the build system for hierarchical
+/// version conflict resolution.
+parent: ?*const Build,
+/// Maps project id to package instance. This is the one used for packages in the dependency
+/// tree that will be deduplicated based on their project id. The key is the index into
+/// `Graph.package_instances`. Value is `canonical`.
+deduplicated_dependencies: DeduplicatedPackageMap,
 
 pub const ConfigureDependency = struct {
     lazy_path: LazyPath,
@@ -91,10 +74,6 @@ pub const Graph = struct {
     /// Information about the native target. Computed before build() is invoked.
     host: ResolvedTarget,
 
-    /// Maps project id to package instance. This is the one used for packages in the dependency
-    /// tree that will be deduplicated based on their project id. The key is the index into
-    /// `package_instances`. Value is `canonical`.
-    deduplicated_dependencies: DeduplicatedPackageMap = .empty,
     /// Maps full package hash and provided options to package instance. All package instances go
     /// into this map regardless of whether they are deduplicated.
     package_instances: PackageInstanceMap = .empty,
@@ -121,6 +100,11 @@ pub const Graph = struct {
     /// * `dependOnDirectoryContents`
     /// * `dependOnDirectoryMetadata`
     configure_dependencies: ArrayList(ConfigureDependency) = .empty,
+
+    /// Number of stack frames captured when a `StackTrace` is recorded for
+    /// debug purposes, in particular at `Step` creation. Set to 0 to disable
+    /// stack collection.
+    debug_stack_frames_count: u8 = 8,
 
     /// If the cache is poisoned means that the **configure logic** had side
     /// effects, or otherwise did something that could not be tracked by the
@@ -236,9 +220,12 @@ pub const Graph = struct {
             .ignored => log.warn("ignoring cache poisoning", .{}),
         }
     }
-};
 
-const AvailableDeps = []const struct { []const u8, []const u8 };
+    fn markNeededLazyDep(graph: *Graph, pkg_hash: []const u8) void {
+        const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
+        graph.unlazy_deps.put(graph.arena, interned_hash, {}) catch @panic("OOM");
+    }
+};
 
 pub const SystemLibraryMode = enum {
     /// User asked for the library to be disabled.
@@ -273,8 +260,8 @@ const DeduplicatedPackageMap = std.array_hash_map.Custom(u32, bool, struct {
     }
 }, false);
 
-const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, *Dependency, struct {
-    pub fn hash(_: @This(), k: PackageInstance) u32 {
+const PackageInstanceMap = std.array_hash_map.Custom(Package.Instance, *Dependency, struct {
+    pub fn hash(_: @This(), k: Package.Instance) u32 {
         var hasher = std.hash.Wyhash.init(0);
         hasher.update(k.pkg_hash);
         for (k.options.keys(), k.options.values()) |option_key, option_value| {
@@ -284,7 +271,7 @@ const PackageInstanceMap = std.array_hash_map.Custom(PackageInstance, *Dependenc
         return @truncate(hasher.final());
     }
 
-    pub fn eql(_: @This(), a: PackageInstance, b: PackageInstance, _: usize) bool {
+    pub fn eql(_: @This(), a: Package.Instance, b: Package.Instance, _: usize) bool {
         if (!mem.eql(u8, a.pkg_hash, b.pkg_hash)) return false;
         if (a.options.count() != b.options.count()) return false;
         for (
@@ -314,343 +301,23 @@ const ProjectIdAdapter = struct {
     }
 };
 
-const PackageInstance = struct {
-    pkg_hash: []const u8,
-    options: *const PackageOptions.Map,
-};
-
-/// Build system implementation details.
-pub const PackageOptions = struct {
-    pub const Map = std.array_hash_map.String(UserProvided);
-
-    pub const UserProvided = union(enum) {
-        flag: void,
-        scalar: []const u8,
-        list: std.ArrayList([]const u8),
-        map: std.array_hash_map.String(*const UserProvided),
-        lazy_path: LazyPath,
-        lazy_path_list: std.ArrayList(LazyPath),
-
-        pub fn format(up: UserProvided, w: *Io.Writer) Io.Writer.Error!void {
-            switch (up) {
-                .scalar => |bytes| return w.print("{q}", .{bytes}),
-                .flag => {},
-                .list => |list| for (list.items) |s| {
-                    try w.print("{q},", .{s});
-                },
-                .map => |*map| for (map.keys(), map.values()) |k, v| {
-                    try w.print("{q}={qf},", .{ k, v });
-                },
-                .lazy_path => |lp| return lp.format(w),
-                .lazy_path_list => |*list| for (list.items) |lp| {
-                    try w.print("{qf},", .{lp});
-                },
-            }
-        }
-
-        pub fn eql(a: UserProvided, b: UserProvided) bool {
-            if (std.meta.activeTag(a) != b) return false;
-            return switch (a) {
-                .flag => true,
-                .scalar => |a_scalar| return mem.eql(u8, a_scalar, b.scalar),
-                .list => |a_list| {
-                    if (a_list.items.len != b.list.items.len) return false;
-                    for (a_list.items, b.list.items) |a_elem, b_elem| {
-                        if (!mem.eql(u8, a_elem, b_elem))
-                            return false;
-                    }
-                    return true;
-                },
-                .map => |a_map| {
-                    if (a_map.count() != b.map.count()) return false;
-                    for (a_map.keys(), a_map.values(), b.map.keys(), b.map.values()) |a_key, a_val, b_key, b_val| {
-                        if (!mem.eql(u8, a_key, b_key)) return false;
-                        if (!a_val.eql(b_val.*)) return false;
-                    }
-                    return true;
-                },
-                .lazy_path => |a_lazy_path| return a_lazy_path.eql(b.lazy_path),
-                .lazy_path_list => |a_lazy_path_list| {
-                    if (a_lazy_path_list.items.len != b.lazy_path_list.items.len) return false;
-                    for (a_lazy_path_list.items, b.lazy_path_list.items) |a_lp, b_lp| {
-                        if (!a_lp.eql(b_lp)) return false;
-                    }
-                    return true;
-                },
-            };
-        }
-
-        pub fn hash(a: UserProvided, hasher: *std.hash.Wyhash) void {
-            hasher.update(&mem.toBytes(std.meta.activeTag(a)));
-            switch (a) {
-                .flag => {},
-                .scalar => |scalar| hasher.update(scalar),
-                .list => |*list| for (list.items) |elem| hasher.update(elem),
-                .map => |*map| for (map.keys(), map.values()) |key, val| {
-                    hasher.update(key);
-                    val.hash(hasher);
-                },
-                .lazy_path => |lp| lp.hash(hasher),
-                .lazy_path_list => |*list| for (list.items) |lp| lp.hash(hasher),
-            }
-        }
-    };
-
-    fn fromArgs(arena: Allocator, map: *PackageOptions.Map, args: anytype) void {
-        const args_info = @typeInfo(@TypeOf(args)).@"struct";
-        inline for (args_info.field_names, args_info.field_types) |field_name, field_type| {
-            if (field_type == @TypeOf(null)) continue;
-            addPackageOptionFromArg(arena, map, field_name, field_type, @field(args, field_name));
-        }
-    }
-
-    pub fn sort(map: *Map) void {
-        map.sortUnstable(@as(struct {
-            keys: []const []const u8,
-            pub fn lessThan(this: @This(), a_index: usize, b_index: usize) bool {
-                return mem.lessThan(u8, this.keys[a_index], this.keys[b_index]);
-            }
-        }, .{ .keys = map.keys() }));
-    }
-
-    pub fn eql(a: *const Map, b: *const Map) bool {
-        if (a.count() != b.count()) return false;
-        for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
-            if (!mem.eql(u8, a_key, b_key)) return false;
-            if (!a_val.eql(b_val)) return false;
-        }
-        return true;
-    }
-
-    pub fn logDifferences(a: *const Map, b: *const Map) void {
-        const a_keys = a.keys();
-        const b_keys = b.keys();
-        const a_vals = a.values();
-        const b_vals = b.values();
-        var a_i: usize = 0;
-        var b_i: usize = 0;
-        while (a_i < a_keys.len and b_i < b_keys.len) {
-            const a_key = a_keys[a_i];
-            const b_key = b_keys[b_i];
-            switch (mem.order(u8, a_key, b_key)) {
-                .lt => {
-                    log.info("{q}: {f} vs (missing)", .{ a_key, a_vals[a_i] });
-                    a_i += 1;
-                },
-                .eq => {
-                    const a_val = a_vals[a_i];
-                    const b_val = b_vals[b_i];
-                    if (!a_val.eql(b_val)) {
-                        log.info("{q}: {f} vs {f}", .{ a_key, a_val, b_val });
-                    }
-                    a_i += 1;
-                    b_i += 1;
-                },
-                .gt => {
-                    log.info("{q}: (missing) vs {f}", .{ b_key, b_vals[b_i] });
-                    b_i += 1;
-                },
-            }
-        }
-        for (a_keys[a_i..], a_vals[a_i..]) |a_key, a_val| log.info("{q}: {f} vs (missing)", .{ a_key, a_val });
-        for (b_keys[b_i..], b_vals[b_i..]) |b_key, b_val| log.info("{q}: (missing) vs {f}", .{ b_key, b_val });
-    }
-};
-
-const AvailableOption = struct {
-    type_id: Configuration.AvailableOption.Type,
-    description: []const u8,
-    /// If the `type_id` is `enum` or `enum_list` this provides the list of enum options
-    enum_options: ?[]const []const u8,
-};
-
-/// Build system implementation detail.
-pub fn create(
-    graph: *Graph,
-    root: Cache.Path,
-    available_deps: AvailableDeps,
-) error{OutOfMemory}!*Build {
-    const arena = graph.arena;
-
-    const b = try arena.create(Build);
-    b.* = .{
-        .graph = graph,
-        .root = root,
-        .invalid_user_input = false,
-        .allocator = arena,
-        .user_input_options = .empty,
-        .top_level_steps = .{},
-        .default_step = undefined,
-        .install_tls = .{
-            .step = .init(.{
-                .tag = .top_level,
-                .name = "install",
-                .owner = b,
-            }),
-            .description = "Copy build artifacts to prefix path",
-        },
-        .uninstall_tls = .{
-            .step = .init(.{
-                .tag = .top_level,
-                .name = "uninstall",
-                .owner = b,
-            }),
-            .description = "Remove build artifacts from prefix path",
-        },
-        .modules = .empty,
-        .named_writefiles = .empty,
-        .named_lazy_paths = .empty,
-        .pkg_hash = "",
-        .available_deps = available_deps,
-    };
-    try b.top_level_steps.put(arena, b.install_tls.step.name, &b.install_tls);
-    try b.top_level_steps.put(arena, b.uninstall_tls.step.name, &b.uninstall_tls);
-    b.default_step = &b.install_tls.step;
-    return b;
-}
-
-fn createChild(
-    parent: *Build,
-    dep_prefix: []const u8,
-    root: Cache.Path,
-    pkg_hash: []const u8,
-    pkg_deps: AvailableDeps,
-    user_input_options: PackageOptions.Map,
-) error{OutOfMemory}!*Build {
-    const arena = parent.graph.arena;
-    const child = try arena.create(Build);
+/// Makes a new namespace with respect to version conflict resolution. Artifacts added to the
+/// returned `Build` are added to the same `Package`, however, any packages instantiated in the new
+/// instance's subtree do not affect version resolution outside that subtree.
+///
+/// This is appropriate to use when, for example, creating a build for multiple different operating
+/// systems.
+pub fn createBuild(b: *Build) *Build {
+    const graph = b.graph;
+    const child = graph.arena.create(Build) catch @panic("OOM");
     child.* = .{
-        .graph = parent.graph,
-        .root = root,
-        .allocator = arena,
-        .install_tls = .{
-            .step = .init(.{
-                .tag = .top_level,
-                .name = "install",
-                .owner = child,
-            }),
-            .description = "Copy build artifacts to prefix path",
-        },
-        .uninstall_tls = .{
-            .step = .init(.{
-                .tag = .top_level,
-                .name = "uninstall",
-                .owner = child,
-            }),
-            .description = "Remove build artifacts from prefix path",
-        },
-        .user_input_options = user_input_options,
-        .invalid_user_input = false,
-        .default_step = undefined,
-        .top_level_steps = .{},
-        .dep_prefix = dep_prefix,
-        .modules = .empty,
-        .named_writefiles = .empty,
-        .named_lazy_paths = .empty,
-        .pkg_hash = pkg_hash,
-        .available_deps = pkg_deps,
+        .graph = b.graph,
+        .allocator = b.allocator,
+        .package = null,
+        .parent = b,
+        .deduplicated_dependencies = .empty,
     };
-    try child.top_level_steps.put(arena, child.install_tls.step.name, &child.install_tls);
-    try child.top_level_steps.put(arena, child.uninstall_tls.step.name, &child.uninstall_tls);
-    child.default_step = &child.install_tls.step;
     return child;
-}
-
-fn addPackageOptionFromArg(
-    arena: Allocator,
-    map: *PackageOptions.Map,
-    field_name: [:0]const u8,
-    comptime T: type,
-    /// If null, the value won't be added, but `T` will still be type-checked.
-    maybe_value: ?T,
-) void {
-    map.ensureUnusedCapacity(arena, 2) catch @panic("OOM");
-    switch (T) {
-        Target.Query => return if (maybe_value) |v| {
-            map.putAssumeCapacity(field_name, .{ .scalar = v.zigTriple(arena) catch @panic("OOM") });
-            map.putAssumeCapacity("cpu", .{ .scalar = v.serializeCpuAlloc(arena) catch @panic("OOM") });
-        },
-        ResolvedTarget => return if (maybe_value) |v| {
-            map.putAssumeCapacity(field_name, .{ .scalar = v.query.zigTriple(arena) catch @panic("OOM") });
-            map.putAssumeCapacity("cpu", .{ .scalar = v.query.serializeCpuAlloc(arena) catch @panic("OOM") });
-        },
-        std.zig.BuildId => return if (maybe_value) |v| {
-            map.putAssumeCapacity(field_name, .{
-                .scalar = arena.print("{f}", .{v}) catch @panic("OOM"),
-            });
-        },
-        LazyPath => return if (maybe_value) |v| {
-            map.putAssumeCapacity(field_name, .{ .lazy_path = v.dupeInner(arena) });
-        },
-        []const LazyPath => return if (maybe_value) |v| {
-            var list: std.ArrayList(LazyPath) = .empty;
-            const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
-            for (v, elems) |lp, *elem| elem.* = lp.dupeInner(arena);
-            map.putAssumeCapacity(field_name, .{ .lazy_path_list = list });
-        },
-        []const u8 => return if (maybe_value) |v| {
-            map.putAssumeCapacity(field_name, .{ .scalar = arena.dupe(u8, v) catch @panic("OOM") });
-        },
-        []const []const u8 => return if (maybe_value) |v| {
-            var list: std.ArrayList([]const u8) = .empty;
-            const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
-            for (v, elems) |s, *elem| elem.* = arena.dupe(u8, s) catch @panic("OOM");
-            map.putAssumeCapacity(field_name, .{ .list = list });
-        },
-        else => switch (@typeInfo(T)) {
-            .bool => return if (maybe_value) |v| {
-                map.putAssumeCapacity(field_name, .{ .scalar = if (v) "true" else "false" });
-            },
-            .@"enum", .enum_literal => return if (maybe_value) |v| {
-                map.putAssumeCapacity(field_name, .{ .scalar = @tagName(v) });
-            },
-            .comptime_int, .int => return if (maybe_value) |v| {
-                map.putAssumeCapacity(field_name, .{
-                    .scalar = arena.print("{d}", .{v}) catch @panic("OOM"),
-                });
-            },
-            .comptime_float, .float => return if (maybe_value) |v| {
-                map.putAssumeCapacity(field_name, .{
-                    .scalar = arena.print("{x}", .{v}) catch @panic("OOM"),
-                });
-            },
-            .pointer => |ptr_info| switch (ptr_info.size) {
-                .one => switch (@typeInfo(ptr_info.child)) {
-                    .array => |array_info| return addPackageOptionFromArg(
-                        arena,
-                        map,
-                        field_name,
-                        @Pointer(.slice, .{ .@"const" = true }, array_info.child, null),
-                        maybe_value orelse null,
-                    ),
-                    else => {},
-                },
-                .slice => switch (@typeInfo(ptr_info.child)) {
-                    .@"enum" => return if (maybe_value) |v| {
-                        var list: std.ArrayList([]const u8) = .empty;
-                        const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
-                        for (elems, v) |*elem, tag| elem.* = @tagName(tag);
-                        map.putAssumeCapacity(field_name, .{ .list = list });
-                    },
-                    else => return addPackageOptionFromArg(
-                        arena,
-                        map,
-                        field_name,
-                        @Pointer(ptr_info.size, .{ .@"const" = true }, ptr_info.child, null),
-                        maybe_value orelse null,
-                    ),
-                },
-                else => {},
-            },
-            .null => unreachable,
-            .optional => |info| switch (@typeInfo(info.child)) {
-                .optional => {},
-                else => return addPackageOptionFromArg(arena, map, field_name, info.child, maybe_value orelse null),
-            },
-            else => {},
-        },
-    }
-    @compileError("option '" ++ field_name ++ "' has unsupported type: " ++ @typeName(T));
 }
 
 /// Create a set of key-value pairs that can be converted into a Zig source
@@ -808,16 +475,14 @@ pub const AssemblyOptions = struct {
 /// it available to other packages which depend on this one.
 /// `createModule` can be used instead to create a private module.
 pub fn addModule(b: *Build, name: []const u8, options: Module.CreateOptions) *Module {
+    const p = b.getPackage();
     const graph = b.graph;
     const arena = graph.arena;
     const module = Module.create(b, options);
-    const gop = b.modules.getOrPutValue(
-        arena,
-        graph.dupeString(name),
-        module,
-    ) catch @panic("OOM");
+    const gop = p.modules.getOrPutValue(arena, graph.dupeString(name), module) catch @panic("OOM");
     if (gop.found_existing) {
-        panic("A module with the name {q} has already been added to the package. Consider creating a private module with std.Build.createModule", .{name});
+        log.info("private modules can be created with std.Build.createModule", .{});
+        panic("a module named {q} has already been added to the package", .{name});
     }
     return module;
 }
@@ -967,30 +632,30 @@ pub fn addWriteFile(b: *Build, file_path: []const u8, data: []const u8) *Step.Wr
 
 pub fn addNamedWriteFiles(b: *Build, name: []const u8) *Step.WriteFile {
     const graph = b.graph;
+    const p = b.getPackage();
     const wf = Step.WriteFile.create(b);
-    const gop = b.named_writefiles.getOrPutValue(
+    const gop = p.named_writefiles.getOrPutValue(
         graph.arena,
         graph.dupeString(name),
         wf,
     ) catch @panic("OOM");
     if (gop.found_existing) {
-        panic(
-            "A WriteFile step with the name {q} has already been added to the package. Consider creating a private WriteFile step with std.Build.addWriteFiles",
-            .{name},
-        );
+        log.info("private WriteFile steps can be created with std.Build.addWriteFiles", .{});
+        panic("a WriteFile step named {q} has already been added to the package", .{name});
     }
     return wf;
 }
 
 pub fn addNamedLazyPath(b: *Build, name: []const u8, lp: LazyPath) void {
     const graph = b.graph;
-    const gop = b.named_lazy_paths.getOrPutValue(
+    const p = b.getPackage();
+    const gop = p.named_lazy_paths.getOrPutValue(
         graph.arena,
         graph.dupeString(name),
         lp.dupe(graph),
     ) catch @panic("OOM");
     if (gop.found_existing) {
-        panic("A LazyPath with the name {q} has already been added to the package.", .{name});
+        panic("a LazyPath named {q} has already been added to the package.", .{name});
     }
 }
 
@@ -1057,11 +722,11 @@ pub fn addTranslateC(b: *Build, options: Step.TranslateC.Options) *Step.Translat
 }
 
 pub fn getInstallStep(b: *Build) *Step {
-    return &b.install_tls.step;
+    return &b.getPackage().install_tls.step;
 }
 
 pub fn getUninstallStep(b: *Build) *Step {
-    return &b.uninstall_tls.step;
+    return &b.getPackage().uninstall_tls.step;
 }
 
 /// Creates a configuration option to be passed to the build.zig script.
@@ -1071,11 +736,12 @@ pub fn getUninstallStep(b: *Build) *Step {
 /// `null` is returned when an option is left to default.
 pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw: []const u8) ?T {
     const graph = b.graph;
+    const p = b.getPackage();
     const arena = graph.arena;
     const name = graph.dupeString(name_raw);
     const description = graph.dupeString(description_raw);
     const type_id = comptime typeToEnum(T);
-    const available_option: AvailableOption = .{
+    const available_option: Package.AvailableOption = .{
         .type_id = type_id,
         .description = description,
         .enum_options = if (type_id == .@"enum" or type_id == .enum_list) blk: {
@@ -1083,10 +749,10 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
             break :blk @typeInfo(E).@"enum".field_names;
         } else null,
     };
-    if ((b.available_options_map.fetchPut(arena, name, available_option) catch @panic("OOM")) != null) {
+    if ((p.available_options_map.fetchPut(arena, name, available_option) catch @panic("OOM")) != null) {
         panic("option {q} declared twice", .{name});
     }
-    const user_provided = b.user_input_options.get(name) orelse return null;
+    const user_provided = p.user_input_options.get(name) orelse return null;
     switch (type_id) {
         .bool => switch (user_provided) {
             .flag => return true,
@@ -1097,32 +763,32 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
                     return false;
                 } else {
                     log.err("expected -D{s} to be a boolean; received: {s}", .{ name, s });
-                    b.markInvalidUserInput();
+                    p.invalid_user_input = true;
                     return null;
                 }
             },
             .list, .map, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be a boolean; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
         },
         .int => switch (user_provided) {
             .flag, .list, .map, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be an integer; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
                 const n = std.fmt.parseInt(T, s, 10) catch |err| switch (err) {
                     error.Overflow => {
                         log.err("-D{s} value {s} cannot fit into type {s}", .{ name, s, @typeName(T) });
-                        b.markInvalidUserInput();
+                        p.invalid_user_input = true;
                         return null;
                     },
                     else => {
                         log.err("expected -D{s} to be an integer of type {s}", .{ name, @typeName(T) });
-                        b.markInvalidUserInput();
+                        p.invalid_user_input = true;
                         return null;
                     },
                 };
@@ -1132,13 +798,13 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
         .float => switch (user_provided) {
             .flag, .map, .list, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be a float; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
                 const n = std.fmt.parseFloat(T, s) catch {
                     log.err("expected -D{s} to be a float of type {s}", .{ name, @typeName(T) });
-                    b.markInvalidUserInput();
+                    p.invalid_user_input = true;
                     return null;
                 };
                 return n;
@@ -1147,7 +813,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
         .@"enum" => switch (user_provided) {
             .flag, .map, .list, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be an enum; received: {t}.", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
@@ -1159,14 +825,14 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
                     return tag;
                 }
                 log.err("expected -D{s} to be of type {q}", .{ name, @typeName(T) });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
         },
         .string => switch (user_provided) {
             .flag, .list, .map, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be a string; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| return s,
@@ -1174,7 +840,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
         .build_id => switch (user_provided) {
             .flag, .map, .list, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be an enum; received: {t}.", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
@@ -1182,7 +848,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
                     return build_id;
                 } else |err| {
                     log.err("failed to parse option -D{s}: {t}", .{ name, err });
-                    b.markInvalidUserInput();
+                    p.invalid_user_input = true;
                     return null;
                 }
             },
@@ -1190,7 +856,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
         .list => switch (user_provided) {
             .flag, .map, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be a list; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
@@ -1201,7 +867,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
         .enum_list => switch (user_provided) {
             .flag, .map, .lazy_path, .lazy_path_list => {
                 log.err("expected -D{s} to be a list; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .scalar => |s| {
@@ -1216,7 +882,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
                     }
                 }
                 log.err("expected -D{s} to be of type {q}", .{ name, @typeName(Child) });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
             .list => |lst| {
@@ -1234,7 +900,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
                         continue;
                     }
                     log.err("expected -D{s} to be of type {q}", .{ name, @typeName(Child) });
-                    b.markInvalidUserInput();
+                    p.invalid_user_input = true;
                     return null;
                 }
                 return new_list;
@@ -1245,7 +911,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
             .lazy_path => |lp| return lp,
             .flag, .map, .list, .lazy_path_list => {
                 log.err("expected -D{s} to be a path; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
         },
@@ -1262,7 +928,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
             .lazy_path_list => |lp_list| return lp_list.items,
             .flag, .map => {
                 log.err("expected -D{s} to be a path; received: {t}", .{ name, user_provided });
-                b.markInvalidUserInput();
+                p.invalid_user_input = true;
                 return null;
             },
         },
@@ -1272,6 +938,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
 /// Creates a top-level build step, exposed to the CLI user and advertised in
 /// the "--help" menu.
 pub fn step(b: *Build, name: []const u8, description: []const u8) *Step {
+    const p = b.getPackage();
     const graph = b.graph;
     const arena = graph.arena;
     const step_info = arena.create(Step.TopLevel) catch @panic("OOM");
@@ -1283,8 +950,11 @@ pub fn step(b: *Build, name: []const u8, description: []const u8) *Step {
         }),
         .description = graph.dupeString(description),
     };
-    const gop = b.top_level_steps.getOrPut(arena, name) catch @panic("OOM");
-    if (gop.found_existing) panic("A top-level step with name \"{s}\" already exists", .{name});
+    const gop = p.top_level_steps.getOrPut(arena, name) catch @panic("OOM");
+    if (gop.found_existing) {
+        // TODO also dump the stack trace of where it was created before
+        panic("a top-level step named {q} already exists", .{name});
+    }
 
     gop.key_ptr.* = step_info.step.name;
     gop.value_ptr.* = step_info;
@@ -1391,6 +1061,7 @@ pub fn parseTargetQuery(options: std.Target.Query.ParseOptions) error{ParseFaile
 
 /// Exposes standard `zig build` options for choosing a target.
 pub fn standardTargetOptionsQueryOnly(b: *Build, args: StandardTargetOptionsArgs) Target.Query {
+    const p = b.getPackage();
     const graph = b.graph;
     const arena = graph.arena;
 
@@ -1427,7 +1098,7 @@ pub fn standardTargetOptionsQueryOnly(b: *Build, args: StandardTargetOptionsArgs
         .dynamic_linker = dynamic_linker,
     }) catch |err| switch (err) {
         error.ParseFailed => {
-            b.markInvalidUserInput();
+            p.invalid_user_input = true;
             return args.default_target;
         },
     };
@@ -1449,16 +1120,17 @@ pub fn standardTargetOptionsQueryOnly(b: *Build, args: StandardTargetOptionsArgs
     log.err("chosen target {q} does not match one of the allowed targets", .{
         selected_target.zigTriple(arena) catch @panic("OOM"),
     });
-    b.markInvalidUserInput();
+    p.invalid_user_input = true;
     return args.default_target;
 }
 
 /// Build system implementation detail.
 pub fn addUserInputOption(b: *Build, name: []const u8, value_raw: []const u8) error{OutOfMemory}!bool {
+    const p = b.getPackage();
     const graph = b.graph;
     const arena = graph.arena;
     const value = graph.dupeString(value_raw);
-    const gop = try b.user_input_options.getOrPut(arena, name);
+    const gop = try p.user_input_options.getOrPut(arena, name);
 
     if (!gop.found_existing) {
         gop.key_ptr.* = graph.dupeString(name);
@@ -1491,9 +1163,10 @@ pub fn addUserInputOption(b: *Build, name: []const u8, value_raw: []const u8) er
 
 /// Build system implementation detail.
 pub fn addUserInputFlag(b: *Build, name: []const u8) error{OutOfMemory}!bool {
+    const p = b.getPackage();
     const graph = b.graph;
     const arena = graph.arena;
-    const gop = try b.user_input_options.getOrPut(arena, name);
+    const gop = try p.user_input_options.getOrPut(arena, name);
     if (!gop.found_existing) {
         gop.key_ptr.* = graph.dupeString(name);
         gop.value_ptr.* = .{ .flag = {} };
@@ -1540,23 +1213,6 @@ fn typeToEnum(comptime T: type) Configuration.AvailableOption.Type {
             else => @compileError("Unsupported type: " ++ @typeName(T)),
         },
     };
-}
-
-fn markInvalidUserInput(b: *Build) void {
-    b.invalid_user_input = true;
-}
-
-fn validateUserInputDidItFail(b: *Build) bool {
-    for (b.user_input_options.keys()) |name| {
-        if (!b.available_options_map.contains(name)) {
-            for (b.available_options_map.keys(), b.available_options_map.values()) |available_name, *available| {
-                log.info("available option: {q}: {s}", .{ available_name, available.description });
-            }
-            log.err("invalid option: {q}", .{name});
-            b.markInvalidUserInput();
-        }
-    }
-    return b.invalid_user_input;
 }
 
 /// This creates the install step and adds it to the dependencies of the
@@ -1943,7 +1599,8 @@ pub fn run(b: *Build, argv: []const []const u8) []u8 {
 /// it is desirable to use that same information without requiring the user to
 /// provide it again.
 pub fn addSearchPrefix(b: *Build, search_prefix: []const u8) void {
-    if (b.isRoot()) {
+    const is_root = if (b.package) |p| p.pkg_hash.len == 0 else false;
+    if (is_root) {
         const graph = b.graph;
         const wc = &graph.wip_configuration;
         const string = wc.addString(search_prefix) catch @panic("OOM");
@@ -1951,16 +1608,14 @@ pub fn addSearchPrefix(b: *Build, search_prefix: []const u8) void {
     }
 }
 
-pub fn isRoot(b: *const Build) bool {
-    return b.pkg_hash.len == 0;
-}
-
+/// Represents a `Package` whose configuration logic has already executed, and is now ready to be used
+/// in a read-only manner by dependants.
 pub const Dependency = struct {
-    builder: *Build,
+    package: *Package,
 
     pub fn artifact(d: *Dependency, name: []const u8) *Step.Compile {
         var found: ?*Step.Compile = null;
-        for (d.builder.install_tls.step.dependencies.items) |dep_step| {
+        for (d.package.install_tls.step.dependencies.items) |dep_step| {
             const inst = dep_step.cast(Step.InstallArtifact) orelse continue;
             if (mem.eql(u8, inst.artifact.name, name)) {
                 if (found != null) panic("artifact name {q} is ambiguous", .{name});
@@ -1968,10 +1623,11 @@ pub const Dependency = struct {
             }
         }
         return found orelse {
-            if (d.builder.graph.unlazy_deps.count() != 0) {
-                d.builder.serializeConfigurationExiting();
+            const graph = d.package.install_tls.owner.graph;
+            if (graph.unlazy_deps.count() != 0) {
+                d.package.serializeConfigurationExiting();
             }
-            for (d.builder.install_tls.step.dependencies.items) |dep_step| {
+            for (d.package.install_tls.step.dependencies.items) |dep_step| {
                 const inst = dep_step.cast(Step.InstallArtifact) orelse continue;
                 log.info("available artifact: {q}", .{inst.artifact.name});
             }
@@ -1980,27 +1636,30 @@ pub const Dependency = struct {
     }
 
     pub fn module(d: *Dependency, name: []const u8) *Module {
-        return d.builder.modules.get(name) orelse {
-            if (d.builder.graph.unlazy_deps.count() != 0) {
-                d.builder.serializeConfigurationExiting();
+        return d.package.modules.get(name) orelse {
+            const graph = d.package.install_tls.owner.graph;
+            if (graph.unlazy_deps.count() != 0) {
+                d.package.serializeConfigurationExiting();
             }
             panic("unable to find module {q}", .{name});
         };
     }
 
     pub fn namedWriteFiles(d: *Dependency, name: []const u8) *Step.WriteFile {
-        return d.builder.named_writefiles.get(name) orelse {
-            if (d.builder.graph.unlazy_deps.count() != 0) {
-                d.builder.serializeConfigurationExiting();
+        return d.package.named_writefiles.get(name) orelse {
+            const graph = d.package.install_tls.owner.graph;
+            if (graph.unlazy_deps.count() != 0) {
+                d.package.serializeConfigurationExiting();
             }
             panic("unable to find named writefiles {q}", .{name});
         };
     }
 
     pub fn namedLazyPath(d: *Dependency, name: []const u8) LazyPath {
-        return d.builder.named_lazy_paths.get(name) orelse {
-            if (d.builder.graph.unlazy_deps.count() != 0) {
-                d.builder.serializeConfigurationExiting();
+        return d.package.named_lazy_paths.get(name) orelse {
+            const graph = d.package.install_tls.owner.graph;
+            if (graph.unlazy_deps.count() != 0) {
+                d.package.serializeConfigurationExiting();
             }
             panic("unable to find named lazypath {q}", .{name});
         };
@@ -2016,44 +1675,28 @@ pub const Dependency = struct {
     }
 };
 
-fn findPkgHashOrFatal(b: *Build, name: []const u8) []const u8 {
-    for (b.available_deps) |dep| {
-        if (mem.eql(u8, dep[0], name)) return dep[1];
-    }
-    log.info("all dependencies used by build.zig must be declared in corresponding build.zig.zon", .{});
-    if (b.pkg_hash.len == 0) panic("no dependency named {s}", .{name});
-    panic("no dependency named {s} in {s} ({s})", .{ name, b.dep_prefix, b.pkg_hash });
-}
-
 inline fn findImportPkgHashOrFatal(b: *Build, comptime asking_build_zig: type, comptime dep_name: []const u8) []const u8 {
     const build_runner = @import("root");
     const deps = build_runner.dependencies;
     const arena = b.graph.arena;
+    const p = b.getPackage();
 
     const b_pkg_hash, const b_pkg_deps = comptime for (@typeInfo(deps.packages).@"struct".decl_names) |pkg_hash| {
         const pkg = @field(deps.packages, pkg_hash);
         if (@hasDecl(pkg, "build_zig") and pkg.build_zig == asking_build_zig) break .{ pkg_hash, pkg.deps };
     } else .{ "", deps.root_deps };
-    if (!mem.eql(u8, b_pkg_hash, b.pkg_hash)) {
-        const build_zig_path = b.root.join(arena, "build.zig") catch @panic("OOM");
-        panic("{} is not the struct that corresponds to {f}", .{
-            asking_build_zig, build_zig_path,
-        });
+    if (!mem.eql(u8, b_pkg_hash, p.pkg_hash)) {
+        const build_zig_path = p.root.join(arena, "build.zig") catch @panic("OOM");
+        panic("{} is not the struct that corresponds to {f}", .{ asking_build_zig, build_zig_path });
     }
     comptime for (b_pkg_deps) |dep| {
         if (mem.eql(u8, dep[0], dep_name)) return dep[1];
     };
 
-    const full_path = b.root.join(arena, "build.zig.zon") catch @panic("OOM");
+    const full_path = p.root.join(arena, "build.zig.zon") catch @panic("OOM");
     panic("no dependency named {s} in {f}. All packages used in build.zig must be declared in this file", .{
         dep_name, full_path,
     });
-}
-
-fn markNeededLazyDep(b: *Build, pkg_hash: []const u8) void {
-    const graph = b.graph;
-    const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
-    graph.unlazy_deps.put(graph.arena, interned_hash, {}) catch @panic("OOM");
 }
 
 /// Deprecated in favor of `dependencyLazy`.
@@ -2071,10 +1714,11 @@ pub fn lazyDependency(b: *Build, name: []const u8, args: anytype) ?*Dependency {
 /// * `dependencyLazy`
 /// * `dependencyStep`
 pub fn declareDependency(b: *Build, name: []const u8) void {
-    const pkg_hash = findPkgHashOrFatal(b, name);
-    const entry = package_map.get(pkg_hash).?;
+    const p = b.getPackage();
+    const pkg_hash = p.findPkgHashOrFatal(name);
+    const entry = Package.map.get(pkg_hash).?;
     if (entry.available) return;
-    markNeededLazyDep(b, pkg_hash);
+    b.graph.markNeededLazyDep(pkg_hash);
 }
 
 /// Indicates that the current configuration needs a potentially lazy dependency for the provided `Step`.
@@ -2086,8 +1730,9 @@ pub fn declareDependency(b: *Build, name: []const u8) void {
 /// * `dependencyStep`
 pub fn declareDependencyStep(b: *Build, s: *Step, name: []const u8) void {
     const graph = b.graph;
-    const pkg_hash = findPkgHashOrFatal(b, name);
-    const entry = package_map.get(pkg_hash).?;
+    const p = b.getPackage();
+    const pkg_hash = p.findPkgHashOrFatal(name);
+    const entry = Package.map.get(pkg_hash).?;
     if (entry.available) return;
     const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
     s.unlazy_deps.put(graph.arena, interned_hash, {}) catch @panic("OOM");
@@ -2223,8 +1868,9 @@ pub fn dependencyAdvanced(
 ) error{LazyDependencyNeeded}!*Dependency {
     const graph = b.graph;
     const arena = graph.arena;
-    const pkg_hash = findPkgHashOrFatal(b, name);
-    const entry = package_map.get(pkg_hash).?;
+    const p = b.getPackage();
+    const pkg_hash = p.findPkgHashOrFatal(name);
+    const entry = Package.map.get(pkg_hash).?;
     if (!entry.available) {
         const interned_hash = graph.wip_configuration.addString(pkg_hash) catch @panic("OOM");
         if (options.step) |s| {
@@ -2234,45 +1880,10 @@ pub fn dependencyAdvanced(
         }
         return error.LazyDependencyNeeded;
     }
-    var map: PackageOptions.Map = .empty;
-    PackageOptions.fromArgs(arena, &map, args);
-    return dependencyResolved(b, name, entry, &map, options.canonical, return_address);
+    var map: Package.Options.Map = .empty;
+    Package.Options.fromArgs(arena, &map, args);
+    return instantiatePackage(b, name, entry, &map, options.canonical, return_address);
 }
-
-pub const PackageEntry = struct {
-    hash: []const u8,
-    available: bool,
-    naked: bool,
-    build_root: []const u8,
-    deps: AvailableDeps,
-    run_build: ?*const fn (*Build) void,
-};
-
-/// Build system implementation detail.
-pub const package_map: std.StaticStringMap(PackageEntry) = map: {
-    const deps = @import("root").dependencies;
-    const decl_names = @typeInfo(deps.packages).@"struct".decl_names;
-    var kvs: [decl_names.len]struct { []const u8, PackageEntry } = undefined;
-    @setEvalBranchQuota(decl_names.len + 100);
-    for (decl_names, &kvs) |decl_name, *kv| {
-        const pkg = @field(deps.packages, decl_name);
-        const available = !@hasDecl(pkg, "available") or pkg.available;
-        kv.* = .{ decl_name, .{
-            .hash = decl_name,
-            .available = available,
-            .build_root = if (available) pkg.build_root else "",
-            .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
-            .naked = !@hasDecl(pkg, "deps"),
-            .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
-                fn run(b: *Build) void {
-                    b.runPackageScript(pkg.build_zig);
-                }
-            }.run else null,
-        } };
-    }
-    const frozen = kvs;
-    break :map .initComptime(&frozen);
-};
 
 pub const instance_map: std.StaticStringMap(void) = map: {
     const instances = @import("root").dependencies.instances;
@@ -2305,7 +1916,7 @@ pub inline fn lazyImport(
             const pkg = @field(deps.packages, decl_name);
             const available = !@hasDecl(pkg, "available") or pkg.available;
             if (!available) {
-                markNeededLazyDep(b, pkg_hash);
+                b.graph.markNeededLazyDep(pkg_hash);
                 return null;
             }
             return if (@hasDecl(pkg, "build_zig"))
@@ -2337,82 +1948,47 @@ pub fn dependencyFromBuildZig(
     args: anytype,
 ) *Dependency {
     const arena = b.graph.arena;
+    const p = b.getPackage();
 
     find_dep: {
         const pkg_hash = pkgHashFromBuildZig(build_zig) orelse break :find_dep;
-        const dep_name = for (b.available_deps) |dep| {
+        const dep_name = for (p.available_deps) |dep| {
             if (mem.eql(u8, dep[1], pkg_hash)) break dep[1];
         } else break :find_dep;
-        const entry = package_map.get(pkg_hash) orelse break :find_dep;
-        var map: PackageOptions.Map = .empty;
-        PackageOptions.fromArgs(arena, &map, args);
-        return dependencyResolved(b, dep_name, entry, &map, false, @returnAddress());
+        const entry = Package.map.get(pkg_hash) orelse break :find_dep;
+        var map: Package.Options.Map = .empty;
+        Package.Options.fromArgs(arena, &map, args);
+        return instantiatePackage(b, dep_name, entry, &map, false, @returnAddress());
     }
 
-    const full_path = b.root.join(arena, "build.zig.zon") catch @panic("OOM");
+    const full_path = p.root.join(arena, "build.zig.zon") catch @panic("OOM");
     panic("{} is not a build.zig struct of a dependency in {f}", .{ build_zig, full_path });
 }
 
+/// Finds an already-configured, matching `Package`, or runs configuration logic for a `Package`
+/// with a particular set of configuration options and saves it into the cache, and possibly also
+/// the appropriate `deduplication_table`.
+///
 /// Takes ownership of `package_options`, which may be unsorted.
-fn dependencyResolved(
-    b: *Build,
+fn instantiatePackage(
+    parent_build: *Build,
     name: []const u8,
-    entry: PackageEntry,
-    package_options: *PackageOptions.Map,
+    entry: Package.Entry,
+    package_options: *Package.Options.Map,
     canonical: bool,
     first_return_address: usize,
 ) *Dependency {
-    const graph = b.graph;
+    const graph = parent_build.graph;
     const io = graph.io;
     const arena = graph.arena;
+    const parent_package = parent_build.getPackage();
 
-    PackageOptions.sort(package_options);
+    Package.Options.sort(package_options);
 
-    const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{ b.dep_prefix, name }) catch @panic("OOM");
+    const child_dep_prefix = std.fmt.allocPrint(arena, "{s}{s}.", .{
+        parent_package.dep_prefix, name,
+    }) catch @panic("OOM");
     const new_package_path = child_dep_prefix[0 .. child_dep_prefix.len - 1];
-
-    // Check `deduplicated_dependencies` first because it is cheaper. However if the package is
-    // exempt from version management, then we skip straight to using `package_instances`.
-    const versioned: bool = versioned: {
-        if (!instance_map.has(new_package_path)) {
-            const package_hash: Package.Hash = .fromSlice(entry.hash);
-            if (package_hash.projectIdOptional()) |project_id| {
-                if (graph.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
-                    .instances = &graph.package_instances,
-                }))) |kv| {
-                    const index = kv.key_ptr.*;
-                    const found_canonical = kv.value_ptr.*;
-                    const found_dependency = graph.package_instances.values()[index];
-
-                    if (found_canonical) return found_dependency;
-
-                    const found_package_instance = &graph.package_instances.keys()[index];
-                    const found_options = found_package_instance.options;
-                    const found_pkg_hash = found_package_instance.pkg_hash;
-                    const found_dep_prefix = found_dependency.builder.dep_prefix;
-                    const old_package_path = found_dep_prefix[0 .. found_dep_prefix.len - 1];
-
-                    if (!mem.eql(u8, found_pkg_hash, entry.hash)) {
-                        log.err("package version conflict: {s} ({s})", .{ found_pkg_hash, old_package_path });
-                        log.err("package version conflict: {s} ({s})", .{ entry.hash, new_package_path });
-                        std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-                        process.exit(1);
-                    }
-                    if (!PackageOptions.eql(found_options, package_options)) {
-                        log.err("package {s} ({s} vs {s}) reinstantiated with non-matching options", .{
-                            found_pkg_hash, old_package_path, new_package_path,
-                        });
-                        PackageOptions.logDifferences(found_options, package_options);
-                        std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
-                        process.exit(1);
-                    }
-                    return found_dependency;
-                }
-                break :versioned true;
-            }
-        }
-        break :versioned false;
-    };
 
     if (graph.package_instances.get(.{
         .pkg_hash = entry.hash,
@@ -2420,6 +1996,69 @@ fn dependencyResolved(
     })) |found_dependency| {
         return found_dependency;
     }
+
+    const versioned: bool = versioned: {
+        if (instance_map.has(new_package_path)) break :versioned false;
+
+        const package_hash: Package.Hash = .fromSlice(entry.hash);
+        const project_id = package_hash.projectIdOptional() orelse break :versioned false;
+
+        var build_it: ?*Build = parent_build;
+        while (build_it) |b| : (build_it = b) {
+            const kv = b.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
+                .instances = &graph.package_instances,
+            })) orelse continue;
+
+            const index = kv.key_ptr.*;
+            const found_canonical = kv.value_ptr.*;
+            const found_dependency = graph.package_instances.values()[index];
+
+            if (found_canonical) return found_dependency;
+
+            const found_package_instance = &graph.package_instances.keys()[index];
+            const found_options = found_package_instance.options;
+            const found_pkg_hash = found_package_instance.pkg_hash;
+            const found_dep_prefix = found_dependency.package.dep_prefix;
+            const old_package_path = found_dep_prefix[0 .. found_dep_prefix.len - 1];
+
+            if (!mem.eql(u8, found_pkg_hash, entry.hash)) {
+                log.err("package version conflict: {s} ({s})", .{ found_pkg_hash, old_package_path });
+                log.err("package version conflict: {s} ({s})", .{ entry.hash, new_package_path });
+                const found_package_hash: Package.Hash = .fromSlice(found_pkg_hash);
+                const found_version = found_package_hash.version();
+                const entry_version = package_hash.version();
+                const suggested_winner = switch (entry_version.order(found_version)) {
+                    .lt, .eq => found_pkg_hash,
+                    .gt => entry.hash,
+                };
+                log.info("possible resolution: zig fetch --save {s}", .{suggested_winner});
+                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{old_package_path});
+                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{new_package_path});
+                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                process.exit(1);
+            }
+            if (!Package.Options.eql(found_options, package_options)) {
+                log.err("package {s} ({s} vs {s}) reinstantiated with non-matching options", .{
+                    found_pkg_hash, old_package_path, new_package_path,
+                });
+                Package.Options.logDifferences(found_options, package_options);
+                const found_package_hash: Package.Hash = .fromSlice(found_pkg_hash);
+                const found_version = found_package_hash.version();
+                const entry_version = package_hash.version();
+                const suggested_winner = switch (entry_version.order(found_version)) {
+                    .lt, .eq => found_pkg_hash,
+                    .gt => entry.hash,
+                };
+                log.info("possible resolution: \"zig fetch --save {s}\" and then in build.zig, use dependencyCanoncial, dependencyStepCanonical, or dependencyLazyCanonical", .{suggested_winner});
+                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{old_package_path});
+                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{new_package_path});
+                std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
+                process.exit(1);
+            }
+            return found_dependency;
+        }
+        break :versioned true;
+    };
 
     const dep_root: Cache.Path = .{
         .root_dir = .{
@@ -2429,33 +2068,71 @@ fn dependencyResolved(
         },
     };
 
-    const sub_builder = b.createChild(child_dep_prefix, dep_root, entry.hash, entry.deps, package_options.*) catch
-        @panic("OOM");
-    if (entry.run_build) |run_build| {
-        run_build(sub_builder);
+    const child_package = try arena.create(Package);
+    const child_build = try arena.create(Build);
+    child_build.* = .{
+        .graph = graph,
+        .allocator = arena,
+        .package = child_package,
+        .parent = parent_build,
+        .deduplicated_dependencies = .empty,
+    };
+    child_package.* = .{
+        .graph = graph,
+        .root = dep_root,
+        .allocator = arena,
+        .install_tls = .{
+            .step = .init(.{
+                .tag = .top_level,
+                .name = "install",
+                .owner = child_build,
+            }),
+            .description = "Copy build artifacts to prefix path",
+        },
+        .uninstall_tls = .{
+            .step = .init(.{
+                .tag = .top_level,
+                .name = "uninstall",
+                .owner = child_build,
+            }),
+            .description = "Remove build artifacts from prefix path",
+        },
+        .user_input_options = package_options.*,
+        .invalid_user_input = false,
+        .default_step = &child_package.install_tls.step,
+        .top_level_steps = .{},
+        .dep_prefix = child_dep_prefix,
+        .modules = .empty,
+        .named_writefiles = .empty,
+        .named_lazy_paths = .empty,
+        .pkg_hash = entry.hash,
+        .available_deps = entry.deps,
+    };
+    try child_package.top_level_steps.put(arena, child_package.install_tls.step.name, &child_package.install_tls);
+    try child_package.top_level_steps.put(arena, child_package.uninstall_tls.step.name, &child_package.uninstall_tls);
 
-        if (sub_builder.validateUserInputDidItFail()) {
+    if (entry.run_build) |run_build| {
+        run_build(child_build);
+
+        if (child_package.validateUserInputDidItFail()) {
             std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
         }
     }
 
     const dep = graph.create(Dependency);
-    dep.* = .{ .builder = sub_builder };
+    dep.* = .{ .package = child_package };
 
-    graph.package_instances.put(arena, .{
+    // If this assertion trips, there was a circular dependency.
+    graph.package_instances.putNoClobber(arena, .{
         .pkg_hash = entry.hash,
-        .options = &sub_builder.user_input_options,
+        .options = &child_package.user_input_options,
     }, dep) catch @panic("OOM");
+
     if (versioned) {
         const key: u32 = @intCast(graph.package_instances.count() - 1);
         graph.deduplicated_dependencies.putContext(arena, key, canonical, .{
             .instances = &graph.package_instances,
         }) catch @panic("OOM");
-        if (canonical) {
-            // Canonical options should affect children only, not siblings.
-            const index: u32 = @intCast(graph.deduplicated_dependencies.count() - 1);
-            b.pushed_canonical_instances.append(arena, index) catch @panic("OOM");
-        }
     }
 
     return dep;
@@ -2468,11 +2145,12 @@ pub inline fn runPackageScript(b: *Build, comptime build_zig: anytype) void {
 
 fn handleResult(b: *Build, result: anyerror!void) void {
     const graph = b.graph;
+    const p = b.getPackage();
     result catch |err| switch (err) {
         error.LazyDependencyNeeded => assert(graph.unlazy_deps.count() != 0),
         else => {
-            if (b.dep_prefix.len == 0) {
-                log.err("package {q} configuration failed: {t}", .{ b.dep_prefix, err });
+            if (p.dep_prefix.len == 0) {
+                log.err("package {q} configuration failed: {t}", .{ p.dep_prefix, err });
             } else {
                 log.err("configuration failed: {t}", .{err});
             }
@@ -2482,12 +2160,6 @@ fn handleResult(b: *Build, result: anyerror!void) void {
             log.info("{d} lazy dependencies detected; fetching and retrying configuration", .{lazy_count});
         },
     };
-
-    // Package instances marked "canonical" lose their canonicalness when they become siblings
-    // rather than parents.
-    for (b.pushed_canonical_instances.items) |index| {
-        graph.deduplicated_dependencies.values()[index] = false;
-    }
 }
 
 // dirnameAllowEmpty is a variant of fs.path.dirname
@@ -3064,6 +2736,14 @@ pub fn serializeConfigurationExiting(b: *Build) noreturn {
     // build.zig script (or, frankly, this configure runner), therefore we call
     // exit directly here rather than cleanExit.
     process.exit(0);
+}
+
+pub fn getPackage(start: *const Build) *Package {
+    var cur = start;
+    while (true) {
+        if (cur.package) |package| return package;
+        cur = cur.parent.?;
+    }
 }
 
 test {

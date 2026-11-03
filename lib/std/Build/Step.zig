@@ -97,15 +97,16 @@ pub const StepOptions = struct {
 
 pub fn init(options: StepOptions) Step {
     const arena = options.owner.allocator;
+    const graph = options.owner.graph;
 
     return .{
         .tag = options.tag,
-        .name = options.owner.graph.dupeString(options.name),
+        .name = graph.dupeString(options.name),
         .owner = options.owner,
         .dependencies = .empty,
         .max_rss = options.max_rss,
         .debug_stack_trace = blk: {
-            const addr_buf = arena.alloc(usize, options.owner.debug_stack_frames_count) catch @panic("OOM");
+            const addr_buf = arena.alloc(usize, graph.debug_stack_frames_count) catch @panic("OOM");
             const first_ret_addr = options.first_ret_addr orelse @returnAddress();
             break :blk std.debug.captureCurrentStackTrace(.{ .first_address = first_ret_addr }, addr_buf);
         },
@@ -131,9 +132,11 @@ pub fn dump(step: *Step, t: std.Io.Terminal) void {
         std.debug.writeStackTrace(&step.debug_stack_trace, t) catch {};
     } else {
         const field = "debug_stack_frames_count";
-        comptime assert(@hasField(Build, field));
+        comptime assert(@hasField(Build.Graph, field));
         t.setColor(.yellow) catch {};
-        w.print("name: '{s}'. no stack trace collected for this step, see std.Build." ++ field ++ "\n", .{step.name}) catch {};
+        w.print("name: {q}. no stack trace collected for this step, see std.Build.Graph." ++ field ++ "\n", .{
+            step.name,
+        }) catch {};
         t.setColor(.reset) catch {};
     }
 }
