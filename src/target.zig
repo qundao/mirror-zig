@@ -509,7 +509,7 @@ pub fn libcFullLinkFlags(target: *const std.Target) []const []const u8 {
         .illumos => &.{ "-lm", "-lsocket", "-lnsl", "-lc" },
         .haiku => &.{ "-lm", "-lroot", "-lpthread", "-lc", "-lnetwork" },
         .linux => switch (target.abi) {
-            .android, .androideabi, .ohos, .ohoseabi => &.{ "-lm", "-lc", "-ldl" },
+            .android, .androidsf, .ohos, .ohossf => &.{ "-lm", "-lc", "-ldl" },
             else => &.{ "-lm", "-lpthread", "-lc", "-ldl", "-lrt", "-lutil" },
         },
         // On SerenityOS libc includes libm, libpthread, libdl, and libssp.
@@ -549,7 +549,10 @@ pub fn clangSupportsTargetCpuArg(target: *const std.Target) bool {
     };
 }
 
-pub fn clangSupportsFloatAbiArg(target: *const std.Target) bool {
+pub fn clangSupportsFloatAbiArg(target: *const std.Target) ?enum {
+    @"-mfloat-abi=",
+    @"-msoft-float, -mhard-float",
+} {
     return switch (target.cpu.arch) {
         .arm,
         .armeb,
@@ -564,13 +567,12 @@ pub fn clangSupportsFloatAbiArg(target: *const std.Target) bool {
         .powerpcle,
         .powerpc64,
         .powerpc64le,
-        .s390x,
         .sparc,
         .sparc64,
-        => true,
-        // We use the target triple for LoongArch.
-        .loongarch32, .loongarch64 => false,
-        else => false,
+        => .@"-mfloat-abi=",
+        .s390x,
+        => .@"-msoft-float, -mhard-float",
+        else => null,
     };
 }
 
@@ -664,39 +666,34 @@ pub fn llvmMachineAbi(target: *const std.Target) ?[:0]const u8 {
         else
             "aapcs",
         .arm, .armeb, .thumb, .thumbeb => "aapcs",
-        .loongarch64 => switch (target.abi) {
-            .gnusf, .muslsf => "lp64s",
-            .gnuf32, .muslf32 => "lp64f",
-            else => "lp64d",
+        .loongarch64 => switch (target.abi.float()) {
+            .soft => "lp64s",
+            .hard32 => "lp64f",
+            .hard64 => "lp64d",
         },
-        .loongarch32 => switch (target.abi) {
-            .gnusf, .muslsf => "ilp32s",
-            .gnuf32, .muslf32 => "ilp32f",
-            else => "ilp32d",
+        .loongarch32 => switch (target.abi.float()) {
+            .soft => "ilp32s",
+            .hard32 => "ilp32f",
+            .hard64 => "ilp32d",
         },
         .mips, .mipsel => "o32",
-        .mips64, .mips64el => switch (target.abi) {
-            .gnuabin32, .muslabin32, .abin32 => "n32",
-            else => "n64",
-        },
-        .powerpc64 => if (target.os.tag == .ps3) "elfv1" else "elfv2",
+        .mips64, .mips64el => if (target.abi.isN32()) "n32" else "n64",
+        .powerpc64 => if (target.os.tag == .ps3 or target.abi == .gnu) "elfv1" else "elfv2",
         .powerpc64le => "elfv2",
         .riscv64, .riscv64be => if (target.cpu.has(.riscv, .e))
             "lp64e"
-        else if (target.cpu.has(.riscv, .d))
-            "lp64d"
-        else if (target.cpu.has(.riscv, .f))
-            "lp64f"
-        else
-            "lp64",
+        else switch (target.abi.float()) {
+            .soft => "lp64",
+            .hard32 => "lp64f",
+            .hard64 => "lp64d",
+        },
         .riscv32, .riscv32be => if (target.cpu.has(.riscv, .e))
             "ilp32e"
-        else if (target.cpu.has(.riscv, .d))
-            "ilp32d"
-        else if (target.cpu.has(.riscv, .f))
-            "ilp32f"
-        else
-            "ilp32",
+        else switch (target.abi.float()) {
+            .soft => "ilp32",
+            .hard32 => "ilp32f",
+            .hard64 => "ilp32d",
+        },
         else => null,
     };
 }

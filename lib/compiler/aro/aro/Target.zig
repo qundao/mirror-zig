@@ -577,7 +577,7 @@ pub fn unnamedFieldAffectsAlignment(target: *const Target) bool {
         },
         .armeb => {
             if (std.Target.arm.featureSetHas(target.cpu.features, .v7)) {
-                if (Abi.default(target.cpu.arch, target.os.tag) == .eabi) return true;
+                return true;
             }
         },
         .arm => return true,

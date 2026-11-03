@@ -82,8 +82,8 @@ pub fn buildCrtFile(comp: *Compilation, crt_file: CrtFile, prog_node: std.Progre
             });
 
             const csu_march: ?[]const u8 = switch (target.cpu.arch) {
-                .arm => if (target.abi.float() == .hard) "earmhf" else "earm",
-                .armeb => if (target.abi.float() == .hard) "earmhfeb" else "earmeb",
+                .arm => if (target.abi.float() == .soft) "earm" else "earmhf",
+                .armeb => if (target.abi.float() == .soft) "earmeb" else "earmhfeb",
                 else => null,
             };
 

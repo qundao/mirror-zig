@@ -42,10 +42,10 @@ const arch_bits = switch (native_arch) {
     .m68k => @import("linux/m68k.zig"),
     .microblaze, .microblazeel => @import("linux/microblaze.zig"),
     .mips, .mipsel => @import("linux/mips.zig"),
-    .mips64, .mips64el => switch (builtin.abi) {
-        .gnuabin32, .muslabin32, .abin32 => @import("linux/mipsn32.zig"),
-        else => @import("linux/mips64.zig"),
-    },
+    .mips64, .mips64el => if (native_abi.isN32())
+        @import("linux/mipsn32.zig")
+    else
+        @import("linux/mips64.zig"),
     .or1k => @import("linux/or1k.zig"),
     .powerpc, .powerpcle => @import("linux/powerpc.zig"),
     .powerpc64, .powerpc64le => @import("linux/powerpc64.zig"),
@@ -56,10 +56,10 @@ const arch_bits = switch (native_arch) {
     .sparc => @import("linux/sparc.zig"),
     .sparc64 => @import("linux/sparc64.zig"),
     .x86 => @import("linux/x86.zig"),
-    .x86_64 => switch (builtin.abi) {
-        .gnux32, .muslx32, .x32 => @import("linux/x32.zig"),
-        else => @import("linux/x86_64.zig"),
-    },
+    .x86_64 => if (native_abi.isX32())
+        @import("linux/x32.zig")
+    else
+        @import("linux/x86_64.zig"),
     .xtensa, .xtensaeb => @import("linux/xtensa.zig"),
     else => struct {},
 };
@@ -142,10 +142,10 @@ pub const SYS = switch (native_arch) {
     .m68k => syscalls.M68k,
     .microblaze, .microblazeel => syscalls.Microblaze,
     .mips, .mipsel => syscalls.MipsO32,
-    .mips64, .mips64el => switch (builtin.abi) {
-        .gnuabin32, .muslabin32, .abin32 => syscalls.MipsN32,
-        else => syscalls.MipsN64,
-    },
+    .mips64, .mips64el => if (native_abi.isN32())
+        syscalls.MipsN32
+    else
+        syscalls.MipsN64,
     .or1k => syscalls.OpenRisc,
     .powerpc, .powerpcle => syscalls.PowerPC,
     .powerpc64, .powerpc64le => syscalls.PowerPC64,
@@ -156,10 +156,10 @@ pub const SYS = switch (native_arch) {
     .sparc => syscalls.Sparc,
     .sparc64 => syscalls.Sparc64,
     .x86 => syscalls.X86,
-    .x86_64 => switch (builtin.abi) {
-        .gnux32, .muslx32, .x32 => syscalls.X32,
-        else => syscalls.X64,
-    },
+    .x86_64 => if (native_abi.isX32())
+        syscalls.X32
+    else
+        syscalls.X64,
     .xtensa, .xtensaeb => syscalls.Xtensa,
     else => @compileError("The Zig Standard Library is missing syscall definitions for the target CPU architecture"),
 };
@@ -2090,16 +2090,10 @@ pub fn llseek(fd: fd_t, offset: off_t, result: ?*off_t, whence: u32) u32 {
 
 /// Can only be called on 64 bit systems. For 32 bit see `llseek`.
 pub fn lseek(fd: fd_t, offset: off_t, whence: u32) u64 {
-    return switch (builtin.abi) {
-        .gnuabin32,
-        .muslabin32,
-        .abin32,
-        .gnux32,
-        .muslx32,
-        .x32,
-        => syscall_lseek(fd, offset, whence),
-        else => syscall3(.lseek, @as(u32, @bitCast(fd)), @as(u64, @bitCast(offset)), whence),
-    };
+    return if (native_abi.isIlp32())
+        syscall_lseek(fd, offset, whence)
+    else
+        syscall3(.lseek, @as(u32, @bitCast(fd)), @as(u64, @bitCast(offset)), whence);
 }
 
 pub fn exit(status: i32) noreturn {
@@ -2272,18 +2266,18 @@ pub const F = struct {
             const SETLK = 34;
             const SETLKW = 35;
         },
-        .mips64, .mips64el => switch (native_abi) {
-            .gnuabin32, .muslabin32, .abin32 => struct {
+        .mips64, .mips64el => if (native_abi.isN32())
+            struct {
                 const GETLK = 33;
                 const SETLK = 34;
                 const SETLKW = 35;
-            },
-            else => struct {
+            }
+        else
+            struct {
                 const GETLK = 14;
                 const SETLK = 6;
                 const SETLKW = 7;
             },
-        },
         .alpha, .sparc, .sparc64 => struct {
             const GETLK = 7;
             const SETLK = 8;
@@ -3460,8 +3454,8 @@ pub fn tee(src: fd_t, dest: fd_t, len: usize, flags: u32) usize {
     );
 }
 
-pub const Sysinfo = switch (native_abi) {
-    .gnux32, .muslx32, .x32 => extern struct {
+pub const Sysinfo = if (native_abi.isX32())
+    extern struct {
         /// Seconds since boot
         uptime: i64,
         /// 1, 5, and 15 minute load averages
@@ -3488,8 +3482,9 @@ pub const Sysinfo = switch (native_abi) {
         freehigh: u64,
         /// Memory unit size in bytes
         mem_unit: u32,
-    },
-    else => extern struct {
+    }
+else
+    extern struct {
         /// Seconds since boot
         uptime: isize,
         /// 1, 5, and 15 minute load averages
@@ -3518,8 +3513,7 @@ pub const Sysinfo = switch (native_abi) {
         mem_unit: u32,
         /// Pad
         _f: [20 - 2 * @sizeOf(usize) - @sizeOf(u32)]u8,
-    },
-};
+    };
 
 pub fn sysinfo(info: *Sysinfo) usize {
     return syscall1(.sysinfo, @intFromPtr(info));
@@ -9768,10 +9762,7 @@ pub const UTIME = struct {
 };
 
 // https://github.com/ziglang/zig/issues/4726#issuecomment-2190337877
-const use_kernel_timespec = native_arch == .hexagon or native_arch == .riscv32 or switch (native_abi) {
-    .gnux32, .muslx32, .x32 => true,
-    else => false,
-};
+const use_kernel_timespec = native_arch == .hexagon or native_arch == .riscv32 or native_abi.isX32();
 pub const timespec = if (use_kernel_timespec) kernel_timespec else extern struct {
     sec: isize,
     nsec: isize,
@@ -11066,14 +11057,14 @@ pub const AUDIT = struct {
             .microblaze, .microblazeel => .MICROBLAZE,
             .mips => .MIPS,
             .mipsel => .MIPSEL,
-            .mips64 => switch (native_abi) {
-                .gnuabin32, .muslabin32, .abin32 => .MIPS64N32,
-                else => .MIPS64,
-            },
-            .mips64el => switch (native_abi) {
-                .gnuabin32, .muslabin32, .abin32 => .MIPSEL64N32,
-                else => .MIPSEL64,
-            },
+            .mips64 => if (native_abi.isN32())
+                .MIPS64N32
+            else
+                .MIPS64,
+            .mips64el => if (native_abi.isN32())
+                .MIPSEL64N32
+            else
+                .MIPSEL64,
             .or1k => .OPENRISC,
             .powerpc => .PPC,
             .powerpc64 => .PPC64,

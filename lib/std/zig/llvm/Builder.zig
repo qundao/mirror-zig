@@ -334,39 +334,58 @@ pub fn tripleForTarget(allocator: Allocator, target: *const std.Target) ![]const
     try llvm_triple.append(allocator, '-');
 
     const llvm_abi = switch (target.abi) {
-        .none => if (target.os.tag == .maccatalyst) "macabi" else "unknown",
-        .gnu => "gnu",
-        .gnuabin32 => "gnuabin32",
-        .gnuabi64 => "gnuabi64",
-        .gnueabi => "gnueabi",
-        .gnueabihf => "gnueabihf",
-        .gnuf32 => "gnuf32",
-        .gnusf => "gnusf",
-        .gnux32 => "gnux32",
-        .ilp32 => "unknown",
-        .eabi => "eabi",
-        .eabihf => "eabihf",
-        .abin32 => "unknown",
-        .x32 => "muslx32", // https://github.com/ziglang/zig/issues/25649
+        .none => if (target.cpu.arch.isArm())
+            "eabihf"
+        else if (target.os.tag == .maccatalyst)
+            "macabi"
+        else
+            "unknown",
         .android => "android",
-        .androideabi => "androideabi",
+        .androidsf => if (target.cpu.arch.isArm())
+            "androideabi"
+        else
+            "android",
+        .gnu => if (target.cpu.arch.isArm())
+            "gnueabihf"
+        else
+            "gnu",
+        .gnuf32 => "gnuf32",
+        .gnun32, .gnun32sf => "gnuabin32",
+        .gnusf => if (target.cpu.arch.isArm())
+            "gnueabi"
+        else
+            "gnusf",
+        .gnux32 => "gnux32",
+        .msvc => "msvc",
         .musl => switch (target.os.tag) {
             // For WASI/Emscripten, "musl" refers to the libc, not really the ABI.
             // "unknown" provides better compatibility with LLVM-based tooling for these targets.
             .wasi, .emscripten => "unknown",
-            else => "musl",
+            else => if (target.cpu.arch.isArm())
+                "musleabihf"
+            else
+                "musl",
         },
-        .muslabin32 => "muslabin32",
-        .muslabi64 => "muslabi64",
-        .musleabi => "musleabi",
-        .musleabihf => "musleabihf",
         .muslf32 => "muslf32",
-        .muslsf => "muslsf",
+        .musln32, .musln32sf => "muslabin32",
+        .muslsf => if (target.cpu.arch.isArm())
+            "musleabi"
+        else
+            "muslsf",
         .muslx32 => "muslx32",
-        .msvc => "msvc",
+        .n32, .n32f32, .n32sf => "muslabin32", // https://github.com/ziglang/zig/issues/25649
+        .ohos, .ohossf => "ohos",
+        .sf => if (target.cpu.arch.isArm())
+            "eabi"
+        else
+            "unknown",
         .simulator => "simulator",
-        .ohos, .ohoseabi => "ohos",
-        .call0 => "unknown",
+        .x32, .x32sf => "muslx32", // https://github.com/ziglang/zig/issues/25649
+
+        .call0,
+        .f32,
+        .ilp32,
+        => "unknown",
     };
     try llvm_triple.appendSlice(allocator, llvm_abi);
 
@@ -478,14 +497,14 @@ pub const DataLayout = struct {
             .msp430 => "e-m:e-p:16:16-i32:16-i64:16-f32:16-f64:16-a:8-n8:16-S16",
             .mips => "E-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64",
             .mipsel => "e-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64",
-            .mips64 => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "E-m:e-p:32:32-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
-                else => "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
-            },
-            .mips64el => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "e-m:e-p:32:32-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
-                else => "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
-            },
+            .mips64 => if (target.abi.isN32())
+                "E-m:e-p:32:32-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128"
+            else
+                "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
+            .mips64el => if (target.abi.isN32())
+                "e-m:e-p:32:32-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128"
+            else
+                "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
             .m68k => "E-m:e-p:32:16:32-i8:8:8-i16:16:16-i32:16:32-n8:16:32-a:0:16-S16",
             .powerpc => "E-m:e-p:32:32-Fn32-i64:64-n32",
             .powerpcle => "e-m:e-p:32:32-Fn32-i64:64-n32",
@@ -547,13 +566,12 @@ pub const DataLayout = struct {
                 "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
             .x86_64 => if (target.os.tag.isDarwin() or target.ofmt == .macho)
                 "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-            else switch (target.abi) {
-                .gnux32, .muslx32, .x32 => "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-                else => if ((target.os.tag == .windows or target.os.tag == .uefi) and target.ofmt == .coff)
-                    "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-                else
-                    "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-            },
+            else if (target.abi.isX32())
+                "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+            else if ((target.os.tag == .windows or target.os.tag == .uefi) and target.ofmt == .coff)
+                "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+            else
+                "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
             .spirv32 => switch (target.os.tag) {
                 .vulkan, .opengl => "e-ve-i64:64-n8:16:32:64-G10",
                 else => "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-n8:16:32:64-G1",

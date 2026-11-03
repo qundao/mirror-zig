@@ -2054,7 +2054,7 @@ pub const Object = struct {
             // Ideally, we would support something akin to the `-mfloat-abi=softfp` option that GCC
             // and Clang support for Arm32 and CSKY. We don't currently expose such an option in
             // Zig, and using CPU features as the source of truth for this makes for a miserable
-            // user experience since people expect e.g. `arm-linux-gnueabi` to mean full soft float
+            // user experience since people expect e.g. `arm-linux-gnusf` to mean full soft float
             // unless the compiler has explicitly been told otherwise. (And note that our baseline
             // CPU models almost all include FPU features!)
             //

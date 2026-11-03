@@ -43,7 +43,7 @@ export ZIG_LIB_DIR="$PWD/../lib"
 # Simultaneously test building self-hosted without LLVM and with 32-bit arm
 stage3-debug/bin/zig build \
   --maxrss "${ZSF_MAX_RSS:-0}" \
-  -Dtarget=arm-linux-musleabihf \
+  -Dtarget=arm-linux-musl \
   -Dno-lib
 
 stage3-debug/bin/zig build install test docs \

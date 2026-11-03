@@ -307,8 +307,8 @@ pub fn emit(
         comp.config.function_sections,
         comp.config.data_sections,
         switch (target.abi.float()) {
-            .hard => .Hard,
             .soft => .Soft,
+            else => .Hard,
         },
         if (target_util.llvmMachineAbi(target)) |s| s.ptr else null,
         target_util.useEmulatedTls(target),

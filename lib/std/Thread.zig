@@ -1175,22 +1175,18 @@ const LinuxThreadImpl = struct {
                     : [ptr] "{ebx}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{ecx}" (self.mapped.len),
                 ),
-                .x86_64 => asm volatile (switch (target.abi) {
-                        .gnux32, .muslx32, .x32 =>
+                .x86_64 => asm volatile (if (target.abi.isX32())
                         \\ movl $0x4000000b, %%eax # SYS_munmap
                         \\ syscall
                         \\ movl $0x4000003c, %%eax # SYS_exit
                         \\ xor %%rdi, %%rdi
                         \\ syscall
-                        ,
-                        else =>
+                    else
                         \\ movl $11, %%eax # SYS_munmap
                         \\ syscall
                         \\ movl $60, %%eax # SYS_exit
                         \\ xor %%rdi, %%rdi
                         \\ syscall
-                        ,
-                    }
                     :
                     : [ptr] "{rdi}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{rsi}" (self.mapped.len),
@@ -1285,22 +1281,18 @@ const LinuxThreadImpl = struct {
                     : [ptr] "{$4}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{$5}" (self.mapped.len),
                 ),
-                .mips64, .mips64el => asm volatile (switch (target.abi) {
-                        .gnuabin32, .muslabin32, .abin32 =>
+                .mips64, .mips64el => asm volatile (if (target.abi.isN32())
                         \\ li $v0, 6011 # SYS_munmap
                         \\ syscall
                         \\ li $v0, 6058 # SYS_exit
                         \\ li $a0, 0
                         \\ syscall
-                        ,
-                        else =>
+                    else
                         \\ li $v0, 5011 # SYS_munmap
                         \\ syscall
                         \\ li $v0, 5058 # SYS_exit
                         \\ li $a0, 0
                         \\ syscall
-                        ,
-                    }
                     :
                     : [ptr] "{$4}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{$5}" (self.mapped.len),

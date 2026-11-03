@@ -6782,27 +6782,33 @@ pub fn addCCArgs(
         try argv.append(arena, "-G0"); // Unsupported by LLD.
     }
 
-    // We might want to support -mfloat-abi=softfp for Arm and CSKY here in the future.
-    if (target_util.clangSupportsFloatAbiArg(target)) {
-        const fabi = target.abi.float();
+    if (target_util.clangSupportsFloatAbiArg(target)) |style| switch (style) {
+        .@"-mfloat-abi=" => {
+            // TODO: softfp for arm and csky
+            try argv.append(
+                arena,
+                try arena.print("-mfloat-abi={s}", .{if (target.abi.float() == .soft) "soft" else "hard"}),
+            );
 
-        try argv.append(arena, switch (target.cpu.arch) {
-            // For whatever reason, Clang doesn't support `-mfloat-abi` for s390x.
-            .s390x => try arena.print("-m{s}-float", .{@tagName(fabi)}),
-            else => try arena.print("-mfloat-abi={s}", .{@tagName(fabi)}),
-        });
-
-        if (target.cpu.arch.isMips() and fabi == .hard) {
-            try argv.appendSlice(arena, if (target.cpu.has(.mips, .fpu_s) and !target.cpu.has(.mips, .fpu_d))
-                &.{ "-msingle-float", "-mno-odd-spreg" }
-            else if (target.cpu.arch.isMips64() or target.cpu.hasAny(.mips, &.{ .mips32r6, .msa }))
-                &.{ "-mfp64", "-modd-spreg" }
-            else if (target.cpu.has(.mips, .mips2))
-                &.{ "-mfpxx", "-mno-odd-spreg" }
-            else
-                &.{ "-mfp32", "-mno-odd-spreg" });
-        }
-    }
+            // TODO: clean up this disaster
+            if (target.cpu.arch.isMips() and target.abi.float() != .soft) {
+                try argv.appendSlice(arena, if (target.cpu.has(.mips, .fpu_s) and !target.cpu.has(.mips, .fpu_d))
+                    &.{ "-msingle-float", "-mno-odd-spreg" }
+                else if (target.cpu.arch.isMips64() or target.cpu.hasAny(.mips, &.{ .mips32r6, .msa }))
+                    &.{ "-mfp64", "-modd-spreg" }
+                else if (target.cpu.has(.mips, .mips2))
+                    &.{ "-mfpxx", "-mno-odd-spreg" }
+                else
+                    &.{ "-mfp32", "-mno-odd-spreg" });
+            }
+        },
+        .@"-msoft-float, -mhard-float" => {
+            try argv.append(
+                arena,
+                try arena.print("-m{s}-float", .{if (target.abi.float() == .soft) "soft" else "hard"}),
+            );
+        },
+    };
 
     if (target.cpu.arch.isX86() and target.abi.float() == .soft) {
         // This is necessary to get the effects of the `soft-float` backend

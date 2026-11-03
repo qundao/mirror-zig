@@ -47,7 +47,7 @@ export ZIG_LIB_DIR="$PWD/../lib"
 
 # Simultaneously test building self-hosted without LLVM and with 32-bit arm
 stage3-release/bin/zig build \
-  -Dtarget=arm-linux-musleabihf \
+  -Dtarget=arm-linux-musl \
   -Dno-lib
 
 stage3-release/bin/zig build install test docs \

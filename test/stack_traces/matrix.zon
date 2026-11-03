@@ -25,64 +25,6 @@
         .pic = .pie,
     },
 
-    // FreeBSD Targets
-
-    .{
-        .cpu = .{ .arm = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .eabihf = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .none,
-    },
-    .{
-        .cpu = .{ .arm = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .eabihf = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .async,
-    },
-    .{
-        .cpu = .{ .arm = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .eabihf = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .omit,
-        .unwind_tables = .async,
-    },
-
-    .{
-        .cpu = .{ .x86 = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .none,
-    },
-    .{
-        .cpu = .{ .x86 = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .async,
-    },
-    .{
-        .cpu = .{ .x86 = .{} },
-        .os = .{ .freebsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .omit,
-        .unwind_tables = .async,
-    },
-
     // Linux Targets
 
     .{
@@ -336,7 +278,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -345,7 +287,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -354,7 +296,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -363,7 +305,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -373,7 +315,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -383,7 +325,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -393,7 +335,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -405,7 +347,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -417,7 +359,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -429,7 +371,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -439,7 +381,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -449,7 +391,7 @@
     .{
         .cpu = .{ .arm = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -460,7 +402,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -469,7 +411,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -478,7 +420,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -487,7 +429,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -497,7 +439,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -507,7 +449,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -517,7 +459,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -529,7 +471,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -541,7 +483,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -553,7 +495,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -563,7 +505,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -573,7 +515,7 @@
     .{
         .cpu = .{ .armeb = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -860,7 +802,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -869,7 +811,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -878,7 +820,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -888,7 +830,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -898,7 +840,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -910,7 +852,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -922,7 +864,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -932,7 +874,7 @@
     .{
         .cpu = .{ .mips = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -943,7 +885,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -952,7 +894,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -961,7 +903,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -971,7 +913,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -981,7 +923,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -993,7 +935,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1005,7 +947,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1015,7 +957,7 @@
     .{
         .cpu = .{ .mipsel = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnueabihf = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1044,7 +986,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .abin32 = .{} },
+        .abi = .{ .n32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -1053,7 +995,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .abin32 = .{} },
+        .abi = .{ .n32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -1062,7 +1004,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1072,7 +1014,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1082,7 +1024,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1094,7 +1036,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1106,7 +1048,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1116,7 +1058,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1126,7 +1068,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1138,7 +1080,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1150,7 +1092,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabi64 = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1160,7 +1102,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabi64 = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1170,7 +1112,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabin32 = .{} },
+        .abi = .{ .gnun32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1180,7 +1122,7 @@
     .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabin32 = .{} },
+        .abi = .{ .gnun32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1209,7 +1151,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .abin32 = .{} },
+        .abi = .{ .n32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -1218,7 +1160,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .abin32 = .{} },
+        .abi = .{ .n32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -1227,7 +1169,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1237,7 +1179,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1247,7 +1189,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1259,7 +1201,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabi64 = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1271,7 +1213,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1282,7 +1224,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1293,7 +1235,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1305,7 +1247,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .muslabin32 = .{} },
+        .abi = .{ .musln32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .linkage = .dynamic,
@@ -1317,7 +1259,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabi64 = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1327,7 +1269,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabi64 = .{} },
+        .abi = .{ .gnu = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1337,7 +1279,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabin32 = .{} },
+        .abi = .{ .gnun32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1348,7 +1290,7 @@
     .{
         .cpu = .{ .mips64el = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .gnuabin32 = .{} },
+        .abi = .{ .gnun32 = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1360,7 +1302,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -1369,7 +1311,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .keep,
@@ -1378,7 +1320,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .eabihf = .{} },
+        .abi = .{ .none = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .frame_pointers = .omit,
@@ -1387,7 +1329,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1397,7 +1339,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1407,7 +1349,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .cache_mode = .whole,
         .backend = .llvm,
         .link_libc = .lc,
@@ -1417,7 +1359,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -1429,7 +1371,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -1441,7 +1383,7 @@
     .{
         .cpu = .{ .powerpc = .{} },
         .os = .{ .linux = .{} },
-        .abi = .{ .musleabihf = .{} },
+        .abi = .{ .musl = .{} },
         .linkage = .dynamic,
         .cache_mode = .whole,
         .backend = .llvm,
@@ -2924,34 +2866,6 @@
     },
 
     // NetBSD Targets
-
-    .{
-        .cpu = .{ .riscv32 = .{} },
-        .os = .{ .netbsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .none,
-    },
-    .{
-        .cpu = .{ .riscv32 = .{} },
-        .os = .{ .netbsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .keep,
-        .unwind_tables = .async,
-    },
-    .{
-        .cpu = .{ .riscv32 = .{} },
-        .os = .{ .netbsd = .{} },
-        .abi = .{ .none = .{} },
-        .cache_mode = .whole,
-        .backend = .llvm,
-        .frame_pointers = .omit,
-        .unwind_tables = .async,
-    },
 
     .{
         .cpu = .{ .x86 = .{} },

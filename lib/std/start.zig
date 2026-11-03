@@ -425,8 +425,7 @@ fn _start() callconv(.naked) noreturn {
             \\ subu $sp, $sp, 16
             \\ jr $t9
             ,
-            .mips64, .mips64el => switch (builtin.abi) {
-                .gnuabin32, .muslabin32, .abin32 =>
+            .mips64, .mips64el => if (builtin.target.abi.isN32())
                 \\ move $fp, $zero
                 \\ bal 1f
                 \\ .gpword .
@@ -442,8 +441,7 @@ fn _start() callconv(.naked) noreturn {
                 \\ and $sp, -16
                 \\ subu $sp, $sp, 16
                 \\ jr $t9
-                ,
-                else =>
+            else
                 \\ move $fp, $zero
                 // This is needed because early MIPS versions don't support misaligned loads. Without
                 // this directive, the hidden `nop` inserted to fill the delay slot after `bal` would
@@ -463,8 +461,7 @@ fn _start() callconv(.naked) noreturn {
                 \\ and $sp, -16
                 \\ dsubu $sp, $sp, 16
                 \\ jr $t9
-                ,
-            },
+            ,
             .powerpc, .powerpcle =>
             // Set up the initial stack frame, and clear the back chain pointer.
             // r1 = SP, r31 = FP

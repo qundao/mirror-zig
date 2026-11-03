@@ -464,7 +464,7 @@ fn coffLink(lld: *Lld, arena: Allocator) !void {
             try argv.append(gpa, try arena.print("-MLLVM:-target-abi={s}", .{mabi}));
         }
 
-        try argv.append(gpa, try arena.print("-MLLVM:-float-abi={s}", .{if (target.abi.float() == .hard) "hard" else "soft"}));
+        try argv.append(gpa, try arena.print("-MLLVM:-float-abi={s}", .{if (target.abi.float() == .soft) "soft" else "hard"}));
 
         if (comp.config.lto != .none) {
             switch (optimize_mode) {
@@ -869,7 +869,7 @@ fn elfLink(lld: *Lld, arena: Allocator) !void {
 
         try argv.appendSlice(gpa, &.{
             "-mllvm",
-            try arena.print("-float-abi={s}", .{if (target.abi.float() == .hard) "hard" else "soft"}),
+            try arena.print("-float-abi={s}", .{if (target.abi.float() == .soft) "soft" else "hard"}),
         });
 
         switch (target.cpu.arch) {
@@ -1324,24 +1324,12 @@ fn getLDMOption(target: *const std.Target) ?[]const u8 {
             else => "elf32ltsmip",
         },
         .mips64 => switch (target.os.tag) {
-            .freebsd => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "elf32btsmipn32_fbsd",
-                else => "elf64btsmip_fbsd",
-            },
-            else => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "elf32btsmipn32",
-                else => "elf64btsmip",
-            },
+            .freebsd => if (target.abi.isN32()) "elf32btsmipn32_fbsd" else "elf64btsmip_fbsd",
+            else => if (target.abi.isN32()) "elf32btsmipn32" else "elf64btsmip",
         },
         .mips64el => switch (target.os.tag) {
-            .freebsd => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "elf32ltsmipn32_fbsd",
-                else => "elf64ltsmip_fbsd",
-            },
-            else => switch (target.abi) {
-                .gnuabin32, .muslabin32, .abin32 => "elf32ltsmipn32",
-                else => "elf64ltsmip",
-            },
+            .freebsd => if (target.abi.isN32()) "elf32ltsmipn32_fbsd" else "elf64ltsmip_fbsd",
+            else => if (target.abi.isN32()) "elf32ltsmipn32" else "elf64ltsmip",
         },
         .msp430 => "msp430elf",
         .powerpc => switch (target.os.tag) {
@@ -1365,10 +1353,7 @@ fn getLDMOption(target: *const std.Target) ?[]const u8 {
             .freebsd => "elf_i386_fbsd",
             else => "elf_i386",
         },
-        .x86_64 => switch (target.abi) {
-            .gnux32, .muslx32, .x32 => "elf32_x86_64",
-            else => "elf_x86_64",
-        },
+        .x86_64 => if (target.abi.isX32()) "elf32_x86_64" else "elf_x86_64",
         else => null,
     };
 }

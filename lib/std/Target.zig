@@ -437,7 +437,6 @@ pub const Os = struct {
                             .max = .{ .major = 7, .minor = 3, .patch = 0 },
                         },
                         .glibc = blk: {
-                            //
                             const default_min: std.SemanticVersion = switch (arch) {
                                 // For 32-bit targets that traditionally used 32-bit time, we
                                 // require 2.34 for full 64-bit time support. For everything else,
@@ -454,7 +453,7 @@ pub const Os = struct {
                                 => .{ .major = 2, .minor = 34, .patch = 0 },
                                 .mips64,
                                 .mips64el,
-                                => if (abi == .gnuabin32)
+                                => if (abi.isN32())
                                     .{ .major = 2, .minor = 34, .patch = 0 }
                                 else
                                     .{ .major = 2, .minor = 31, .patch = 0 },
@@ -780,101 +779,120 @@ pub const z80 = @import("Target/z80.zig");
 
 pub const Abi = enum {
     none,
+    call0,
+    f32,
+    ilp32,
+    msvc,
+    n32,
+    n32f32,
+    n32sf,
+    sf,
+    simulator,
+    x32,
+    x32sf,
+
+    android,
+    androidsf,
+
     gnu,
-    gnuabin32,
-    gnuabi64,
-    gnueabi,
-    gnueabihf,
     gnuf32,
+    gnun32,
+    gnun32sf,
     gnusf,
     gnux32,
-    eabi,
-    eabihf,
-    abin32,
-    x32,
-    ilp32,
-    android,
-    androideabi,
+
     musl,
-    muslabin32,
-    muslabi64,
-    musleabi,
-    musleabihf,
     muslf32,
+    musln32,
+    musln32sf,
     muslsf,
     muslx32,
-    msvc,
-    simulator,
+
     ohos,
-    ohoseabi,
-    call0,
+    ohossf,
+
+    /// Deprecated; will be removed in 0.19.0. Use `.n32`.
+    pub const abin32: Abi = .n32;
+    /// Deprecated; will be removed in 0.19.0. Use `.sf`.
+    pub const eabi: Abi = .sf;
+    /// Deprecated; will be removed in 0.19.0. Use `.none`.
+    pub const eabihf: Abi = .none;
+    /// Deprecated; will be removed in 0.19.0. Use `.gnu`.
+    pub const gnuabi64: Abi = .gnu;
+    /// Deprecated; will be removed in 0.19.0. Use `.gnun32`.
+    pub const gnuabin32: Abi = .gnun32;
+    /// Deprecated; will be removed in 0.19.0. Use `.gnusf`.
+    pub const gnueabi: Abi = .gnusf;
+    /// Deprecated; will be removed in 0.19.0. Use `.gnu`.
+    pub const gnueabihf: Abi = .gnu;
+    /// Deprecated; will be removed in 0.19.0. Use `.musl`.
+    pub const muslabi64: Abi = .musl;
+    /// Deprecated; will be removed in 0.19.0. Use `.musln32`.
+    pub const muslabin32: Abi = .musln32;
+    /// Deprecated; will be removed in 0.19.0. Use `.muslsf`.
+    pub const musleabi: Abi = .muslsf;
+    /// Deprecated; will be removed in 0.19.0. Use `.musl`.
+    pub const musleabihf: Abi = .musl;
 
     pub fn default(arch: Cpu.Arch, os_tag: Os.Tag) Abi {
         return switch (os_tag) {
-            .freestanding, .other => switch (arch) {
+            .freestanding, .other, .ashetos => switch (arch) {
                 // Soft float is usually a sane default for freestanding.
+                .aarch64,
+                .aarch64_be,
+                .alpha,
                 .arm,
                 .armeb,
                 .csky,
                 .hppa,
+                .hppa64,
+                .loongarch32,
+                .loongarch64,
+                .m68k,
                 .mips,
                 .mipsel,
+                .mips64,
+                .mips64el,
                 .powerpc,
                 .powerpcle,
+                .powerpc64,
+                .powerpc64le,
+                .riscv32,
+                .riscv32be,
+                .riscv64,
+                .riscv64be,
+                .s390x,
                 .sh,
                 .sheb,
+                .sparc,
+                .sparc64,
                 .thumb,
                 .thumbeb,
-                => .eabi,
-                else => .none,
-            },
-            .fuchsia => switch (arch) {
-                .arm,
-                .thumb,
-                => .eabihf,
-                else => .none,
-            },
-            .haiku => switch (arch) {
-                .arm => .eabihf,
+                .x86,
+                .x86c16,
+                .x86_64,
+                => .sf,
                 else => .none,
             },
             .hurd => .gnu,
             .linux => switch (arch) {
-                .arm,
-                .armeb,
-                .powerpc,
-                .powerpcle,
-                .sh,
-                .sheb,
-                .thumb,
-                .thumbeb,
-                => .musleabihf,
-                .mips,
-                .mipsel,
-                => .musleabi,
-                .mips64,
-                .mips64el,
-                => .muslabi64,
-
                 // No musl support.
                 .alpha,
                 .arc,
                 .arceb,
+                .hppa,
                 .loongarch32,
                 .sparc,
                 .sparc64,
                 => .gnu,
                 .csky,
-                => .gnueabi,
-                .hppa,
-                => .gnueabihf,
+                => .gnusf,
 
                 // No glibc or musl support.
+                .hppa64,
                 .xtensa,
                 .xtensaeb,
                 => .none,
-                .hppa64,
-                => .eabihf,
 
                 else => .musl,
             },
@@ -883,61 +901,39 @@ pub const Abi = enum {
                 .armeb,
                 .thumb,
                 .thumbeb,
-                .mips,
-                .mipsel,
-                => .eabi,
-                .powerpc,
-                => .eabihf,
-                else => .none,
-            },
-            .freebsd => switch (arch) {
-                .arm,
-                => .eabihf,
+                => .sf,
                 else => .none,
             },
             .netbsd => switch (arch) {
-                .arm,
-                .armeb,
-                .powerpc,
-                => .eabihf,
-                // Soft float tends to be more common for MIPS.
-                .mips,
-                .mipsel,
+                // Soft float tends to be more common for 64-bit MIPS.
+                .mips64,
+                .mips64el,
                 .sh,
                 .sheb,
-                => .eabi,
+                => .sf,
                 else => .none,
             },
             .openbsd => switch (arch) {
                 .arm,
-                => .eabi,
-                .powerpc,
-                .sh,
-                => .eabihf,
+                => .sf,
                 else => .none,
             },
             .windows => .gnu,
-            .uefi => .msvc,
-            .gba => .eabi,
-            .@"3ds" => .eabihf,
-            .wiiu => .eabihf,
-            .@"switch" => switch (arch) {
-                .arm => .eabihf,
-                else => .none,
-            },
-            .psx => .eabi,
+            .uefi => .msvc, // TODO: should be in the freestanding prong above
+            .gba => .sf,
+            .psx => .sf,
+            .psp => .f32,
             .ps3 => .ilp32,
-            .psp => .eabihf,
-            .vita => .eabihf,
             .emscripten => .musl,
 
-            .ashetos => .eabi,
-
             .illumos,
+            .fuchsia,
             .managarm,
+            .haiku,
             .plan9,
             .serenity,
             .dragonfly,
+            .freebsd,
             .driverkit,
             .ios,
             .maccatalyst,
@@ -945,6 +941,10 @@ pub const Abi = enum {
             .tvos,
             .visionos,
             .watchos,
+            .@"3ds",
+            .wiiu,
+            .@"switch",
+            .vita,
             .ps4,
             .ps5,
             .amdhsa,
@@ -962,11 +962,9 @@ pub const Abi = enum {
     pub inline fn isGnu(abi: Abi) bool {
         return switch (abi) {
             .gnu,
-            .gnuabin32,
-            .gnuabi64,
-            .gnueabi,
-            .gnueabihf,
             .gnuf32,
+            .gnun32,
+            .gnun32sf,
             .gnusf,
             .gnux32,
             => true,
@@ -977,11 +975,9 @@ pub const Abi = enum {
     pub inline fn isMusl(abi: Abi) bool {
         return switch (abi) {
             .musl,
-            .muslabin32,
-            .muslabi64,
-            .musleabi,
-            .musleabihf,
             .muslf32,
+            .musln32,
+            .musln32sf,
             .muslsf,
             .muslx32,
             => true,
@@ -991,34 +987,93 @@ pub const Abi = enum {
 
     pub inline fn isOpenHarmony(abi: Abi) bool {
         return switch (abi) {
-            .ohos, .ohoseabi => true,
+            .ohos,
+            .ohossf,
+            => true,
             else => false,
         };
     }
 
     pub inline fn isAndroid(abi: Abi) bool {
         return switch (abi) {
-            .android, .androideabi => true,
+            .android,
+            .androidsf,
+            => true,
             else => false,
         };
     }
 
+    pub inline fn isN32(abi: Abi) bool {
+        return switch (abi) {
+            .gnun32,
+            .gnun32sf,
+            .musln32,
+            .musln32sf,
+            .n32,
+            .n32f32,
+            .n32sf,
+            => true,
+            else => false,
+        };
+    }
+
+    pub inline fn isX32(abi: Abi) bool {
+        return switch (abi) {
+            .gnux32,
+            .muslx32,
+            .x32,
+            .x32sf,
+            => true,
+            else => false,
+        };
+    }
+
+    pub inline fn isIlp32(abi: Abi) bool {
+        return abi == .ilp32 or abi.isN32() or abi.isX32();
+    }
+
     pub const Float = enum {
-        hard,
         soft,
+        hard32,
+        hard64,
+
+        /// Deprecated; will be removed in 0.19.0.
+        pub const hard: Float = .hard64;
     };
 
     pub inline fn float(abi: Abi) Float {
         return switch (abi) {
-            .androideabi,
-            .eabi,
-            .gnueabi,
-            .musleabi,
+            .androidsf,
+            .gnun32sf,
             .gnusf,
+            .musln32sf,
             .muslsf,
-            .ohoseabi,
+            .n32sf,
+            .ohossf,
+            .sf,
+            .x32sf,
             => .soft,
-            else => .hard,
+            .f32,
+            .gnuf32,
+            .n32f32,
+            .muslf32,
+            => .hard32,
+            .android,
+            .call0,
+            .gnu,
+            .gnun32,
+            .gnux32,
+            .ilp32,
+            .msvc,
+            .musl,
+            .musln32,
+            .muslx32,
+            .n32,
+            .none,
+            .ohos,
+            .simulator,
+            .x32,
+            => .hard64,
         };
     }
 };
@@ -1103,7 +1158,7 @@ pub fn toElfMachine(target: *const Target) std.elf.EM {
         .riscv32, .riscv32be, .riscv64, .riscv64be => .RISCV,
         .s390x => .S390,
         .sh, .sheb => .SH,
-        .sparc => if (target.cpu.has(.sparc, .v9)) .SPARC32PLUS else .SPARC,
+        .sparc => .SPARC,
         .sparc64 => .SPARCV9,
         .ve => .VE,
         .x86_16, .x86, .x86c16 => .@"386",
@@ -2292,21 +2347,21 @@ pub inline fn isDarwinLibC(target: *const Target) bool {
 
 pub inline fn isFreeBSDLibC(target: *const Target) bool {
     return switch (target.abi) {
-        .none, .eabihf => target.os.tag == .freebsd,
+        .none => target.os.tag == .freebsd,
         else => false,
     };
 }
 
 pub inline fn isNetBSDLibC(target: *const Target) bool {
     return switch (target.abi) {
-        .none, .eabi, .eabihf => target.os.tag == .netbsd,
+        .none, .n32sf, .sf => target.os.tag == .netbsd,
         else => false,
     };
 }
 
 pub inline fn isOpenBSDLibC(target: *const Target) bool {
     return switch (target.abi) {
-        .none, .eabi, .eabihf => target.os.tag == .openbsd,
+        .none, .sf => target.os.tag == .openbsd,
         else => false,
     };
 }
@@ -2408,7 +2463,7 @@ pub fn supportsAddressSpace(
 
         .flash, .flash1, .flash2, .flash3, .flash4, .flash5 => arch == .avr, // TODO this should also check how many flash banks the cpu has
         .cog, .hub => arch == .propeller,
-        .lut => arch == .propeller and std.Target.propeller.featureSetHas(target.cpu.features, .p2),
+        .lut => target.cpu.has(.propeller, .p2),
 
         .global, .local, .shared => is_gpu,
         .private => is_spirv,
@@ -2603,7 +2658,7 @@ pub const DynamicLinker = struct {
 
             .linux => if (abi.isAndroid())
                 switch (cpu.arch) {
-                    .arm => if (abi == .androideabi) init("/system/bin/linker") else none,
+                    .arm => if (abi == .androidsf) init("/system/bin/linker") else none,
 
                     .aarch64,
                     .riscv64,
@@ -2621,7 +2676,7 @@ pub const DynamicLinker = struct {
                     .x86_64,
                     => |arch| if (abi == .ohos) initFmt("/lib/ld-musl-{s}.so.1", .{@tagName(arch)}) else none,
 
-                    .arm => if (abi == .ohoseabi) init("/lib/ld-musl-arm.so.1") else none,
+                    .arm => if (abi == .ohossf) init("/lib/ld-musl-arm.so.1") else none,
 
                     else => none,
                 }
@@ -2634,8 +2689,8 @@ pub const DynamicLinker = struct {
                     => |arch| initFmt("/lib/ld-musl-arm{s}{s}.so.1", .{
                         if (arch == .armeb or arch == .thumbeb) "eb" else "",
                         switch (abi) {
-                            .musleabi => "",
-                            .musleabihf => "hf",
+                            .musl => "hf",
+                            .muslsf => "",
                             else => return none,
                         },
                     }),
@@ -2656,7 +2711,6 @@ pub const DynamicLinker = struct {
                     .aarch64_be,
                     .hexagon,
                     .kvx,
-                    .m68k,
                     .microblaze,
                     .microblazeel,
                     .or1k,
@@ -2665,33 +2719,42 @@ pub const DynamicLinker = struct {
                     .s390x,
                     => |arch| if (abi == .musl) initFmt("/lib/ld-musl-{s}.so.1", .{@tagName(arch)}) else none,
 
+                    .m68k => initFmt("/lib/ld-musl-m68k{s}.so.1", .{
+                        switch (abi) {
+                            .musl => "",
+                            .muslsf => "-sf",
+                            else => return none,
+                        },
+                    }),
+
                     .mips,
                     .mipsel,
                     => |arch| initFmt("/lib/ld-musl-mips{s}{s}{s}.so.1", .{
                         if (cpu.has(.mips, .mips32r6)) "r6" else "",
                         if (arch == .mipsel) "el" else "",
                         switch (abi) {
-                            .musleabi => "-sf",
-                            .musleabihf => "",
+                            .musl => "",
+                            .muslsf => "-sf",
                             else => return none,
                         },
                     }),
 
                     .mips64,
                     .mips64el,
-                    => |arch| initFmt("/lib/ld-musl-mips{s}{s}{s}.so.1", .{
+                    => |arch| initFmt("/lib/ld-musl-mips{s}{s}{s}{s}.so.1", .{
                         switch (abi) {
-                            .muslabi64 => "64",
-                            .muslabin32 => "n32",
+                            .musl, .muslsf => "64",
+                            .musln32, .musln32sf => "n32",
                             else => return none,
                         },
                         if (cpu.has(.mips, .mips64r6)) "r6" else "",
                         if (arch == .mips64el) "el" else "",
+                        if (abi.float() == .soft) "-sf" else "",
                     }),
 
                     .powerpc => initFmt("/lib/ld-musl-powerpc{s}.so.1", .{switch (abi) {
-                        .musleabi => "-sf",
-                        .musleabihf => "",
+                        .musl => "",
+                        .muslsf => "-sf",
                         else => return none,
                     }}),
 
@@ -2700,23 +2763,23 @@ pub const DynamicLinker = struct {
                     => |arch| initFmt("/lib/ld-musl-{t}{s}.so.1", .{
                         arch,
                         switch (abi) {
-                            .musleabi => "-nofpu",
-                            .musleabihf => "",
+                            .musl => "",
+                            .muslsf => "-nofpu",
                             else => return none,
                         },
                     }),
 
                     .riscv32,
                     .riscv64,
-                    => |arch| if (abi == .musl) initFmt("/lib/ld-musl-{s}{s}.so.1", .{
+                    => |arch| initFmt("/lib/ld-musl-{s}{s}.so.1", .{
                         @tagName(arch),
-                        if (cpu.has(.riscv, .d))
-                            ""
-                        else if (cpu.has(.riscv, .f))
-                            "-sp"
-                        else
-                            "-sf",
-                    }) else none,
+                        switch (abi) {
+                            .musl => "",
+                            .muslf32 => "-sp",
+                            .muslsf => "-sf",
+                            else => return none,
+                        },
+                    }),
 
                     .x86 => if (abi == .musl) init("/lib/ld-musl-i386.so.1") else none,
 
@@ -2737,8 +2800,8 @@ pub const DynamicLinker = struct {
                     .arm,
                     .armeb,
                     => initFmt("/lib/ld-linux{s}.so.3", .{switch (abi) {
-                        .gnueabi => "",
-                        .gnueabihf => "-armhf",
+                        .gnu => "-armhf",
+                        .gnusf => "",
                         else => return none,
                     }}),
 
@@ -2748,8 +2811,8 @@ pub const DynamicLinker = struct {
                     => |arch| if (abi == .gnu) initFmt("/lib/ld-linux-{s}.so.1", .{@tagName(arch)}) else none,
 
                     .csky => initFmt("/lib/ld-linux-cskyv2{s}.so.1", .{switch (abi) {
-                        .gnueabi => "",
-                        .gnueabihf => "-hf",
+                        .gnu => "-hf",
+                        .gnusf => "",
                         else => return none,
                     }}),
 
@@ -2784,8 +2847,8 @@ pub const DynamicLinker = struct {
                     .mips,
                     .mipsel,
                     => switch (abi) {
-                        .gnueabi,
-                        .gnueabihf,
+                        .gnu,
+                        .gnusf,
                         => initFmt("/lib/ld{s}.so.1", .{
                             if (cpu.has(.mips, .nan2008)) "-linux-mipsn8" else "",
                         }),
@@ -2796,8 +2859,8 @@ pub const DynamicLinker = struct {
                     .mips64el,
                     => initFmt("/lib{s}/ld{s}.so.1", .{
                         switch (abi) {
-                            .gnuabi64 => "64",
-                            .gnuabin32 => "32",
+                            .gnu, .gnusf => "64",
+                            .gnun32, .gnun32sf => "32",
                             else => return none,
                         },
                         if (cpu.has(.mips, .nan2008)) "-linux-mipsn8" else "",
@@ -2806,8 +2869,8 @@ pub const DynamicLinker = struct {
                     .hppa,
                     .powerpc,
                     => switch (abi) {
-                        .gnueabi,
-                        .gnueabihf,
+                        .gnu,
+                        .gnusf,
                         => init("/lib/ld.so.1"),
                         else => none,
                     },
@@ -2817,27 +2880,27 @@ pub const DynamicLinker = struct {
 
                     .riscv32,
                     .riscv64,
-                    => |arch| if (abi == .gnu) initFmt("/lib/ld-linux-{s}{s}.so.1", .{
+                    => |arch| initFmt("/lib/ld-linux-{s}{s}.so.1", .{
                         switch (arch) {
                             .riscv32 => "riscv32-ilp32",
                             .riscv64 => "riscv64-lp64",
                             else => unreachable,
                         },
-                        if (cpu.has(.riscv, .d))
-                            "d"
-                        else if (cpu.has(.riscv, .f))
-                            "f"
-                        else
-                            "",
-                    }) else none,
+                        switch (abi) {
+                            .gnu => "d",
+                            .gnuf32 => "f",
+                            .gnusf => "",
+                            else => return none,
+                        },
+                    }),
 
                     .s390x => if (abi == .gnu) init("/lib/ld64.so.1") else none,
 
                     .sh,
                     .sheb,
                     => switch (abi) {
-                        .gnueabi,
-                        .gnueabihf,
+                        .gnu,
+                        .gnusf,
                         => init("/lib/ld-linux.so.2"),
                         else => none,
                     },
@@ -2989,17 +3052,7 @@ pub fn ptrBitWidth_cpu_abi(cpu: Cpu, abi: Abi) u16 {
 }
 
 pub fn ptrBitWidth_arch_abi(cpu_arch: Cpu.Arch, abi: Abi) u16 {
-    switch (abi) {
-        .gnux32,
-        .muslx32,
-        .x32,
-        .gnuabin32,
-        .muslabin32,
-        .abin32,
-        .ilp32,
-        => return 32,
-        else => {},
-    }
+    if (abi.isIlp32()) return 32;
 
     return switch (cpu_arch) {
         .avr,
@@ -3371,7 +3424,7 @@ pub fn cTypeBitSize(target: *const Target, c_type: CType) ?u16 {
                 .powerpc,
                 .powerpcle,
                 => switch (target.abi) {
-                    .musleabi, .musleabihf => 64,
+                    .musl, .muslsf => 64,
                     else => switch (target.os.tag) {
                         .netbsd,
                         .openbsd,
@@ -3720,38 +3773,42 @@ pub fn cCallingConvention(target: *const Target) ?std.builtin.CallingConvention 
     return switch (target.cpu.arch) {
         .x86_64 => switch (target.os.tag) {
             .windows, .uefi => .{ .x86_64_win = .{} },
-            else => switch (target.abi) {
-                .gnux32, .muslx32, .x32 => .{ .x86_64_x32 = .{} },
-                else => .{ .x86_64_sysv = .{} },
-            },
+            else => if (target.abi.isX32())
+                .{ .x86_64_x32 = .{} }
+            else
+                .{ .x86_64_sysv = .{} },
         },
         .x86 => switch (target.os.tag) {
-            .windows, .uefi => if (target.isMinGW()) .{ .x86_mingw = .{} } else .{ .x86_win = .{} },
+            .windows, .uefi => if (target.abi == .gnu)
+                .{ .x86_mingw = .{} }
+            else
+                .{ .x86_win = .{} },
             else => .{ .x86_sysv = .{} },
         },
         .x86c16 => .{ .x86_sysv = .{} },
         .x86_16 => .{ .x86_16_cdecl = .{} },
-        .aarch64, .aarch64_be => if (target.os.tag.isDarwin())
+        .aarch64 => if (target.os.tag.isDarwin())
             .{ .aarch64_aapcs_darwin = .{} }
-        else switch (target.os.tag) {
-            .windows => .{ .aarch64_aapcs_win = .{} },
-            else => .{ .aarch64_aapcs = .{} },
-        },
+        else if (target.os.tag == .windows)
+            .{ .aarch64_aapcs_win = .{} }
+        else
+            .{ .aarch64_aapcs = .{} },
+        .aarch64_be => .{ .aarch64_aapcs = .{} },
         .alpha => .{ .alpha_osf = .{} },
         .arm, .armeb, .thumb, .thumbeb => switch (target.abi.float()) {
             .soft => .{ .arm_aapcs = .{} },
-            .hard => .{ .arm_aapcs_vfp = .{} },
+            else => .{ .arm_aapcs_vfp = .{} },
         },
-        .mips64, .mips64el => switch (target.abi) {
-            .gnuabin32, .muslabin32, .abin32 => .{ .mips64_n32 = .{} },
-            else => .{ .mips64_n64 = .{} },
-        },
+        .mips64, .mips64el => if (target.abi.isN32())
+            .{ .mips64_n32 = .{} }
+        else
+            .{ .mips64_n64 = .{} },
         .mips, .mipsel => .{ .mips_o32 = .{} },
         .riscv64, .riscv64be => .{ .riscv64_lp64 = .{} },
         .riscv32, .riscv32be => .{ .riscv32_ilp32 = .{} },
         .sparc64 => .{ .sparc64_sysv = .{} },
         .sparc => .{ .sparc_sysv = .{} },
-        .powerpc64 => if (target.os.tag == .ps3 or target.abi.isGnu())
+        .powerpc64 => if (target.os.tag == .ps3 or target.abi == .gnu)
             .{ .powerpc64_elf = .{} }
         else
             .{ .powerpc64_elf_v2 = .{} },
@@ -3765,17 +3822,17 @@ pub fn cCallingConvention(target: *const Target) ?std.builtin.CallingConvention 
         .hexagon => .{ .hexagon_sysv = .{} },
         .hppa => .{ .hppa_elf = .{} },
         .hppa64 => .{ .hppa64_elf = .{} },
-        .kvx => switch (target.abi) {
-            .ilp32 => .{ .kvx_ilp32 = .{} },
-            else => .{ .kvx_lp64 = .{} },
-        },
+        .kvx => if (target.abi == .ilp32)
+            .{ .kvx_ilp32 = .{} }
+        else
+            .{ .kvx_lp64 = .{} },
         .lanai => .{ .lanai_sysv = .{} },
         .loongarch64 => .{ .loongarch64_lp64 = .{} },
         .loongarch32 => .{ .loongarch32_ilp32 = .{} },
-        .m68k => switch (target.os.tag) {
-            .netbsd => .{ .m68k_sysv = .{} },
-            else => .{ .m68k_gnu = .{} },
-        },
+        .m68k => if (target.os.tag == .netbsd)
+            .{ .m68k_sysv = .{} }
+        else
+            .{ .m68k_gnu = .{} },
         .m88k => .{ .m88k_sysv = .{} },
         .microblaze, .microblazeel => .{ .microblaze_std = .{} },
         .msp430 => .{ .msp430_eabi = .{} },
@@ -3785,10 +3842,10 @@ pub fn cCallingConvention(target: *const Target) ?std.builtin.CallingConvention 
         .sh, .sheb => .{ .sh_gnu = .{} },
         .ve => .{ .ve_sysv = .{} },
         .xcore => .{ .xcore_xs1 = .{} },
-        .xtensa, .xtensaeb => switch (target.abi) {
-            .call0 => .{ .xtensa_call0 = .{} },
-            else => .{ .xtensa_windowed = .{} },
-        },
+        .xtensa, .xtensaeb => if (target.abi == .call0)
+            .{ .xtensa_call0 = .{} }
+        else
+            .{ .xtensa_windowed = .{} },
         .amdgcn => .{ .amdgcn_device = .{} },
         .nvptx, .nvptx64 => .nvptx_device,
         .spirv32, .spirv64 => .spirv_device,
