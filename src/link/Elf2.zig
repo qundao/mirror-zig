@@ -9531,9 +9531,8 @@ fn prepareDynamic(elf: *Elf) Error!void {
         @as(usize, @intFromBool(elf.shndx.preinit_array != .UNDEF)) * 2 +
         @as(usize, @intFromBool(use_plt)) * 4 +
         @as(usize, @intFromBool(elf.verneed.count() > 0)) * 2 +
-        @as(usize, @intFromBool(elf.verdef.count() > 0)) * 2 +
         @intFromBool(comp.config.output_mode == .Exe) +
-        @intFromBool(elf.textrel_count > 0) + 10;
+        @intFromBool(elf.textrel_count > 0) + 12;
 
     const dynamic_size = dynamic_len * 2 * elf.targetPtrSize();
 
@@ -9642,7 +9641,10 @@ fn flushDynamic(elf: *Elf) void {
                 };
                 dynamic_index += 2;
             }
-            if (elf.verdef.count() > 0) {
+            {
+                // We need `verdef` even if no versioned symbols are defined because we are emitting
+                // a `DT_VERSYM` which will define symbols using `VER_NDX_GLOBAL`. We could omit
+                // this if we also omitted `DT_VERSYM`.
                 dynamic_entries[dynamic_index..][0..2].* = .{
                     .{ std.elf.DT_VERDEF, @intCast(elf.shndx.gnu_version_d.vaddr(elf)) },
                     .{ std.elf.DT_VERDEFNUM, @intCast(elf.verdef.count() + 1) },
