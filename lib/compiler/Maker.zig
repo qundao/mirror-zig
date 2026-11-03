@@ -1992,7 +1992,7 @@ fn validateInstances(
     job_queue: *const Fetch.JobQueue,
     root_fetch: *const Fetch,
 ) error{FailedButCacheIntact}!void {
-    instance: for (job_queue.instances.keys()) |pkg_path| {
+    instance: for (job_queue.unversioned.keys()) |pkg_path| {
         var cur: *const Fetch = root_fetch;
         var it = mem.splitScalar(u8, pkg_path, '.');
         while (it.next()) |component| {
