@@ -75,7 +75,46 @@ pub fn main(init: process.Init.Minimal) !void {
         },
     };
 
-    const builder = try std.Build.create(&graph, build_root, dependencies.root_deps);
+    const root_package = try arena.create(std.Build.Package);
+    const root_build = try arena.create(std.Build);
+    root_build.* = .{
+        .graph = &graph,
+        .allocator = arena,
+        .package = root_package,
+        .parent = null,
+        .deduplicated_dependencies = .empty,
+    };
+    root_package.* = .{
+        .root = build_root,
+        .invalid_user_input = false,
+        .user_input_options = .empty,
+        .top_level_steps = .empty,
+        .default_step = &root_package.install_tls.step,
+        .install_tls = .{
+            .step = .init(.{
+                .tag = .top_level,
+                .name = "install",
+                .owner = root_build,
+            }),
+            .description = "Copy build artifacts to prefix path",
+        },
+        .uninstall_tls = .{
+            .step = .init(.{
+                .tag = .top_level,
+                .name = "uninstall",
+                .owner = root_build,
+            }),
+            .description = "Remove build artifacts from prefix path",
+        },
+        .modules = .empty,
+        .named_writefiles = .empty,
+        .named_lazy_paths = .empty,
+        .pkg_hash = "",
+        .available_deps = dependencies.root_deps,
+        .dep_prefix = "",
+    };
+    try root_package.top_level_steps.put(arena, root_package.install_tls.step.name, &root_package.install_tls);
+    try root_package.top_level_steps.put(arena, root_package.uninstall_tls.step.name, &root_package.uninstall_tls);
 
     var color: Color = .auto;
 
@@ -86,12 +125,12 @@ pub fn main(init: process.Init.Minimal) !void {
             if (mem.findScalar(u8, option_contents, '=')) |name_end| {
                 const option_name = option_contents[0..name_end];
                 const option_value = option_contents[name_end + 1 ..];
-                if (try builder.addUserInputOption(option_name, option_value)) {
+                if (try root_build.addUserInputOption(option_name, option_value)) {
                     log.info("to access the help menu: zig build -h", .{});
                     process.exit(1);
                 }
             } else {
-                if (try builder.addUserInputFlag(option_contents)) {
+                if (try root_build.addUserInputFlag(option_contents)) {
                     log.info("to access the help menu: zig build -h", .{});
                     process.exit(1);
                 }
@@ -135,33 +174,36 @@ pub fn main(init: process.Init.Minimal) !void {
         .off => .no_color,
     };
 
-    builder.runPackageScript(root);
+    root_build.runPackageScript(root);
 
     // Even though the root package's user input options are not serialized,
     // this is done for consistency, since the rest of the dependency tree
     // sorts user_input_options before calling validateUserInputDidItFail,
     // which has user-visible behavior (the order of errors reported).
-    std.Build.PackageOptions.sort(&builder.user_input_options);
+    std.Build.Package.Options.sort(&root_package.user_input_options);
 
     // Make sure the package actually provides all the arguments specified.
-    for (builder.user_input_options.keys()) |name| {
-        if (!builder.available_options_map.contains(name)) {
+    for (root_package.user_input_options.keys()) |name| {
+        if (!root_package.available_options_map.contains(name)) {
             log.err("invalid option: {q}", .{name});
-            builder.invalid_user_input = true;
+            root_package.invalid_user_input = true;
         }
     }
-    if (builder.invalid_user_input) {
-        for (builder.available_options_map.keys(), builder.available_options_map.values()) |name, *available| {
+    if (root_package.invalid_user_input) {
+        for (
+            root_package.available_options_map.keys(),
+            root_package.available_options_map.values(),
+        ) |name, *available| {
             log.info("available option: {q}: {s}", .{ name, available.description });
         }
         log.info("to access the help menu: zig build -h", .{});
         process.exit(1);
     }
 
-    try Serialize.packageOptions(builder, &graph.wip_configuration);
+    try Serialize.packageOptions(root_package, &graph.wip_configuration);
     try Serialize.systemIntegrationOptions(&graph, &graph.wip_configuration);
 
-    builder.serializeConfigurationExiting();
+    root_build.serializeConfigurationExiting();
 }
 
 fn nextArg(args: []const [:0]const u8, idx: *usize) ?[:0]const u8 {

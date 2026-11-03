@@ -1,5 +1,322 @@
+const Package = @This();
+
 const std = @import("std");
+const Io = std.Io;
+const Allocator = std.mem.Allocator;
+const Target = std.Target;
 const assert = std.debug.assert;
+const mem = std.mem;
+const log = std.log;
+
+const Build = std.Build;
+const Step = std.Build.Step;
+const Cache = std.Build.Cache;
+const Module = std.Build.Module;
+const LazyPath = std.Build.LazyPath;
+const Configuration = std.Build.Configuration;
+const ResolvedTarget = std.Build.ResolvedTarget;
+
+install_tls: Step.TopLevel,
+uninstall_tls: Step.TopLevel,
+default_step: *Step,
+top_level_steps: std.array_hash_map.String(*Step.TopLevel),
+/// Path to the directory containing build.zig.
+root: Cache.Path,
+user_input_options: Options.Map,
+available_options_map: std.array_hash_map.String(AvailableOption) = .empty,
+invalid_user_input: bool,
+dep_prefix: []const u8,
+modules: std.array_hash_map.String(*Module),
+named_writefiles: std.array_hash_map.String(*Step.WriteFile),
+named_lazy_paths: std.array_hash_map.String(LazyPath),
+/// The hash of this instance's package. `""` means that this is the root package.
+pkg_hash: []const u8,
+/// A mapping from dependency names to package hashes.
+available_deps: AvailableDeps,
+
+pub const Entry = struct {
+    hash: []const u8,
+    available: bool,
+    naked: bool,
+    build_root: []const u8,
+    deps: Package.AvailableDeps,
+    run_build: ?*const fn (*Build) void,
+};
+
+/// Build system implementation detail.
+pub const map: std.StaticStringMap(Entry) = map: {
+    const deps = @import("root").dependencies;
+    const decl_names = @typeInfo(deps.packages).@"struct".decl_names;
+    var kvs: [decl_names.len]struct { []const u8, Entry } = undefined;
+    @setEvalBranchQuota(decl_names.len + 100);
+    for (decl_names, &kvs) |decl_name, *kv| {
+        const pkg = @field(deps.packages, decl_name);
+        const available = !@hasDecl(pkg, "available") or pkg.available;
+        kv.* = .{ decl_name, .{
+            .hash = decl_name,
+            .available = available,
+            .build_root = if (available) pkg.build_root else "",
+            .deps = if (@hasDecl(pkg, "deps")) pkg.deps else &.{},
+            .naked = !@hasDecl(pkg, "deps"),
+            .run_build = if (available and @hasDecl(pkg, "build_zig")) &struct {
+                fn run(b: *Build) void {
+                    b.runPackageScript(pkg.build_zig);
+                }
+            }.run else null,
+        } };
+    }
+    const frozen = kvs;
+    break :map .initComptime(&frozen);
+};
+
+pub const AvailableDeps = []const struct { []const u8, []const u8 };
+
+pub const Instance = struct {
+    pkg_hash: []const u8,
+    options: *const Options.Map,
+};
+
+pub const AvailableOption = struct {
+    type_id: Configuration.AvailableOption.Type,
+    description: []const u8,
+    /// If the `type_id` is `enum` or `enum_list` this provides the list of enum options
+    enum_options: ?[]const []const u8,
+};
+
+/// Build system implementation details.
+pub const Options = struct {
+    pub const Map = std.array_hash_map.String(UserProvided);
+
+    pub const UserProvided = union(enum) {
+        flag: void,
+        scalar: []const u8,
+        list: std.ArrayList([]const u8),
+        map: std.array_hash_map.String(*const UserProvided),
+        lazy_path: LazyPath,
+        lazy_path_list: std.ArrayList(LazyPath),
+
+        pub fn format(up: UserProvided, w: *Io.Writer) Io.Writer.Error!void {
+            switch (up) {
+                .scalar => |bytes| return w.print("{q}", .{bytes}),
+                .flag => {},
+                .list => |list| for (list.items) |s| {
+                    try w.print("{q},", .{s});
+                },
+                .map => |*m| for (m.keys(), m.values()) |k, v| {
+                    try w.print("{q}={qf},", .{ k, v });
+                },
+                .lazy_path => |lp| return lp.format(w),
+                .lazy_path_list => |*list| for (list.items) |lp| {
+                    try w.print("{qf},", .{lp});
+                },
+            }
+        }
+
+        pub fn eql(a: UserProvided, b: UserProvided) bool {
+            if (std.meta.activeTag(a) != b) return false;
+            return switch (a) {
+                .flag => true,
+                .scalar => |a_scalar| return mem.eql(u8, a_scalar, b.scalar),
+                .list => |a_list| {
+                    if (a_list.items.len != b.list.items.len) return false;
+                    for (a_list.items, b.list.items) |a_elem, b_elem| {
+                        if (!mem.eql(u8, a_elem, b_elem))
+                            return false;
+                    }
+                    return true;
+                },
+                .map => |a_map| {
+                    if (a_map.count() != b.map.count()) return false;
+                    for (a_map.keys(), a_map.values(), b.map.keys(), b.map.values()) |a_key, a_val, b_key, b_val| {
+                        if (!mem.eql(u8, a_key, b_key)) return false;
+                        if (!a_val.eql(b_val.*)) return false;
+                    }
+                    return true;
+                },
+                .lazy_path => |a_lazy_path| return a_lazy_path.eql(b.lazy_path),
+                .lazy_path_list => |a_lazy_path_list| {
+                    if (a_lazy_path_list.items.len != b.lazy_path_list.items.len) return false;
+                    for (a_lazy_path_list.items, b.lazy_path_list.items) |a_lp, b_lp| {
+                        if (!a_lp.eql(b_lp)) return false;
+                    }
+                    return true;
+                },
+            };
+        }
+
+        pub fn hash(a: UserProvided, hasher: *std.hash.Wyhash) void {
+            hasher.update(&mem.toBytes(std.meta.activeTag(a)));
+            switch (a) {
+                .flag => {},
+                .scalar => |scalar| hasher.update(scalar),
+                .list => |*list| for (list.items) |elem| hasher.update(elem),
+                .map => |*m| for (m.keys(), m.values()) |key, val| {
+                    hasher.update(key);
+                    val.hash(hasher);
+                },
+                .lazy_path => |lp| lp.hash(hasher),
+                .lazy_path_list => |*list| for (list.items) |lp| lp.hash(hasher),
+            }
+        }
+    };
+
+    fn fromArgs(arena: Allocator, m: *Options.Map, args: anytype) void {
+        const args_info = @typeInfo(@TypeOf(args)).@"struct";
+        inline for (args_info.field_names, args_info.field_types) |field_name, field_type| {
+            if (field_type == @TypeOf(null)) continue;
+            addFromArg(arena, m, field_name, field_type, @field(args, field_name));
+        }
+    }
+
+    fn addFromArg(
+        arena: Allocator,
+        m: *Options.Map,
+        field_name: [:0]const u8,
+        comptime T: type,
+        /// If null, the value won't be added, but `T` will still be type-checked.
+        maybe_value: ?T,
+    ) void {
+        m.ensureUnusedCapacity(arena, 2) catch @panic("OOM");
+        switch (T) {
+            Target.Query => return if (maybe_value) |v| {
+                m.putAssumeCapacity(field_name, .{ .scalar = v.zigTriple(arena) catch @panic("OOM") });
+                m.putAssumeCapacity("cpu", .{ .scalar = v.serializeCpuAlloc(arena) catch @panic("OOM") });
+            },
+            ResolvedTarget => return if (maybe_value) |v| {
+                m.putAssumeCapacity(field_name, .{ .scalar = v.query.zigTriple(arena) catch @panic("OOM") });
+                m.putAssumeCapacity("cpu", .{ .scalar = v.query.serializeCpuAlloc(arena) catch @panic("OOM") });
+            },
+            std.zig.BuildId => return if (maybe_value) |v| {
+                m.putAssumeCapacity(field_name, .{
+                    .scalar = std.fmt.allocPrint(arena, "{f}", .{v}) catch @panic("OOM"),
+                });
+            },
+            LazyPath => return if (maybe_value) |v| {
+                m.putAssumeCapacity(field_name, .{ .lazy_path = v.dupeInner(arena) });
+            },
+            []const LazyPath => return if (maybe_value) |v| {
+                var list: std.ArrayList(LazyPath) = .empty;
+                const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
+                for (v, elems) |lp, *elem| elem.* = lp.dupeInner(arena);
+                m.putAssumeCapacity(field_name, .{ .lazy_path_list = list });
+            },
+            []const u8 => return if (maybe_value) |v| {
+                m.putAssumeCapacity(field_name, .{ .scalar = arena.dupe(u8, v) catch @panic("OOM") });
+            },
+            []const []const u8 => return if (maybe_value) |v| {
+                var list: std.ArrayList([]const u8) = .empty;
+                const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
+                for (v, elems) |s, *elem| elem.* = arena.dupe(u8, s) catch @panic("OOM");
+                m.putAssumeCapacity(field_name, .{ .list = list });
+            },
+            else => switch (@typeInfo(T)) {
+                .bool => return if (maybe_value) |v| {
+                    m.putAssumeCapacity(field_name, .{ .scalar = if (v) "true" else "false" });
+                },
+                .@"enum", .enum_literal => return if (maybe_value) |v| {
+                    m.putAssumeCapacity(field_name, .{ .scalar = @tagName(v) });
+                },
+                .comptime_int, .int => return if (maybe_value) |v| {
+                    m.putAssumeCapacity(field_name, .{
+                        .scalar = std.fmt.allocPrint(arena, "{d}", .{v}) catch @panic("OOM"),
+                    });
+                },
+                .comptime_float, .float => return if (maybe_value) |v| {
+                    m.putAssumeCapacity(field_name, .{
+                        .scalar = std.fmt.allocPrint(arena, "{x}", .{v}) catch @panic("OOM"),
+                    });
+                },
+                .pointer => |ptr_info| switch (ptr_info.size) {
+                    .one => switch (@typeInfo(ptr_info.child)) {
+                        .array => |array_info| return addFromArg(
+                            arena,
+                            m,
+                            field_name,
+                            @Pointer(.slice, .{ .@"const" = true }, array_info.child, null),
+                            maybe_value orelse null,
+                        ),
+                        else => {},
+                    },
+                    .slice => switch (@typeInfo(ptr_info.child)) {
+                        .@"enum" => return if (maybe_value) |v| {
+                            var list: std.ArrayList([]const u8) = .empty;
+                            const elems = list.addManyAsSlice(arena, v.len) catch @panic("OOM");
+                            for (elems, v) |*elem, tag| elem.* = @tagName(tag);
+                            m.putAssumeCapacity(field_name, .{ .list = list });
+                        },
+                        else => return addFromArg(
+                            arena,
+                            m,
+                            field_name,
+                            @Pointer(ptr_info.size, .{ .@"const" = true }, ptr_info.child, null),
+                            maybe_value orelse null,
+                        ),
+                    },
+                    else => {},
+                },
+                .null => unreachable,
+                .optional => |info| switch (@typeInfo(info.child)) {
+                    .optional => {},
+                    else => return addFromArg(arena, m, field_name, info.child, maybe_value orelse null),
+                },
+                else => {},
+            },
+        }
+        @compileError("option '" ++ field_name ++ "' has unsupported type: " ++ @typeName(T));
+    }
+
+    pub fn sort(m: *Map) void {
+        m.sortUnstable(@as(struct {
+            keys: []const []const u8,
+            pub fn lessThan(this: @This(), a_index: usize, b_index: usize) bool {
+                return mem.lessThan(u8, this.keys[a_index], this.keys[b_index]);
+            }
+        }, .{ .keys = m.keys() }));
+    }
+
+    pub fn eql(a: *const Map, b: *const Map) bool {
+        if (a.count() != b.count()) return false;
+        for (a.keys(), b.keys(), a.values(), b.values()) |a_key, b_key, a_val, b_val| {
+            if (!mem.eql(u8, a_key, b_key)) return false;
+            if (!a_val.eql(b_val)) return false;
+        }
+        return true;
+    }
+
+    pub fn logDifferences(a: *const Map, b: *const Map) void {
+        const a_keys = a.keys();
+        const b_keys = b.keys();
+        const a_vals = a.values();
+        const b_vals = b.values();
+        var a_i: usize = 0;
+        var b_i: usize = 0;
+        while (a_i < a_keys.len and b_i < b_keys.len) {
+            const a_key = a_keys[a_i];
+            const b_key = b_keys[b_i];
+            switch (mem.order(u8, a_key, b_key)) {
+                .lt => {
+                    log.info("{q}: {f} vs (missing)", .{ a_key, a_vals[a_i] });
+                    a_i += 1;
+                },
+                .eq => {
+                    const a_val = a_vals[a_i];
+                    const b_val = b_vals[b_i];
+                    if (!a_val.eql(b_val)) {
+                        log.info("{q}: {f} vs {f}", .{ a_key, a_val, b_val });
+                    }
+                    a_i += 1;
+                    b_i += 1;
+                },
+                .gt => {
+                    log.info("{q}: (missing) vs {f}", .{ b_key, b_vals[b_i] });
+                    b_i += 1;
+                },
+            }
+        }
+        for (a_keys[a_i..], a_vals[a_i..]) |a_key, a_val| log.info("{q}: {f} vs (missing)", .{ a_key, a_val });
+        for (b_keys[b_i..], b_vals[b_i..]) |b_key, b_val| log.info("{q}: (missing) vs {f}", .{ b_key, b_val });
+    }
+};
 
 pub const Fingerprint = packed struct(u64) {
     id: u32,
@@ -218,4 +535,26 @@ test Hash {
     };
     const result: Hash = .init(example_digest, "nasm", "2.16.1-3", 0xcafebabe, 10 * 1024 * 1024);
     try std.testing.expectEqualStrings("nasm-2.16.1-3-vrr-ygAAoADH9XG3tOdvPNuHen_d-XeHndOG-nNXmved", result.toSlice());
+}
+
+pub fn validateUserInputDidItFail(p: *Package) bool {
+    for (p.user_input_options.keys()) |name| {
+        if (!p.available_options_map.contains(name)) {
+            for (p.available_options_map.keys(), p.available_options_map.values()) |available_name, *available| {
+                log.info("available option: {q}: {s}", .{ available_name, available.description });
+            }
+            log.err("invalid option: {q}", .{name});
+            p.invalid_user_input = true;
+        }
+    }
+    return p.invalid_user_input;
+}
+
+pub fn findPkgHashOrFatal(p: *Package, name: []const u8) []const u8 {
+    for (p.available_deps) |dep| {
+        if (mem.eql(u8, dep[0], name)) return dep[1];
+    }
+    log.info("all dependencies used by build.zig must be declared in corresponding build.zig.zon", .{});
+    if (p.pkg_hash.len == 0) std.debug.panic("no dependency named {s}", .{name});
+    std.debug.panic("no dependency named {s} in {s} ({s})", .{ name, p.dep_prefix, p.pkg_hash });
 }
