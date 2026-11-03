@@ -762,8 +762,11 @@ update-protocol<span class="sgr-32m"> success</span>
     <p>TODO documentation</p>
     {#header_close#}
 
-    {#header_open|Conflict Resolution via Instances#}
-    <p>TODO documentation</p>
+    {#header_open|Opting Out of Conflict Resolution#}
+    <p>In build.zig.zon, specify a set of package paths in the <code>unversioned</code> field which
+    are exempt from both {link|Version Conflicts#} and {#link|Package Configuration Options Conflicts#}.
+    Specified packages will always be instantiated, even if it creates multiple instances of
+    packages with the same fingerprint.</p>
     {#header_close#}
 
     {#header_open|Recommended Release Workflow#}
@@ -956,12 +959,12 @@ $ tree zig-out
     makes the dependency only get fetched if it is actually used.</p>
     {#header_close#}
 
-    {#header_open|instances#}
+    {#header_open|unversioned#}
     <p>List. Required.</p>
     <p>Specifies a set of packages in the dependency subtree that are exempt from the default rule that
     prevents a package from being instantiated multiple times with different options.</p>
     <p>Example:</p>
-    <pre><code>.instances = .{
+    <pre><code>.unversioned = .{
     "foo.bar",
     "baz",
 },</code></pre>

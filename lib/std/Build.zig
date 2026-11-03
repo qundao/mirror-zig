@@ -1885,11 +1885,11 @@ pub fn dependencyAdvanced(
     return instantiatePackage(b, name, entry, &map, options.canonical, return_address);
 }
 
-pub const instance_map: std.StaticStringMap(void) = map: {
-    const instances = @import("root").dependencies.instances;
-    var kvs: [instances.len]struct { []const u8 } = undefined;
-    @setEvalBranchQuota(instances.len + 100);
-    for (&kvs, instances) |*kv, pkg_path| kv.* = .{pkg_path};
+pub const unversioned_map: std.StaticStringMap(void) = map: {
+    const unversioned = @import("root").dependencies.unversioned;
+    var kvs: [unversioned.len]struct { []const u8 } = undefined;
+    @setEvalBranchQuota(unversioned.len + 100);
+    for (&kvs, unversioned) |*kv, pkg_path| kv.* = .{pkg_path};
     const frozen = kvs;
     break :map .initComptime(&frozen);
 };
@@ -1998,7 +1998,7 @@ fn instantiatePackage(
     }
 
     const versioned: bool = versioned: {
-        if (instance_map.has(new_package_path)) break :versioned false;
+        if (unversioned_map.has(new_package_path)) break :versioned false;
 
         const package_hash: Package.Hash = .fromSlice(entry.hash);
         const project_id = package_hash.projectIdOptional() orelse break :versioned false;

@@ -24,13 +24,12 @@ pub const Dependency = struct {
     node: Ast.Node.Index,
     name_tok: Ast.TokenIndex,
     lazy: bool,
-    unversioned: bool,
     paths: std.array_hash_map.String(void),
     paths_tok: Ast.OptionalTokenIndex,
     version: std.SemanticVersion,
     version_tok: Ast.OptionalTokenIndex,
-    instances: std.array_hash_map.String(void),
-    instances_tok: Ast.OptionalTokenIndex,
+    unversioned: std.array_hash_map.String(void),
+    unversioned_tok: Ast.OptionalTokenIndex,
 
     pub const Location = union(enum) {
         url: []const u8,
@@ -293,13 +292,12 @@ const Parse = struct {
             .node = node,
             .name_tok = undefined,
             .lazy = false,
-            .unversioned = false,
             .paths = .empty,
             .paths_tok = .none,
             .version = undefined,
             .version_tok = .none,
-            .instances = .empty,
-            .instances_tok = .none,
+            .unversioned = .empty,
+            .unversioned_tok = .none,
         };
         var has_location = false;
 
@@ -348,17 +346,12 @@ const Parse = struct {
                     error.ParseFailure => continue,
                     else => |e| return e,
                 };
-            } else if (mem.eql(u8, field_name, "unversioned")) {
-                dep.unversioned = parseBool(p, field_init) catch |err| switch (err) {
-                    error.ParseFailure => continue,
-                    else => |e| return e,
-                };
             } else if (mem.eql(u8, field_name, "paths")) {
                 dep.paths_tok = .fromToken(name_token);
                 try parseIncludedPaths(p, &dep.paths, field_init);
-            } else if (mem.eql(u8, field_name, "instances")) {
-                dep.instances_tok = .fromToken(name_token);
-                try parseStringSet(p, &dep.instances, field_init);
+            } else if (mem.eql(u8, field_name, "unversioned")) {
+                dep.unversioned_tok = .fromToken(name_token);
+                try parseStringSet(p, &dep.unversioned, field_init);
             } else if (mem.eql(u8, field_name, "version")) {
                 if (parseVersion(p, field_init)) |v| {
                     dep.version = v;

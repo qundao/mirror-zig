@@ -210,7 +210,7 @@ pub const JobQueue = struct {
     /// Set of package paths into the dependency tree that are exempt from the rule that prevents
     /// packages from being instantiated with multiple different sets of options. Package names in
     /// the path are separated by '.'.
-    instances: InstanceSet = .empty,
+    unversioned: UnversionedSet = .empty,
 
     pub const Mode = enum {
         /// Non-lazy dependencies are always fetched.
@@ -223,7 +223,7 @@ pub const JobQueue = struct {
     pub const UnlazySet = std.array_hash_map.Auto(Package.Hash, void);
     pub const ForkSet = std.array_hash_map.Custom(Fork, void, Fork.Context, false);
 
-    pub const InstanceSet = std.array_hash_map.String(void);
+    pub const UnversionedSet = std.array_hash_map.String(void);
 
     pub const Fork = struct {
         path: Path,
@@ -262,7 +262,7 @@ pub const JobQueue = struct {
         if (jq.all_fetches.items.len == 0) return;
         const gpa = jq.all_fetches.items[0].arena.child_allocator;
         jq.table.deinit(gpa);
-        jq.instances.deinit(gpa);
+        jq.unversioned.deinit(gpa);
         // These must be deinitialized in reverse order because subsequent
         // `Fetch` instances are allocated in prior ones' arenas.
         // Sorry, I know it's a bit weird, but it slightly simplifies the
@@ -404,8 +404,8 @@ pub const JobQueue = struct {
                 .{ std.zig.fmtString(name), std.zig.fmtString(h.toSlice()) },
             );
         }
-        try w.writeAll("};\n\npub const instances: []const []const u8 = &.{\n");
-        for (jq.instances.keys()) |pkg_path| {
+        try w.writeAll("};\n\npub const unversioned: []const []const u8 = &.{\n");
+        for (jq.unversioned.keys()) |pkg_path| {
             try w.print("    {q},\n", .{pkg_path});
         }
         try w.writeAll("};\n");
@@ -416,7 +416,7 @@ pub const JobQueue = struct {
             \\pub const Dep = struct { []const u8, []const u8 };
             \\pub const packages = struct {};
             \\pub const root_deps: []const Dep = &.{};
-            \\pub const instances: []const []const u8 = &.{};
+            \\pub const unversioned: []const []const u8 = &.{};
             \\
         );
     }
@@ -1073,10 +1073,10 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
             else
                 try std.mem.join(parent_arena, ".", &.{ f.name, dep_name });
 
-            try f.job_queue.instances.ensureUnusedCapacity(gpa, dep.instances.count());
-            for (dep.instances.keys()) |pkg_path| {
+            try f.job_queue.unversioned.ensureUnusedCapacity(gpa, dep.unversioned.count());
+            for (dep.unversioned.keys()) |pkg_path| {
                 const full_pkg_path = try std.mem.join(parent_arena, ".", &.{ full_dep_name, pkg_path });
-                f.job_queue.instances.putAssumeCapacity(full_pkg_path, {});
+                f.job_queue.unversioned.putAssumeCapacity(full_pkg_path, {});
             }
 
             const new_fetch = &new_fetches[new_fetch_index];
@@ -1102,8 +1102,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                                 if (!dep.lazy and gop.value_ptr.*.lazy_status != .eager) {
                                     log.debug("promoting {s} to eager", .{selected_hash.toSlice()});
                                     // Certain properties might need to be inherited here. No known
-                                    // properties exist currently. There used to be "unversioned"
-                                    // here.
+                                    // properties exist currently.
                                 } else {
                                     continue;
                                 }
