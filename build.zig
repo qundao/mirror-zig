@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run all the tests");
     const skip_install_lib_files = b.option(bool, "no-lib", "skip copying of lib/ files and langref to installation prefix. Useful for development") orelse only_c;
     const skip_install_langref = b.option(bool, "no-langref", "skip copying of langref to the installation prefix") orelse skip_install_lib_files;
-    const skip_install_buildref = b.option(bool, "no-buildref", "skip copying of buildref to the installation prefix") orelse skip_install_lib_files;
+    const skip_install_build_docs = b.option(bool, "no-build-docs", "skip copying of build documentation to the installation prefix") orelse skip_install_lib_files;
     const std_docs = b.option(bool, "std-docs", "include standard library autodocs") orelse false;
     const no_bin = b.option(bool, "no-bin", "skip emitting compiler binary") orelse false;
     const enable_superhtml = b.option(bool, "enable-superhtml", "Check langref output HTML validity") orelse false;
@@ -52,27 +52,27 @@ pub fn build(b: *std.Build) !void {
     });
 
     const langref_file = try generateLangRef(b, doctest_exe, "doc/langref");
-    const buildref_file = try generateLangRef(b, doctest_exe, "doc/build");
+    const build_docs_file = try generateLangRef(b, doctest_exe, "doc/build");
     const install_langref = b.addInstallFileWithDir(langref_file, .prefix, "doc/langref.html");
-    const install_buildref = b.addInstallFileWithDir(buildref_file, .prefix, "doc/build.html");
+    const install_build_docs = b.addInstallFileWithDir(build_docs_file, .prefix, "doc/build.html");
     const check_langref = superHtmlCheck(b, langref_file);
-    const check_buildref = superHtmlCheck(b, buildref_file);
+    const check_build_docs = superHtmlCheck(b, build_docs_file);
     if (enable_superhtml) {
         install_langref.step.dependOn(check_langref);
-        install_buildref.step.dependOn(check_buildref);
+        install_build_docs.step.dependOn(check_build_docs);
     }
 
     const check_autodocs = superHtmlCheck(b, b.path("lib/docs/index.html"));
     if (enable_superhtml) {
         test_step.dependOn(check_langref);
-        test_step.dependOn(check_buildref);
+        test_step.dependOn(check_build_docs);
         test_step.dependOn(check_autodocs);
     }
     if (!skip_install_langref) {
         b.getInstallStep().dependOn(&install_langref.step);
     }
-    if (!skip_install_buildref) {
-        b.getInstallStep().dependOn(&install_buildref.step);
+    if (!skip_install_build_docs) {
+        b.getInstallStep().dependOn(&install_build_docs.step);
     }
 
     const autodoc_test = b.addObject(.{
@@ -119,15 +119,15 @@ pub fn build(b: *std.Build) !void {
     const langref_step = b.step("langref", "Build and install the language reference");
     langref_step.dependOn(&install_langref.step);
 
-    const buildref_step = b.step("buildref", "Build and install the build system documentation");
-    buildref_step.dependOn(&install_buildref.step);
+    const build_docs_step = b.step("build-docs", "Build and install the build system documentation");
+    build_docs_step.dependOn(&install_build_docs.step);
 
     const std_docs_step = b.step("std-docs", "Build and install the standard module documentation");
     std_docs_step.dependOn(&install_std_docs.step);
 
     const docs_step = b.step("docs", "Build and install documentation");
     docs_step.dependOn(langref_step);
-    docs_step.dependOn(buildref_step);
+    docs_step.dependOn(build_docs_step);
     docs_step.dependOn(std_docs_step);
 
     const update_cpu_features_step = b.step("update-cpu-features", "Update CPU Features");
