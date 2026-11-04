@@ -56,6 +56,10 @@ pub fn make(
     defer man.deinit();
 
     var tmp_dir_path: ["tmp".len + Dir.path.sep_str.len + std.fmt.hex(@as(u64, 0)).len]u8 = undefined;
+    var delete_tmp_dir = false;
+    const tmp_path: Path = .{ .root_dir = cache_root, .sub_path = &tmp_dir_path };
+    defer if (delete_tmp_dir) tmp_path.root_dir.handle.deleteTree(io, tmp_path.sub_path) catch |err|
+        std.log.warn("failed to remove tree {qf}: {t}", .{ tmp_path, err });
 
     const has_side_effects = has_side_effects: {
         if (conf_run.environ_map.value) |environ_map_index| {
@@ -582,7 +586,7 @@ pub fn make(
             const digest = missDigest(&man, has_side_effects);
             const output_dir_path = "o" ++ Dir.path.sep_str ++ &digest;
             try populateGeneratedStdIo(maker, &conf_run, &digest);
-            try populateGeneratedPathsCreateDirs(arena, run_index, maker, output_dir_path, output_placeholders.items, switch (conf_run.flags.stdio) {
+            try populateGeneratedPathsCreateDirs(arena, run_index, maker, output_dir_path, null, output_placeholders.items, switch (conf_run.flags.stdio) {
                 .infer_from_args, .inherit, .check, .zig_test => .{ .argv = argv_list.items },
                 .protocol => .{ .protocol = .{
                     .owned_dirs = &owned_dirs,
@@ -612,7 +616,7 @@ pub fn make(
         io.random(@ptrCast(&rand_int));
         tmp_dir_path = ("tmp" ++ Dir.path.sep_str ++ std.fmt.hex(rand_int)).*;
 
-        try populateGeneratedPathsCreateDirs(arena, run_index, maker, &tmp_dir_path, output_placeholders.items, switch (conf_run.flags.stdio) {
+        try populateGeneratedPathsCreateDirs(arena, run_index, maker, &tmp_dir_path, &delete_tmp_dir, output_placeholders.items, switch (conf_run.flags.stdio) {
             .infer_from_args, .inherit, .check, .zig_test => .{ .argv = argv_list.items },
             .protocol => .{ .protocol = .{
                 .owned_dirs = &owned_dirs,
@@ -692,7 +696,6 @@ pub fn make(
 
     if (any_output) {
         // Rename into place.
-        const tmp_path: Path = .{ .root_dir = cache_root, .sub_path = &tmp_dir_path };
         const dst_path: Path = .{ .root_dir = cache_root, .sub_path = "o" ++ Dir.path.sep_str ++ &digest };
         Dir.rename(
             tmp_path.root_dir.handle,
@@ -719,6 +722,11 @@ pub fn make(
                 tmp_path, dst_path, err,
             }),
         };
+        delete_tmp_dir = false;
+    } else {
+        delete_tmp_dir = false;
+        tmp_path.root_dir.handle.deleteTree(io, tmp_path.sub_path) catch |err|
+            return step.fail(maker, "failed to remove tree {qf}: {t}", .{ tmp_path, err });
     }
 
     if (has_side_effects) {
@@ -2059,6 +2067,7 @@ fn populateGeneratedPathsCreateDirs(
     run_index: Configuration.Step.Index,
     maker: *Maker,
     output_dir_path: []const u8,
+    output_dir_created: ?*bool,
     output_placeholders: []const IndexedOutput,
     populate: union(enum) {
         argv: [][]const u8,
@@ -2096,6 +2105,7 @@ fn populateGeneratedPathsCreateDirs(
         };
         create_path.root_dir.handle.createDirPath(io, create_path.sub_path) catch |err|
             return step.fail(maker, "unable to make path {qf}: {t}", .{ create_path, err });
+        if (output_dir_created) |dir_created| dir_created.* = true;
 
         switch (populate) {
             .argv => |argv| {
