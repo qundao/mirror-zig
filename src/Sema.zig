@@ -2565,14 +2565,15 @@ fn failWithInvalidFieldAccess(
 fn typeSupportsFieldAccess(zcu: *const Zcu, ty: Type, field_name: InternPool.NullTerminatedString) bool {
     const ip = &zcu.intern_pool;
     switch (ty.zigTypeTag(zcu)) {
-        .array => return field_name.eqlSlice("len", ip),
+        .array, .vector => return field_name.eqlSlice("len", ip),
         .pointer => {
             const ptr_info = ty.ptrInfo(zcu);
             if (ptr_info.flags.size == .slice) {
                 return field_name.eqlSlice("ptr", ip) or field_name.eqlSlice("len", ip);
-            } else if (Type.fromInterned(ptr_info.child).zigTypeTag(zcu) == .array) {
-                return field_name.eqlSlice("len", ip);
-            } else return false;
+            } else switch (Type.fromInterned(ptr_info.child).zigTypeTag(zcu)) {
+                .array, .vector => return field_name.eqlSlice("len", ip),
+                else => return false,
+            }
         },
         .type, .@"struct", .@"union" => return true,
         else => return false,
@@ -12835,7 +12836,7 @@ fn zirHasField(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
             .enum_type => {
                 break :hf ip.loadEnumType(ty.toIntern()).nameIndex(ip, field_name) != null;
             },
-            .array_type => break :hf field_name.eqlSlice("len", ip),
+            .array_type, .vector_type => break :hf field_name.eqlSlice("len", ip),
             else => {},
         }
         return sema.fail(block, ty_src, "type '{f}' does not support '@hasField'", .{
@@ -26287,6 +26288,18 @@ fn fieldVal(
         object_ty;
 
     switch (inner_ty.zigTypeTag(zcu)) {
+        .vector => {
+            if (field_name.eqlSlice("len", ip)) {
+                return Air.internedToRef((try pt.intValue(.usize, inner_ty.vectorLen(zcu))).toIntern());
+            } else {
+                return sema.fail(
+                    block,
+                    field_name_src,
+                    "no member named {qf} in {qf}",
+                    .{ field_name.fmt(ip), object_ty.fmt(zcu) },
+                );
+            }
+        },
         .array => {
             if (field_name.eqlSlice("len", ip)) {
                 return Air.internedToRef((try pt.intValue(.usize, inner_ty.arrayLen(zcu))).toIntern());
@@ -26621,6 +26634,19 @@ fn fieldPtr(
                     block,
                     field_name_src,
                     "no member named '{f}' in '{f}'",
+                    .{ field_name.fmt(ip), object_ty.fmt(zcu) },
+                );
+            }
+        },
+        .vector => {
+            if (field_name.eqlSlice("len", ip)) {
+                const int_val = try pt.intValue(.usize, inner_ty.vectorLen(zcu));
+                return uavRef(sema, int_val);
+            } else {
+                return sema.fail(
+                    block,
+                    field_name_src,
+                    "no member named {qf} in {qf}",
                     .{ field_name.fmt(ip), object_ty.fmt(zcu) },
                 );
             }
