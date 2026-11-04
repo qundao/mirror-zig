@@ -27517,7 +27517,7 @@ fn elemVal(
         .array => return sema.elemValArray(block, src, indexable_src, indexable, elem_index_src, elem_index, oob_safety),
         .vector => {
             // TODO: If the index is a vector, the result should be a vector.
-            return sema.elemValArray(block, src, indexable_src, indexable, elem_index_src, elem_index, oob_safety);
+            return sema.elemValVector(block, indexable_src, indexable, elem_index_src, elem_index);
         },
         .@"struct" => {
             // Tuple field access.
@@ -27695,6 +27695,47 @@ fn elemValArray(
     return block.addBinOp(.array_elem_val, array, elem_index);
 }
 
+fn elemValVector(
+    sema: *Sema,
+    block: *Block,
+    vector_src: LazySrcLoc,
+    vector: Air.Inst.Ref,
+    elem_index_src: LazySrcLoc,
+    elem_index: Air.Inst.Ref,
+) CompileError!Air.Inst.Ref {
+    const pt = sema.pt;
+    const zcu = pt.zcu;
+    const vector_ty = sema.typeOf(vector);
+    const vector_len = vector_ty.vectorLen(zcu);
+    const elem_ty = vector_ty.childType(zcu);
+
+    if (vector_len == 0) {
+        return sema.fail(block, vector_src, "index into empty vector", .{});
+    }
+
+    const maybe_undef_vector_val = sema.resolveValue(vector);
+    const index_val = try sema.resolveConstValue(block, elem_index_src, elem_index, .{
+        .simple = .vector_index,
+    });
+
+    const index: usize = @intCast(index_val.toUnsignedInt(zcu));
+    if (index >= vector_len) {
+        return sema.fail(block, elem_index_src, "index {d} outside vector of length {d}", .{ index, vector_len });
+    }
+
+    if (maybe_undef_vector_val) |vector_val| {
+        if (vector_val.isUndef(zcu)) {
+            return pt.undefRef(elem_ty);
+        }
+        return .fromValue(try vector_val.elemValue(pt, index));
+    }
+
+    try sema.validateRuntimeElemAccess(block, elem_index_src, elem_ty, vector_src);
+    try sema.validateRuntimeValue(block, vector_src, vector);
+
+    return block.addBinOp(.array_elem_val, vector, elem_index);
+}
+
 fn elemPtrVector(
     sema: *Sema,
     block: *Block,
@@ -27712,14 +27753,13 @@ fn elemPtrVector(
     const vector_len = vector_ty.vectorLen(zcu);
 
     if (vector_len == 0) {
-        return sema.fail(block, vector_ptr_src, "cannot index into empty vector", .{});
+        return sema.fail(block, vector_ptr_src, "index into empty vector", .{});
     }
 
     const maybe_vector_ptr_val = sema.resolveValue(vector_ptr);
-    // The index must not be undefined since it can be out of bounds.
-    const index_val = try sema.resolveDefinedValue(block, elem_index_src, elem_index) orelse {
-        return sema.fail(block, elem_index_src, "vector index not comptime known", .{});
-    };
+    const index_val = try sema.resolveConstValue(block, elem_index_src, elem_index, .{
+        .simple = .vector_index,
+    });
     const index = index_val.toUnsignedInt(zcu);
     if (index >= vector_len) {
         return sema.fail(block, elem_index_src, "index {d} outside vector of length {d}", .{ index, vector_len });
