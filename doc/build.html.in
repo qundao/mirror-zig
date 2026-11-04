@@ -578,17 +578,82 @@ th pre code {
     {#header_close#}
 
     {#header_open|Intermediate Concepts#}
-    {#header_open|Configuration Phase#}
-    <p>TODO documentation</p>
-    {#header_close#}
+    <p>Learning a little bit about how the build system is structured will make it easier to
+    understand why APIs are the way they are, as well as to give you a sense of the capabilities and
+    limitations of the build system.</p>
 
-    {#header_open|Make Phase#}
-    <p>TODO documentation</p>
+    {#header_open|Configuration Phase vs Make Phase#}
+    <p>The first time you run <code>zig build</code>, Zig compiles the build system from source
+    on-the-fly and then executes it. Normally, this must be done only once per Zig version, but if
+    you are editing the build system source code, then it may save time to set the
+    <code>ZIG_DEBUG_CMD=1</code> environment variable, trading runtime speed for compilation speed
+    of the build system itself.</p>
+
+    <p>The first thing the build system does is compile another program from source, based on
+    your <code>build.zig</code> file and all the <code>build.zig</code> files of your dependency
+    tree. This program is called the <strong>configurer</strong> and therefore execution of your
+    <code>build.zig</code> logic occurs during the <strong>configuration phase</strong>.</p>
+
+    <p>Although you can technically do anything in <code>build.zig</code> since it runs on the host
+    computer without any sandboxing, the purpose of this program is only to produce a serialized
+    <strong>configuration</strong> file that will be consumed by the build system.</p>
+
+    <p>The program that consumes the configuration file is called the <strong>maker</strong>, and thus this
+    part of the build system is called the <strong>make phase</strong>. This program implements
+    {#link|Package Management#}, {#link|File System Watching#}, and {#link|Fuzzing#}, as well as
+    parallel execution of the build pipeline and {#link|caching|The Cache System#}.</p>
+
+    <p>The process tree looks like this:</p>
+    <pre>zig build           (the zig compiler)
+└─ maker            (build system + package manager)
+   └─ configurer    (the user's build.zig logic)</pre>
     {#header_close#}
 
     {#header_open|The Cache System#}
+    <p>The cache system is a key component of the Zig toolchain, both for the compiler and for the
+    build system. The compiler uses the same cache system to cache lazily-compiled compiler_rt,
+    libc, tsan, other support libraries, and the build system itself, and the build system in turn
+    uses it to cache your build artifacts.</p>
+    <p>The cache system is built around the concept of listing <strong>input files</strong> and
+    <strong>discovered files</strong> in a <strong>cache manifest</strong> file. The cache manifest
+    file is namespaced based on the non-file inputs, such as configuration options. The manifest
+    contents include inode, size, mtime, and contents hash for each file. If any file mentioned in
+    the manifest has different inode, size, or mtime, the contents are re-hashed to check if
+    anything has changed. Finally, the output directory within the <strong>zig-cache</strong>
+    directory is determined by the hash of all content hashes.</p>
+
     {#header_open|Cache Poisoning#}
-    <p>TODO documentation</p>
+    <p>Depending on what options you pass to <code>zig build</code> there may be a configuration
+    cache hit, in which case the configuration phase will be skipped.</p>
+    <p>The cache system is <em>sound and complete</em>, in the sense that there are no known false
+    positives. Other than to save space, it is never necessary to delete zig-cache directories.
+    However, false positives can be introduced by incorrect use of the build system API, for example
+    by {#link|Walking a directory during configuration#} while neglecting to call the appropriate
+    APIs to inform the build system about the additional file system dependencies.
+    Likewise, accessing the network or collecting user input from <code>build.zig</code> introduces
+    the possibility of false positives. We call configurations which expose the danger of false
+    positives <strong>poisoned</strong>. If the cache is poisoned, it means that the
+    {#link|configuration phase|Configuration Phase vs Make Phase#}</em> had side
+    effects, or otherwise did something that could not be tracked by the cache system.</p>
+    <p>There is an escape hatch for such cases, both for the user of <code>zig build</code>, as well
+    as for the maintainer of <code>build.zig</code>.</p>
+    <p>As a maintainer of <code>build.zig</code>, when it is known that the current configuration is not
+    cacheable, it is appropriate to call {#syntax#}b.graph.poisonCache(){#endsyntax#}. This
+    explicitly marks the cache as poisoned, causing the maker process to delete the build
+    configuration file upon ingesting it since it cannot be reused.</p>
+    <p>As a user of <code>zig build</code>, one can work around unfortunate
+    <code>build.zig</code> logic which both introduces cache poisoning and neglects to declare it with
+    these command line options:</p>
+    <pre>  --cache-poison[=mode]        Override configuration caching behavior
+      pure                     (default) Avoid false positive cache hits
+      poisoned                 Don't cache the configuration
+      disallowed               Panics when cache would be poisoned
+      ignored                  A little poison never hurt anybody</pre>
+    <p>In particular, by passing <code>--cache-poison=poisoned</code>, one can opt out entirely of
+    caching the build configuration, giving up the possibility of skipping configuration phase and
+    thereby avoiding any cache related bugs within the <code>build.zig</code> logic.</p>
+    <p>The preferred alternative to doing uncacheable things inside <code>build.zig</code> logic is to
+    {#link|Compile a tool from source and then run it#}.</p>
     {#header_close#}
     {#header_close#}
     {#header_close#}
@@ -817,6 +882,10 @@ $ tree zig-out
     {#header_close#}
 
     {#header_open|Walking a directory during configuration#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Compile a tool from source and then run it#}
     <p>TODO documentation</p>
     {#header_close#}
 
