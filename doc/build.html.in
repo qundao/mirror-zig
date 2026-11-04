@@ -13,14 +13,20 @@ body{
 }
 header {
   padding: 0 1em;
+  text-align: center;
 }
 #contents {
-  max-width: 60em;
+  max-width: 80em;
   margin: auto;
   padding: 0 1em;
 }
 #navigation {
   padding: 0 1em;
+  max-width: 80em;
+  margin: auto;
+}
+#navigation nav ul {
+  padding-left: 1em;
 }
 table ul {
   list-style-type: none;
@@ -40,10 +46,6 @@ th, td {
 th[scope=row] {
     text-align: left;
     font-weight: normal;
-}
-
-#navigation nav ul {
-  padding-left: 1em;
 }
 
 a:hover,a:focus {
