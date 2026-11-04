@@ -408,7 +408,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
         query.cpu_features_sub,
     );
 
-    var result = detectAbiAndDynamicLinker(io, cpu, os, query) catch |err| switch (err) {
+    var detected = detectAbiAndDynamicLinker(io, cpu.arch, os, query) catch |err| switch (err) {
         error.Canceled => |e| return e,
         error.Unexpected => |e| return e,
         error.ApiLevelQueryFailed => |e| return e,
@@ -433,27 +433,19 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
         error.UnhelpfulFile,
         error.InvalidElfFile,
         error.RelativeShebang,
-        => return defaultAbiAndDynamicLinker(cpu, os, query),
+        => defaultAbiAndDynamicLinker(cpu.arch, os, query),
     };
-
-    // These CPU feature hacks have to come after ABI detection.
-    {
-        // https://github.com/llvm/llvm-project/issues/105978
-        if (result.cpu.arch.isArm() and result.abi.float() == .soft) {
-            result.cpu.features.removeFeature(@backingInt(Target.arm.Feature.fpregs));
-        }
-    }
 
     // It's possible that we detect the native ABI, but fail to detect the OS version or were told
     // to use the default OS version range. In that case, while we can't determine the exact native
     // OS version, we do at least know that some ABIs require a particular OS version (by way of
     // `std.zig.target.available_libcs`). So in this case, adjust the OS version to the minimum that
     // we know is required.
-    if (result.abi != query_abi and query.os_version_min == null) {
-        const result_ver_range = &result.os.version_range;
-        const abi_ver_range = result.os.tag.defaultVersionRange(result.cpu.arch, result.abi).version_range;
+    if (detected.abi != query_abi and query.os_version_min == null) {
+        const result_ver_range = &detected.os.version_range;
+        const abi_ver_range = detected.os.tag.defaultVersionRange(cpu.arch, detected.abi).version_range;
 
-        switch (result.os.tag.versionRangeTag()) {
+        switch (detected.os.tag.versionRangeTag()) {
             .none => {},
             .semver => if (result_ver_range.semver.min.order(abi_ver_range.semver.min) == .lt) {
                 result_ver_range.semver.min = abi_ver_range.semver.min;
@@ -475,7 +467,20 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
         }
     }
 
-    return result;
+    {
+        // https://github.com/llvm/llvm-project/issues/105978
+        if (cpu.arch.isArm() and detected.abi.float() == .soft) {
+            cpu.features.removeFeature(@backingInt(Target.arm.Feature.fpregs));
+        }
+    }
+
+    return .{
+        .cpu = cpu,
+        .os = detected.os,
+        .abi = detected.abi,
+        .ofmt = query.ofmt orelse .default(detected.os.tag, cpu.arch),
+        .dynamic_linker = detected.dynamic_linker,
+    };
 }
 
 fn updateCpuFeatures(
@@ -543,19 +548,17 @@ pub const AbiAndDynamicLinkerFromFileError = error{
 fn abiAndDynamicLinkerFromFile(
     file_reader: *Io.File.Reader,
     header: *const elf.Header,
-    cpu: Target.Cpu,
+    arch: Target.Cpu.Arch,
     os: Target.Os,
     ld_info_list: []const LdInfo,
     query: Target.Query,
-) AbiAndDynamicLinkerFromFileError!Target {
+) AbiAndDynamicLinkerFromFileError!DetectedTarget {
     assert(query.abi == null); // See the early exit in `detectAbiAndDynamicLinker`.
 
     const io = file_reader.io;
-    var result: Target = .{
-        .cpu = cpu,
+    var result: DetectedTarget = .{
         .os = os,
-        .abi = Target.Abi.default(cpu.arch, os.tag),
-        .ofmt = query.ofmt orelse Target.ObjectFormat.default(os.tag, cpu.arch),
+        .abi = .default(arch, os.tag),
         .dynamic_linker = query.dynamic_linker orelse .none,
     };
     var rpath_offset: ?u64 = null; // Found inside PT.DYNAMIC
@@ -594,7 +597,7 @@ fn abiAndDynamicLinkerFromFile(
             .DYNAMIC => {
                 got_dyn_section = true;
 
-                if (builtin.target.os.tag == .linux and result.isGnuLibC() and query.glibc_version == null) {
+                if (builtin.target.os.tag == .linux and result.abi.isGnu() and query.glibc_version == null) {
                     var dyn_it = header.iterateDynamicSection(file_reader, phdr.offset, phdr.filesz);
                     while (try dyn_it.next()) |dyn| {
                         if (dyn.d_tag == elf.DT_RUNPATH) {
@@ -609,14 +612,14 @@ fn abiAndDynamicLinkerFromFile(
     }
 
     if (look_for_ld and result.dynamic_linker.get() == null) {
-        result.dynamic_linker = .standard(cpu.arch, os.tag, result.abi);
+        result.dynamic_linker = .standard(arch, os.tag, result.abi);
     }
 
     if (!got_dyn_section) {
         return error.StaticElfFile;
     }
 
-    if (builtin.target.os.tag == .linux and result.isGnuLibC() and query.glibc_version == null) {
+    if (builtin.target.os.tag == .linux and result.abi.isGnu() and query.glibc_version == null) {
         const str_section_off = header.shoff + @as(u64, header.shentsize) * @as(u64, header.shstrndx);
         try file_reader.seekTo(str_section_off);
         const shstr = try elf.takeSectionHeader(&file_reader.interface, header.is_64, header.endian);
@@ -714,7 +717,7 @@ fn abiAndDynamicLinkerFromFile(
         var path_buf: [posix.PATH_MAX]u8 = undefined;
         var index: usize = 0;
         const prefix = "/lib/";
-        const cpu_arch = @tagName(result.cpu.arch);
+        const cpu_arch = @tagName(arch);
         const os_tag = @tagName(result.os.tag);
         const abi = @tagName(result.abi);
         @memcpy(path_buf[index..][0..prefix.len], prefix);
@@ -899,6 +902,12 @@ fn glibcVerFromSoFile(file_reader: *Io.File.Reader) !std.SemanticVersion {
     return max_ver;
 }
 
+const DetectedTarget = struct {
+    os: Target.Os,
+    abi: Target.Abi,
+    dynamic_linker: Target.DynamicLinker,
+};
+
 /// In the past, this function attempted to use the executable's own binary if it was dynamically
 /// linked to answer both the C ABI question and the dynamic linker question. However, this
 /// could be problematic on a system that uses a RUNPATH for the compiler binary, locking
@@ -912,11 +921,11 @@ fn glibcVerFromSoFile(file_reader: *Io.File.Reader) !std.SemanticVersion {
 /// answer to these questions, or if there is a shebang line, then it chases the referenced
 /// file recursively. If that does not provide the answer, then the function falls back to
 /// defaults.
-fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Target.Query) !Target {
+fn detectAbiAndDynamicLinker(io: Io, arch: Target.Cpu.Arch, os: Target.Os, query: Target.Query) !DetectedTarget {
     const native_os_uses_elf = comptime Target.ObjectFormat.default(builtin.target.os.tag, builtin.target.cpu.arch) == .elf;
     const native_ld_needs_abi = comptime Target.DynamicLinker.kind(builtin.target.os.tag) == .arch_os_abi;
     if (!native_os_uses_elf or !native_ld_needs_abi or query.os_tag != null or query.abi != null) {
-        return defaultAbiAndDynamicLinker(cpu, os, query);
+        return defaultAbiAndDynamicLinker(arch, os, query);
     }
 
     assert(os.tag == builtin.target.os.tag);
@@ -939,7 +948,7 @@ fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Targ
     var ld_info_list_len: usize = 0;
 
     for (all_abis) |abi| {
-        const ld: Target.DynamicLinker = .standard(cpu.arch, os.tag, abi);
+        const ld: Target.DynamicLinker = .standard(arch, os.tag, abi);
 
         // Does the generated target triple actually have a standard dynamic linker path?
         if (ld.get() == null) continue;
@@ -1055,7 +1064,7 @@ fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Targ
     };
     defer file_reader.file.close(io);
 
-    var result = abiAndDynamicLinkerFromFile(&file_reader, &header, cpu, os, ld_info_list, query) catch |err| switch (err) {
+    var result = abiAndDynamicLinkerFromFile(&file_reader, &header, arch, os, ld_info_list, query) catch |err| switch (err) {
         error.FileSystem,
         error.SystemResources,
         error.SymLinkLoop,
@@ -1068,11 +1077,11 @@ fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Targ
 
         else => |e| {
             std.log.warn("encountered {t}; falling back to default ABI and dynamic linker", .{e});
-            return defaultAbiAndDynamicLinker(cpu, os, query);
+            return defaultAbiAndDynamicLinker(arch, os, query);
         },
     };
 
-    if (builtin.target.os.tag == .linux and result.isBionicLibC() and query.android_api_level == null) {
+    if (builtin.target.os.tag == .linux and result.abi.isAndroid() and query.android_api_level == null) {
         result.os.version_range.linux.android = detectAndroidApiLevel(io) catch |err| return switch (err) {
             error.InvalidWtf8,
             error.InvalidBatchScriptArg,
@@ -1096,14 +1105,12 @@ fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Targ
     return result;
 }
 
-fn defaultAbiAndDynamicLinker(cpu: Target.Cpu, os: Target.Os, query: Target.Query) Target {
-    const abi = query.abi orelse Target.Abi.default(cpu.arch, os.tag);
+fn defaultAbiAndDynamicLinker(arch: Target.Cpu.Arch, os: Target.Os, query: Target.Query) DetectedTarget {
+    const abi: Target.Abi = query.abi orelse .default(arch, os.tag);
     return .{
-        .cpu = cpu,
         .os = os,
         .abi = abi,
-        .ofmt = query.ofmt orelse Target.ObjectFormat.default(os.tag, cpu.arch),
-        .dynamic_linker = query.dynamic_linker orelse .standard(cpu.arch, os.tag, abi),
+        .dynamic_linker = query.dynamic_linker orelse .standard(arch, os.tag, abi),
     };
 }
 
