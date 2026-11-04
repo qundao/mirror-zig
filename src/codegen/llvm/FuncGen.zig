@@ -7512,7 +7512,7 @@ const ParamTypeIterator = struct {
 
                 const reg_ty = it.types_buffer[0];
                 const llvm_ty = try o.lowerType(ty, .as_value);
-                break :single if (reg_ty == llvm_ty or (reg_ty == .i64 and llvm_ty.isPointer(&o.builder)))
+                break :single if (reg_ty == llvm_ty or llvm_ty.isPointer(&o.builder))
                     .byval
                 else
                     .multiple_llvm_types;
@@ -7834,7 +7834,7 @@ fn fnReturnStrat_x86_64_sysv(o: *Object, ret_ty: Type) Allocator.Error!FnReturnS
     if (!isByRef(ret_ty, zcu)) {
         const llvm_ty = try o.lowerType(ret_ty, .as_value);
         if (types_buffer[0] == llvm_ty) return .by_val;
-        if (types_buffer[0] == .i64 and llvm_ty.isPointer(&o.builder)) return .by_val;
+        if (llvm_ty.isPointer(&o.builder)) return .by_val;
         if (types_buffer[0] == .double and llvm_ty.isVector(&o.builder) and
             llvm_ty.vectorLen(&o.builder) == 1 and
             llvm_ty.scalarType(&o.builder) == .double) return .by_val;
