@@ -1271,7 +1271,19 @@ const LinuxThreadImpl = struct {
                     : [ptr] "{r5}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{r6}" (self.mapped.len),
                 ),
-                .mips, .mipsel => asm volatile (
+                .mips,
+                .mipsel,
+                .mipsf32,
+                .mipsf32el,
+                .mipsf64,
+                .mipsf64el,
+                .mipsf64n8,
+                .mipsf64n8el,
+                .mipsn8,
+                .mipsn8el,
+                .mipsr6,
+                .mipsr6el,
+                => asm volatile (
                     \\ li $v0, 4091 # SYS_munmap
                     \\ syscall
                     \\ li $v0, 4001 # SYS_exit
@@ -1281,7 +1293,13 @@ const LinuxThreadImpl = struct {
                     : [ptr] "{$4}" (@intFromPtr(self.mapped.ptr)),
                       [len] "{$5}" (self.mapped.len),
                 ),
-                .mips64, .mips64el => asm volatile (if (target.abi.isN32())
+                .mips64,
+                .mips64el,
+                .mips64n8,
+                .mips64n8el,
+                .mips64r6,
+                .mips64r6el,
+                => asm volatile (if (target.abi.isN32())
                         \\ li $v0, 6011 # SYS_munmap
                         \\ syscall
                         \\ li $v0, 6058 # SYS_exit

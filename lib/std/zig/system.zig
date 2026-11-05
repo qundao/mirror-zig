@@ -119,8 +119,22 @@ pub fn getExternalExecutor(io: Io, candidate: *const std.Target, options: GetExt
             .microblazeel,
             .mips,
             .mipsel,
+            .mipsf32,
+            .mipsf32el,
+            .mipsf64,
+            .mipsf64el,
+            .mipsf64n8,
+            .mipsf64n8el,
+            .mipsn8,
+            .mipsn8el,
+            .mipsr6,
+            .mipsr6el,
             .mips64,
             .mips64el,
+            .mips64n8,
+            .mips64n8el,
+            .mips64r6,
+            .mips64r6el,
             .or1k,
             .powerpc,
             .powerpc64,
@@ -142,11 +156,27 @@ pub fn getExternalExecutor(io: Io, candidate: *const std.Target, options: GetExt
                         .powerpc => "qemu-ppc",
                         .powerpc64 => "qemu-ppc64",
                         .powerpc64le => "qemu-ppc64le",
-                        .mips64, .mips64el => if (candidate.abi.isN32())
-                            if (t == .mips64el) "qemu-mipsn32el" else "qemu-mipsn32"
-                        else
-                            "qemu-" ++ @tagName(t),
-                        // TODO: Actually check the SuperH version.
+                        .mips,
+                        .mipsel,
+                        .mipsf32,
+                        .mipsf32el,
+                        .mipsf64,
+                        .mipsf64el,
+                        .mipsf64n8,
+                        .mipsf64n8el,
+                        .mipsn8,
+                        .mipsn8el,
+                        .mipsr6,
+                        .mipsr6el,
+                        => if (candidate.cpu.arch.endian() == .little) "qemu-mipsel" else "qemu-mips",
+                        .mips64,
+                        .mips64n8,
+                        .mips64r6,
+                        => if (candidate.abi.isN32()) "qemu-mipsn32" else "qemu-mips64",
+                        .mips64el,
+                        .mips64n8el,
+                        .mips64r6el,
+                        => if (candidate.abi.isN32()) "qemu-mipsn32el" else "qemu-mips64el",
                         .sh => "qemu-sh4",
                         .sheb => "qemu-sh4eb",
                         .sparc => "qemu-sparc32plus",
@@ -579,7 +609,7 @@ fn abiAndDynamicLinkerFromFile(
     }
 
     if (look_for_ld and result.dynamic_linker.get() == null) {
-        result.dynamic_linker = .standard(cpu, os.tag, result.abi);
+        result.dynamic_linker = .standard(cpu.arch, os.tag, result.abi);
     }
 
     if (!got_dyn_section) {
@@ -909,7 +939,7 @@ fn detectAbiAndDynamicLinker(io: Io, cpu: Target.Cpu, os: Target.Os, query: Targ
     var ld_info_list_len: usize = 0;
 
     for (all_abis) |abi| {
-        const ld: Target.DynamicLinker = .standard(cpu, os.tag, abi);
+        const ld: Target.DynamicLinker = .standard(cpu.arch, os.tag, abi);
 
         // Does the generated target triple actually have a standard dynamic linker path?
         if (ld.get() == null) continue;
@@ -1073,7 +1103,7 @@ fn defaultAbiAndDynamicLinker(cpu: Target.Cpu, os: Target.Os, query: Target.Quer
         .os = os,
         .abi = abi,
         .ofmt = query.ofmt orelse Target.ObjectFormat.default(os.tag, cpu.arch),
-        .dynamic_linker = query.dynamic_linker orelse .standard(cpu, os.tag, abi),
+        .dynamic_linker = query.dynamic_linker orelse .standard(cpu.arch, os.tag, abi),
     };
 }
 

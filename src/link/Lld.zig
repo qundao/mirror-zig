@@ -112,10 +112,7 @@ pub const Elf = struct {
             33...64 => .p64,
             else => return error.UnsupportedElfArchitecture,
         };
-        const default_entry_name: []const u8 = switch (target.cpu.arch) {
-            .mips, .mipsel, .mips64, .mips64el => "__start",
-            else => "_start",
-        };
+        const default_entry_name: []const u8 = if (target.cpu.arch.isMips()) "__start" else "_start";
         return .{
             .entry_name = switch (options.entry) {
                 .disabled => null,
@@ -1315,19 +1312,19 @@ fn getLDMOption(target: *const std.Target) ?[]const u8 {
         .hexagon => "hexagonelf",
         .loongarch32 => "elf32loongarch",
         .loongarch64 => "elf64loongarch",
-        .mips => switch (target.os.tag) {
+        .mips, .mipsf32, .mipsf64, .mipsf64n8, .mipsn8, .mipsr6 => switch (target.os.tag) {
             .freebsd => "elf32btsmip_fbsd",
             else => "elf32btsmip",
         },
-        .mipsel => switch (target.os.tag) {
+        .mipsel, .mipsf32el, .mipsf64el, .mipsf64n8el, .mipsn8el, .mipsr6el => switch (target.os.tag) {
             .freebsd => "elf32ltsmip_fbsd",
             else => "elf32ltsmip",
         },
-        .mips64 => switch (target.os.tag) {
+        .mips64, .mips64n8, .mips64r6 => switch (target.os.tag) {
             .freebsd => if (target.abi.isN32()) "elf32btsmipn32_fbsd" else "elf64btsmip_fbsd",
             else => if (target.abi.isN32()) "elf32btsmipn32" else "elf64btsmip",
         },
-        .mips64el => switch (target.os.tag) {
+        .mips64el, .mips64n8el, .mips64r6el => switch (target.os.tag) {
             .freebsd => if (target.abi.isN32()) "elf32ltsmipn32_fbsd" else "elf64ltsmip_fbsd",
             else => if (target.abi.isN32()) "elf32ltsmipn32" else "elf64ltsmip",
         },

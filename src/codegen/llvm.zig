@@ -56,9 +56,7 @@ pub fn supportsTailCall(target: *const std.Target) bool {
     return switch (target.cpu.arch) {
         .wasm32, .wasm64 => target.cpu.has(.wasm, .tail_call),
         // Although these ISAs support tail calls, LLVM does not support tail calls on them.
-        .mips, .mipsel, .mips64, .mips64el => false,
-        .powerpc, .powerpcle, .powerpc64, .powerpc64le => false,
-        else => true,
+        else => !(target.cpu.arch.isMips() or target.cpu.arch.isPowerpc()),
     };
 }
 

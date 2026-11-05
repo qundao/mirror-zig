@@ -84,6 +84,22 @@
     },
 
     .{
+        .cpu = .{ .mipsr6 = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .none = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+
+    .{
+        .cpu = .{ .mipsr6el = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .none = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+
+    .{
         .cpu = .{ .mips64 = .{} },
         .os = .{ .linux = .{} },
         .abi = .{ .none = .{} },
@@ -107,6 +123,36 @@
     },
     .{
         .cpu = .{ .mips64el = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .n32 = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+
+    .{
+        .cpu = .{ .mips64r6 = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .none = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+    .{
+        .cpu = .{ .mips64r6 = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .n32 = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+
+    .{
+        .cpu = .{ .mips64r6el = .{} },
+        .os = .{ .linux = .{} },
+        .abi = .{ .none = .{} },
+        .cache_mode = .whole,
+        .backend = .llvm,
+    },
+    .{
+        .cpu = .{ .mips64r6el = .{} },
         .os = .{ .linux = .{} },
         .abi = .{ .n32 = .{} },
         .cache_mode = .whole,

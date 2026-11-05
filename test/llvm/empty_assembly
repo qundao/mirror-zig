@@ -15,6 +15,11 @@
 #skip loongarch64-uefi-none-baseline-whole-llvm-debug-lld
 
 #skip mipsel-psx-sf-baseline-whole-llvm-debug-lld
+# "https://github.com/llvm/llvm-project/pull/233170"
+#skip mipsr6-freestanding-f32-baseline-whole-llvm-debug-lld
+#skip mipsr6-linux-f32-baseline-whole-llvm-debug-lld
+#skip mipsr6el-freestanding-f32-baseline-whole-llvm-debug-lld
+#skip mipsr6el-linux-f32-baseline-whole-llvm-debug-lld
 
 #skip riscv32-uefi-sf-baseline-whole-llvm-debug-lld
 

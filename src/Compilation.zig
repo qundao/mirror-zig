@@ -6790,16 +6790,20 @@ pub fn addCCArgs(
                 try arena.print("-mfloat-abi={s}", .{if (target.abi.float() == .soft) "soft" else "hard"}),
             );
 
-            // TODO: clean up this disaster
-            if (target.cpu.arch.isMips() and target.abi.float() != .soft) {
-                try argv.appendSlice(arena, if (target.cpu.has(.mips, .fpu_s) and !target.cpu.has(.mips, .fpu_d))
-                    &.{ "-msingle-float", "-mno-odd-spreg" }
-                else if (target.cpu.arch.isMips64() or target.cpu.hasAny(.mips, &.{ .mips32r6, .msa }))
-                    &.{ "-mfp64", "-modd-spreg" }
-                else if (target.cpu.has(.mips, .mips2))
-                    &.{ "-mfpxx", "-mno-odd-spreg" }
-                else
-                    &.{ "-mfp32", "-mno-odd-spreg" });
+            if (target.cpu.arch.isMips()) {
+                switch (target.abi.float()) {
+                    .soft => {},
+                    .hard32 => {
+                        try argv.append(arena, "-msingle-float");
+                        if (target.cpu.arch.isMips32()) try argv.append(arena, "-mno-odd-spreg");
+                    },
+                    .hard64 => try argv.appendSlice(arena, if (target.cpu.arch.isMipsF64())
+                        &.{ "-mfp64", "-modd-spreg" }
+                    else if (target.cpu.arch.isMipsF32())
+                        &.{ "-mfp32", "-mno-odd-spreg" }
+                    else
+                        &.{ "-mfpxx", "-mno-odd-spreg" }),
+                }
             }
         },
         .@"-msoft-float, -mhard-float" => {
@@ -6933,6 +6937,24 @@ pub fn addCCArgs(
                 const arg = try std.fmt.allocPrint(arena, "-{s}", .{llvm_name});
                 for (xclang_flags) |xclang| {
                     argv.appendSliceAssumeCapacity(&.{ xclang, "-target-feature", xclang, arg });
+                }
+            }
+
+            if (target.cpu.arch.isMips()) {
+                for (xclang_flags) |xclang| {
+                    try argv.appendSlice(arena, &.{
+                        xclang,
+                        "-target-feature",
+                        xclang,
+                        if (target.cpu.arch.isMipsN8()) "+nan2008" else "-nan2008",
+                    });
+
+                    if (!target.cpu.arch.isMipsF64()) try argv.appendSlice(arena, &.{
+                        xclang,
+                        "-target-feature",
+                        xclang,
+                        "-msa",
+                    });
                 }
             }
 

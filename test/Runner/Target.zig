@@ -20,7 +20,7 @@ strip: Strip = .default,
 extra: bool = false,
 
 pub const Cpu = Cpu: {
-    @setEvalBranchQuota(4_000);
+    @setEvalBranchQuota(6_000);
     const Arch = std.Target.Cpu.Arch;
     const arch_info = @typeInfo(Arch).@"enum";
     const field_names = .{"native"} ++ arch_info.field_names;

@@ -3258,8 +3258,22 @@ pub const Sigaction = switch (native_os) {
     } else switch (native_arch) {
         .mips,
         .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
         .mips64,
         .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
         => if (builtin.target.abi.isMusl())
             common_linux_Sigaction
         else if (builtin.target.ptrBitWidth() == 64) extern struct {
@@ -4406,7 +4420,7 @@ pub const cmsg_align = switch (native_os) {
         // https://github.com/NetBSD/src/blob/ac016822f750dc9166c84b6d2657479992622192/sys/arch/amd64/include/cdefs.h#L6
         .x86_64 => @sizeOf(c_long),
         // https://github.com/NetBSD/src/blob/ac016822f750dc9166c84b6d2657479992622192/sys/arch/mips/include/cdefs.h#L74
-        .mips, .mips64, .mipsel, .mips64el => 8,
+        .mips, .mipsel, .mipsf32, .mipsf32el, .mips64, .mips64el => 8,
         // https://github.com/NetBSD/src/blob/ac016822f750dc9166c84b6d2657479992622192/sys/arch/sparc/include/cdefs.h#L8
         .sparc64 => 16,
         // https://github.com/NetBSD/src/blob/ac016822f750dc9166c84b6d2657479992622192/sys/arch/sparc/include/cdefs.h#L10
@@ -8025,7 +8039,16 @@ pub const pthread_mutex_t = switch (native_os) {
             .gnu, .gnun32, .gnun32sf, .gnusf, .gnux32 => switch (native_arch) {
                 .aarch64 => 48,
                 .x86_64 => if (native_abi == .gnux32) 32 else 40,
-                .mips64, .powerpc64, .powerpc64le, .sparc64 => 40,
+                .mips64,
+                .mips64el,
+                .mips64n8,
+                .mips64n8el,
+                .mips64r6,
+                .mips64r6el,
+                .powerpc64,
+                .powerpc64le,
+                .sparc64,
+                => 40,
                 else => if (@sizeOf(usize) == 8) 40 else 24,
             },
             .android, .androidsf => if (@sizeOf(usize) == 8) 40 else 4,
@@ -8227,7 +8250,7 @@ pub const pthread_spin_t = switch (native_os) {
         .aarch64, .aarch64_be => u8,
         .arm, .armeb => i32,
         .m68k => u8,
-        .mips, .mipsel => u32,
+        .mips, .mipsel, .mipsf32, .mipsf32el, .mips64, .mips64el => u32,
         .powerpc => i32,
         .riscv32, .riscv64 => u32,
         .sparc, .sparc64 => u8,

@@ -2859,7 +2859,25 @@ fn airAssembly(self: *FuncGen, inst: Air.Inst.Index) TodoError!Builder.Value {
             try llvm_constraints.appendSlice(gpa, "~{dirflag},~{fpsr},~{flags},");
             total_i += 3;
         },
-        .mips, .mipsel, .mips64, .mips64el => {
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => {
             try llvm_constraints.appendSlice(gpa, "~{$1},");
             total_i += 1;
         },
@@ -6948,7 +6966,19 @@ fn valgrindClientRequest(
             ,
             .constraints = "={x3},{x4},{x3},~{cc},~{memory}",
         },
-        .mips, .mipsel => .{
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        => .{
             .template =
             \\ srl $$0,  $$0,  13
             \\ srl $$0,  $$0,  29
@@ -6958,7 +6988,13 @@ fn valgrindClientRequest(
             ,
             .constraints = "={$11},{$12},{$11},~{memory},~{$1}",
         },
-        .mips64, .mips64el => .{
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => .{
             .template =
             \\ dsll $$0,  $$0,  3    ; dsll $$0, $$0, 13
             \\ dsll $$0,  $$0,  29   ; dsll $$0, $$0, 19
@@ -7899,8 +7935,22 @@ pub fn ccAbiPromoteInt(cc: std.lang.CallingConvention, zcu: *Zcu, ty: Type) ?std
 
         .mips,
         .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
         .mips64,
         .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
         => switch (int_info.bits) {
             1, 8, 16, 64 => int_info.signedness,
             32 => .signed,
@@ -8095,7 +8145,25 @@ fn appendConstraints(
     target: *const std.Target,
 ) error{OutOfMemory}!usize {
     switch (target.cpu.arch) {
-        .mips, .mipsel, .mips64, .mips64el => if (mips_clobber_overrides.get(zig_name)) |llvm_tag| {
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => if (mips_clobber_overrides.get(zig_name)) |llvm_tag| {
             const llvm_name = @tagName(llvm_tag);
             try llvm_constraints.ensureUnusedCapacity(gpa, llvm_name.len + 4);
             llvm_constraints.appendSliceAssumeCapacity("~{");

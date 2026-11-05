@@ -41,8 +41,26 @@ const arch_bits = switch (native_arch) {
     .loongarch64 => @import("linux/loongarch64.zig"),
     .m68k => @import("linux/m68k.zig"),
     .microblaze, .microblazeel => @import("linux/microblaze.zig"),
-    .mips, .mipsel => @import("linux/mips.zig"),
-    .mips64, .mips64el => if (native_abi.isN32())
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    => @import("linux/mips.zig"),
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => if (native_abi.isN32())
         @import("linux/mipsn32.zig")
     else
         @import("linux/mips64.zig"),
@@ -141,8 +159,26 @@ pub const SYS = switch (native_arch) {
     .loongarch64 => syscalls.LoongArch64,
     .m68k => syscalls.M68k,
     .microblaze, .microblazeel => syscalls.Microblaze,
-    .mips, .mipsel => syscalls.MipsO32,
-    .mips64, .mips64el => if (native_abi.isN32())
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    => syscalls.MipsO32,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => if (native_abi.isN32())
         syscalls.MipsN32
     else
         syscalls.MipsN64,
@@ -252,7 +288,25 @@ pub const MAP = switch (native_arch) {
         UNINITIALIZED: bool = false,
         _: u5 = 0,
     },
-    .mips, .mipsel, .mips64, .mips64el => bitpack struct(u32) {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => bitpack struct(u32) {
         TYPE: MAP_TYPE,
         FIXED: bool = false,
         _5: u1 = 0,
@@ -481,7 +535,25 @@ pub const O = switch (native_arch) {
         TMPFILE: bool = false,
         _27: u6 = 0,
     },
-    .mips, .mipsel, .mips64, .mips64el => bitpack struct(u32) {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => bitpack struct(u32) {
         ACCMODE: ACCMODE = .RDONLY,
         _2: u1 = 0,
         APPEND: bool = false,
@@ -810,7 +882,25 @@ pub const HWCAP = switch (native_arch) {
         pub const SCQ = 1 << 15;
         pub const LAM_BH = 1 << 16;
     },
-    .mips, .mipsel, .mips64, .mips64el => struct {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => struct {
         pub const R6 = 1 << 0;
         pub const MSA = 1 << 1;
         pub const CRC32 = 1 << 2;
@@ -2261,12 +2351,30 @@ pub const F = struct {
     pub const GETOWN = GET_SET_OWN.GETOWN;
 
     const GET_SET_LK = switch (native_arch) {
-        .mips, .mipsel => struct {
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        => struct {
             const GETLK = 33;
             const SETLK = 34;
             const SETLKW = 35;
         },
-        .mips64, .mips64el => if (native_abi.isN32())
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => if (native_abi.isN32())
             struct {
                 const GETLK = 33;
                 const SETLK = 34;
@@ -2299,7 +2407,25 @@ pub const F = struct {
         },
     };
     const GET_SET_OWN = switch (native_arch) {
-        .mips, .mipsel, .mips64, .mips64el => struct {
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => struct {
             const GETOWN = 23;
             const SETOWN = 24;
         },
@@ -3558,7 +3684,25 @@ pub fn sys_riscv_hwprobe(
 }
 
 pub const E = switch (native_arch) {
-    .mips, .mipsel, .mips64, .mips64el => enum(u16) {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => enum(u16) {
         /// No error occurred.
         SUCCESS = 0,
 
@@ -4606,7 +4750,27 @@ pub const FUTEX2_FLAGS = bitpack struct(u32) {
 };
 
 pub const PROT = switch (native_arch) {
-    .mips, .mipsel, .mips64, .mips64el, .xtensa, .xtensaeb => bitpack struct(u32) {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    .xtensa,
+    .xtensaeb,
+    => bitpack struct(u32) {
         READ: bool = false,
         WRITE: bool = false,
         EXEC: bool = false,
@@ -6923,7 +7087,25 @@ pub const TFD = switch (native_arch) {
 
         pub const TIMER = TFD_TIMER;
     },
-    .mips, .mipsel, .mips64, .mips64el => bitpack struct(u32) {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => bitpack struct(u32) {
         _0: u7 = 0,
         NONBLOCK: bool = false,
         _8: u11 = 0,
@@ -6960,7 +7142,25 @@ const k_sigaction_funcs = struct {
 /// Kernel sigaction struct, as expected by the `rt_sigaction` syscall.  Includes `restorer` on
 /// targets where userspace is responsible for hooking up `rt_sigreturn`.
 pub const k_sigaction = switch (native_arch) {
-    .mips, .mipsel, .mips64, .mips64el => extern struct {
+    .mips,
+    .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
+    .mips64,
+    .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
+    => extern struct {
         flags: c_uint,
         handler: k_sigaction_funcs.handler,
         mask: sigset_t,
@@ -7004,7 +7204,25 @@ pub const Sigaction = struct {
     },
     mask: sigset_t,
     flags: switch (native_arch) {
-        .mips, .mipsel, .mips64, .mips64el => c_uint,
+        .mips,
+        .mipsel,
+        .mipsf32,
+        .mipsf32el,
+        .mipsf64,
+        .mipsf64el,
+        .mipsf64n8,
+        .mipsf64n8el,
+        .mipsn8,
+        .mipsn8el,
+        .mipsr6,
+        .mipsr6el,
+        .mips64,
+        .mips64el,
+        .mips64n8,
+        .mips64n8el,
+        .mips64r6,
+        .mips64r6el,
+        => c_uint,
         .alpha => c_int,
         else => c_ulong,
     },
@@ -7304,8 +7522,22 @@ pub const MINSIGSTKSZ = switch (native_arch) {
     .m68k,
     .mips,
     .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
     .mips64,
     .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
     .microblaze,
     .microblazeel,
     .or1k,
@@ -7346,8 +7578,22 @@ pub const SIGSTKSZ = switch (native_arch) {
     .m68k,
     .mips,
     .mipsel,
+    .mipsf32,
+    .mipsf32el,
+    .mipsf64,
+    .mipsf64el,
+    .mipsf64n8,
+    .mipsf64n8el,
+    .mipsn8,
+    .mipsn8el,
+    .mipsr6,
+    .mipsr6el,
     .mips64,
     .mips64el,
+    .mips64n8,
+    .mips64n8el,
+    .mips64r6,
+    .mips64r6el,
     .microblaze,
     .microblazeel,
     .or1k,
@@ -11055,13 +11301,31 @@ pub const AUDIT = struct {
             .loongarch64 => .LOONGARCH64,
             .m68k => .M68K,
             .microblaze, .microblazeel => .MICROBLAZE,
-            .mips => .MIPS,
-            .mipsel => .MIPSEL,
-            .mips64 => if (native_abi.isN32())
+            .mips,
+            .mipsf32,
+            .mipsf64,
+            .mipsf64n8,
+            .mipsn8,
+            .mipsr6,
+            => .MIPS,
+            .mipsel,
+            .mipsf32el,
+            .mipsf64el,
+            .mipsf64n8el,
+            .mipsn8el,
+            .mipsr6el,
+            => .MIPS,
+            .mips64,
+            .mips64n8,
+            .mips64r6,
+            => if (native_abi.isN32())
                 .MIPS64N32
             else
                 .MIPS64,
-            .mips64el => if (native_abi.isN32())
+            .mips64el,
+            .mips64n8el,
+            .mips64r6el,
+            => if (native_abi.isN32())
                 .MIPSEL64N32
             else
                 .MIPSEL64,

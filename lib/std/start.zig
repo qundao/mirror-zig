@@ -194,7 +194,25 @@ fn _start() callconv(.naked) noreturn {
             .m68k => ".cfi_undefined %%pc",
             .m88k => ".cfi_undefined %%r1",
             .microblaze, .microblazeel => "", // No CFI support.
-            .mips, .mipsel, .mips64, .mips64el => ".cfi_undefined $ra",
+            .mips,
+            .mipsel,
+            .mipsf32,
+            .mipsf32el,
+            .mipsf64,
+            .mipsf64el,
+            .mipsf64n8,
+            .mipsf64n8el,
+            .mipsn8,
+            .mipsn8el,
+            .mipsr6,
+            .mipsr6el,
+            .mips64,
+            .mips64el,
+            .mips64n8,
+            .mips64n8el,
+            .mips64r6,
+            .mips64r6el,
+            => ".cfi_undefined $ra",
             .or1k => ".cfi_undefined 9",
             .powerpc, .powerpcle, .powerpc64, .powerpc64le => ".cfi_undefined lr",
             .riscv32, .riscv32be, .riscv64, .riscv64be => if (builtin.zig_backend == .stage2_riscv64)
@@ -406,7 +424,19 @@ fn _start() callconv(.naked) noreturn {
             \\ andi r1, r1, -4
             \\ bri %[posixCallMainAndExit]
             ,
-            .mips, .mipsel =>
+            .mips,
+            .mipsel,
+            .mipsf32,
+            .mipsf32el,
+            .mipsf64,
+            .mipsf64el,
+            .mipsf64n8,
+            .mipsf64n8el,
+            .mipsn8,
+            .mipsn8el,
+            .mipsr6,
+            .mipsr6el,
+            =>
             \\ move $fp, $zero
             \\ bal 1f
             \\ .gpword .
@@ -425,7 +455,13 @@ fn _start() callconv(.naked) noreturn {
             \\ subu $sp, $sp, 16
             \\ jr $t9
             ,
-            .mips64, .mips64el => if (builtin.target.abi.isN32())
+            .mips64,
+            .mips64el,
+            .mips64n8,
+            .mips64n8el,
+            .mips64r6,
+            .mips64r6el,
+            => if (builtin.target.abi.isN32())
                 \\ move $fp, $zero
                 \\ bal 1f
                 \\ .gpword .
