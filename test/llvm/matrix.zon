@@ -17,6 +17,7 @@
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .netbsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .openbsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
+    .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .ilp32 = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .serenity = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .@"switch" = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .aarch64 = .{} }, .os = .{ .tvos = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .old },
@@ -81,7 +82,6 @@
     .{ .cpu = .{ .armeb = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .eabihf = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
 
     .{ .cpu = .{ .avr = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
-    .{ .cpu = .{ .avr = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
 
     .{ .cpu = .{ .bpfeb = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
 
@@ -202,6 +202,7 @@
     .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .openbsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .ps3 = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
+    .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .sf = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
 
     .{ .cpu = .{ .powerpc64le = .{} }, .os = .{ .freebsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .powerpc64le = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
@@ -310,6 +311,7 @@
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .netbsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .openbsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
+    .{ .cpu = .{ .x86 = .{} }, .os = .{ .rtems = .{} }, .abi = .{ .sf = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .uefi = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .windows = .{} }, .abi = .{ .gnu = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .x86 = .{} }, .os = .{ .windows = .{} }, .abi = .{ .msvc = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
