@@ -36,14 +36,8 @@ pub const Feature = enum {
     mips32r3,
     mips32r5,
     mips32r6,
-    mips3_32,
-    mips3_32r2,
     mips3d,
     mips4,
-    mips4_32,
-    mips4_32r2,
-    mips5,
-    mips5_32r2,
     mips64,
     mips64r2,
     mips64r3,
@@ -249,8 +243,6 @@ pub const all_features = blk: {
         .description = "MIPS III ISA Support",
         .dependencies = featureSet(&[_]Feature{
             .mips2,
-            .mips3_32,
-            .mips3_32r2,
         }),
     };
     result[@backingInt(Feature.mips32)] = .{
@@ -258,8 +250,6 @@ pub const all_features = blk: {
         .description = "Mips32 ISA Support",
         .dependencies = featureSet(&[_]Feature{
             .mips2,
-            .mips3_32,
-            .mips4_32,
         }),
     };
     result[@backingInt(Feature.mips32r2)] = .{
@@ -267,9 +257,6 @@ pub const all_features = blk: {
         .description = "Mips32r2 ISA Support",
         .dependencies = featureSet(&[_]Feature{
             .mips32,
-            .mips3_32r2,
-            .mips4_32r2,
-            .mips5_32r2,
         }),
     };
     result[@backingInt(Feature.mips32r3)] = .{
@@ -295,16 +282,6 @@ pub const all_features = blk: {
             .nan2008,
         }),
     };
-    result[@backingInt(Feature.mips3_32)] = .{
-        .llvm_name = "mips3_32",
-        .description = "Subset of MIPS-III that is also in MIPS32 [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.mips3_32r2)] = .{
-        .llvm_name = "mips3_32r2",
-        .description = "Subset of MIPS-III that is also in MIPS32r2 [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
     result[@backingInt(Feature.mips3d)] = .{
         .llvm_name = "mips3d",
         .description = "Mips 3D ASE",
@@ -317,39 +294,14 @@ pub const all_features = blk: {
         .description = "MIPS IV ISA Support",
         .dependencies = featureSet(&[_]Feature{
             .mips3,
-            .mips4_32,
-            .mips4_32r2,
         }),
-    };
-    result[@backingInt(Feature.mips4_32)] = .{
-        .llvm_name = "mips4_32",
-        .description = "Subset of MIPS-IV that is also in MIPS32 [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.mips4_32r2)] = .{
-        .llvm_name = "mips4_32r2",
-        .description = "Subset of MIPS-IV that is also in MIPS32r2 [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{}),
-    };
-    result[@backingInt(Feature.mips5)] = .{
-        .llvm_name = "mips5",
-        .description = "MIPS V ISA Support [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{
-            .mips4,
-            .mips5_32r2,
-        }),
-    };
-    result[@backingInt(Feature.mips5_32r2)] = .{
-        .llvm_name = "mips5_32r2",
-        .description = "Subset of MIPS-V that is also in MIPS32r2 [highly experimental]",
-        .dependencies = featureSet(&[_]Feature{}),
     };
     result[@backingInt(Feature.mips64)] = .{
         .llvm_name = "mips64",
         .description = "Mips64 ISA Support",
         .dependencies = featureSet(&[_]Feature{
             .mips32,
-            .mips5,
+            .mips4,
         }),
     };
     result[@backingInt(Feature.mips64r2)] = .{

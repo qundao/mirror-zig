@@ -3937,6 +3937,30 @@ const targets = [_]ArchTarget{
                 .flatten = true,
             },
             .{
+                .llvm_name = "mips3_32",
+                .flatten = true,
+            },
+            .{
+                .llvm_name = "mips3_32r2",
+                .flatten = true,
+            },
+            .{
+                .llvm_name = "mips4_32",
+                .flatten = true,
+            },
+            .{
+                .llvm_name = "mips4_32r2",
+                .flatten = true,
+            },
+            .{
+                .llvm_name = "mips5",
+                .flatten = true,
+            },
+            .{
+                .llvm_name = "mips5_32r2",
+                .flatten = true,
+            },
+            .{
                 .llvm_name = "p5600",
                 .flatten = true,
             },
