@@ -62,12 +62,32 @@ dt {
 }
 .sgr-31_1m {
   color: #b40000;
+  font-weight: bold;
+}
+.sgr-31_2m {
+  color: #b40000;
 }
 .sgr-32_1m {
   color: green;
+  font-weight: bold;
+}
+.sgr-32_2m {
+  color: #338633;
+  font-weight: bold;
+}
+.sgr-32m {
+  color: green;
+}
+.sgr-35_1m {
+  color: magenta;
+  font-weight: bold;
+}
+.sgr-36m {
+  color: #005C7A;
 }
 .sgr-36_1m {
   color: #005C7A;
+  font-weight: bold;
 }
 .file {
   font-weight: bold;
@@ -219,6 +239,9 @@ th pre code {
   }
   .sgr-32_1m {
       color: #00B800;
+  }
+  .sgr-32_2m {
+    color: darkgreen;
   }
   .sgr-36_1m {
       color: #0086b3;
@@ -797,8 +820,24 @@ update-protocol<span class="sgr-32m"> success</span>
     {#header_close#}
 
     {#header_open|Package Management#}
+    <p>The purpose of organizing code into a package is <em>distribution of labor</em>. By investing
+    in additional release management chores, one provides the opportunity for others within the
+    ecosystem to share the maintenance burden of code within a package. Together, we can build
+    far greater software for our users than we could build alone.</p>
+    <p>However, such collaboration comes with challenges, some technical and some social. The Zig
+    Build System aims to help you overcome both kinds.</p>
+
     {#header_open|Adding a Dependency#}
-    <p>TODO documentation</p>
+    <p>All potential dependencies must be declared in the {#link|Manifest File#} in the
+    {#link|Top Level Field: dependencies#}.</p>
+    <p><code>zig fetch --save &lt;url&gt;</code> is a shortcut for downloading a package from the
+    network and updating the manifest file accordingly.</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig fetch --save git+https://github.com/andrewrk/mime</kbd>
+<span class="sgr-32_0m"></span><span class="sgr-32_1m">info</span><span class="sgr-1m"></span><span class="sgr-2m"></span><span class="sgr-1m">: </span><span class="sgr-1m">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00
+</samp></pre></figure>
+    {#code|fetched.diff#}
+
+
     {#header_close#}
 
     {#header_open|Package Identity: Fingerprint#}
@@ -945,7 +984,7 @@ $ tree zig-out
     {#header_close#}
     {#header_close#}
 
-    {#header_open|Manifest File Reference (build.zig.zon)#}
+    {#header_open|Manifest File#}
     <p><code>build.zig.zon</code> is the <strong>manifest file</strong> for <code>build.zig</code> scripts.
     It is named <code>build.zig.zon</code> in order to make it clear that it is metadata specifically pertaining
     to <code>build.zig</code>.</p>

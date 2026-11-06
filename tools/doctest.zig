@@ -1157,7 +1157,7 @@ fn skipPrefix(line: []const u8) []const u8 {
     return line[3..];
 }
 
-fn escapeHtml(gpa: Allocator, input: []const u8) Allocator.Error![]u8 {
+pub fn escapeHtml(gpa: Allocator, input: []const u8) Allocator.Error![]u8 {
     var allocating: Writer.Allocating = .init(gpa);
     defer allocating.deinit();
     writeEscaped(&allocating.writer, input) catch return error.OutOfMemory;
@@ -1185,39 +1185,25 @@ const Pattern = struct {
     sub: []const u8,
 };
 
-fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
-    // The SRG sequences generates by the Zig compiler are in the format:
-    //   ESC [ <foreground-color> ; <n> m
-    // or
-    //   ESC [ <n> m
-    //
-    // where
-    //   foreground-color is 31 (red), 32 (green), 36 (cyan)
-    //   n is 0 (reset), 1 (bold), 2 (dim)
-    //
-    //   Note that 37 (white) is currently not used by the compiler.
-    //
-    // See std.debug.TTY.Color.
-    const supported_sgr_colors = [_]u8{ 31, 32, 36 };
-    const supported_sgr_numbers = [_]u8{ 0, 1, 2 };
+pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
+    const Color = enum(u8) { none = 0, red = 31, green = 32, cyan = 36, _ };
+    const Intensity = enum(u8) { reset = 0, bold = 1, dim = 2 };
 
     var buf: Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
     const out = &buf.writer;
     var sgr_param_start_index: usize = undefined;
-    var sgr_num: u8 = undefined;
-    var sgr_color: u8 = undefined;
+    var color: Color = .none;
+    var intensity: Intensity = .reset;
     var i: usize = 0;
     var state: enum {
         start,
         escape,
         lbracket,
         number,
-        after_number,
         arg,
         arg_number,
-        expect_end,
     } = .start;
     var last_new_line: usize = 0;
     var open_span_count: usize = 0;
@@ -1259,24 +1245,46 @@ fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
             },
             .number => switch (c) {
                 '0'...'9' => {},
-                else => {
-                    sgr_num = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
-                    sgr_color = 0;
-                    state = .after_number;
-                    i -= 1;
+                ';' => {
+                    color = @fromBackingInt(try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10));
+                    state = .arg;
                 },
-            },
-            .after_number => switch (c) {
-                ';' => state = .arg,
-                'D' => state = .start,
+                'D' => {
+                    state = .start;
+                },
                 'K' => {
                     buf.writer.end = last_new_line;
                     state = .start;
                 },
-                else => {
-                    state = .expect_end;
-                    i -= 1;
+                'm' => {
+                    // The number could be a color or intensity. If it is reset, clear everything.
+                    // Otherwise, change only the thing that is provided.
+                    state = .start;
+                    var splat_data: [1][]const u8 = .{"</span>"};
+                    try out.writeSplatAll(&splat_data, open_span_count);
+                    open_span_count = 0;
+                    const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
+                    if (std.enums.fromInt(Intensity, n)) |new_intensity| switch (new_intensity) {
+                        .reset => color = .none,
+                        else => intensity = new_intensity,
+                    } else {
+                        color = @fromBackingInt(n);
+                    }
+                    switch (color) {
+                        .none => switch (intensity) {
+                            .reset => {},
+                            else => {
+                                try out.print("<span class=\"sgr-{d}m\">", .{intensity});
+                                open_span_count += 1;
+                            },
+                        },
+                        else => {
+                            try out.print("<span class=\"sgr-{d}_{d}m\">", .{ color, intensity });
+                            open_span_count += 1;
+                        },
+                    }
                 },
+                else => return error.UnsupportedEscape,
             },
             .arg => switch (c) {
                 '0'...'9' => {
@@ -1287,36 +1295,27 @@ fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
             },
             .arg_number => switch (c) {
                 '0'...'9' => {},
-                else => {
-                    // Keep the sequence consistent, foreground color first.
-                    // 32;1m is equivalent to 1;32m, but the latter will
-                    // generate an incorrect HTML class without notice.
-                    sgr_color = sgr_num;
-                    if (!in(&supported_sgr_colors, sgr_color)) return error.UnsupportedForegroundColor;
-
-                    sgr_num = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
-                    if (!in(&supported_sgr_numbers, sgr_num)) return error.UnsupportedNumber;
-
-                    state = .expect_end;
-                    i -= 1;
-                },
-            },
-            .expect_end => switch (c) {
                 'm' => {
+                    // Both color and intensity are provided.
                     state = .start;
-                    while (open_span_count != 0) : (open_span_count -= 1) {
-                        try out.writeAll("</span>");
+                    const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
+                    intensity = std.enums.fromInt(Intensity, n) orelse return error.UnsupportedSgrNumber;
+                    var splat_data: [1][]const u8 = .{"</span>"};
+                    try out.writeSplatAll(&splat_data, open_span_count);
+                    open_span_count = 0;
+                    switch (color) {
+                        .none => switch (intensity) {
+                            .reset => {},
+                            else => {
+                                try out.print("<span class=\"sgr-{d}m\">", .{intensity});
+                                open_span_count += 1;
+                            },
+                        },
+                        else => {
+                            try out.print("<span class=\"sgr-{d}_{d}m\">", .{ color, intensity });
+                            open_span_count += 1;
+                        },
                     }
-                    if (sgr_num == 0) {
-                        if (sgr_color != 0) return error.UnsupportedColor;
-                        continue;
-                    }
-                    if (sgr_color != 0) {
-                        try out.print("<span class=\"sgr-{d}_{d}m\">", .{ sgr_color, sgr_num });
-                    } else {
-                        try out.print("<span class=\"sgr-{d}m\">", .{sgr_num});
-                    }
-                    open_span_count += 1;
                 },
                 else => return error.UnsupportedEscape,
             },
@@ -1330,7 +1329,7 @@ fn in(slice: []const u8, number: u8) bool {
     return mem.findScalar(u8, slice, number) != null;
 }
 
-fn run(
+pub fn run(
     allocator: Allocator,
     io: Io,
     environ_map: *const process.Environ.Map,
@@ -1373,7 +1372,7 @@ fn run(
     return result;
 }
 
-fn printShell(out: *Writer, shell_content: []const u8, escape: bool) Writer.Error!void {
+pub fn printShell(out: *Writer, shell_content: []const u8, escape: bool) Writer.Error!void {
     const trimmed_shell_content = mem.trim(u8, shell_content, " \r\n");
     try out.writeAll("<figure><figcaption class=\"shell-cap\">Shell</figcaption><pre><samp>");
     var cmd_cont: bool = false;
