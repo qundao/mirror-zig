@@ -2619,7 +2619,7 @@ pub const Storage = enum {
     multi_list,
     flag_list,
 
-    /// The presence of the field is determined by a boolean within a packed
+    /// The presence of the field is determined by a boolean within a bitpack
     /// struct.
     pub fn FlagOptional(
         comptime flags_arg: @EnumLiteral(),

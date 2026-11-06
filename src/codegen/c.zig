@@ -3285,7 +3285,7 @@ fn airAlloc(f: *Function, inst: Air.Inst.Index) !CValue {
         .@"struct", .@"union" => switch (elem_ty.containerLayout(zcu)) {
             .@"bitpack" => {
                 // For packed aggregates, we zero-initialize to try and work around a design flaw
-                // related to how `packed`, `undefined`, and RLS interact. See comment in `airStore`
+                // related to how `bitpack`, `undefined`, and RLS interact. See comment in `airStore`
                 // for details.
                 const w = &f.code.writer;
                 try w.print("memset(&t{d}, 0x00, sizeof(", .{local.new_local});
@@ -3318,8 +3318,8 @@ fn airRetPtr(f: *Function, inst: Air.Inst.Index) !CValue {
     switch (elem_ty.zigTypeTag(zcu)) {
         .@"struct", .@"union" => switch (elem_ty.containerLayout(zcu)) {
             .@"bitpack" => {
-                // For packed aggregates, we zero-initialize to try and work around a design flaw
-                // related to how `packed`, `undefined`, and RLS interact. See comment in `airStore`
+                // For bit-packed aggregates, we zero-initialize to try and work around a design flaw
+                // related to how `bitpack`, `undefined`, and RLS interact. See comment in `airStore`
                 // for details.
                 const w = &f.code.writer;
                 try w.print("memset(&t{d}, 0x00, sizeof(", .{local.new_local});

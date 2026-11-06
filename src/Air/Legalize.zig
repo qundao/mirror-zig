@@ -197,7 +197,7 @@ pub const Feature = enum {
     /// Currently assumes little endian and a specific integer layout where the lsb of every integer is the lsb of the
     /// first byte of memory until bit pointers know their backing type.
     expand_packed_store,
-    /// Replace `agg_field_val` of a packed field with a `bit_cast` to integer, `shr`, `trunc`, and `bit_cast` to field type.
+    /// Replace `agg_field_val` of a bitpack field with a `bit_cast` to integer, `shr`, `trunc`, and `bit_cast` to field type.
     expand_packed_agg_field_val,
     /// Replace `aggregate_init` of a bitpack struct with a sequence of `shl_exact`, `bit_cast`, `int_cast`, and `bit_or`.
     expand_packed_aggregate_init,

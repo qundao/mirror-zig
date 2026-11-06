@@ -3050,7 +3050,7 @@ pub const UnpackableReason = union(enum) {
     other,
 };
 
-/// Returns `null` iff `ty` is allowed in packed types.
+/// Returns `null` iff `ty` is allowed in bitpack types.
 pub fn unpackable(ty: Type, zcu: *const Zcu) ?UnpackableReason {
     return switch (ty.zigTypeTag(zcu)) {
         .void,

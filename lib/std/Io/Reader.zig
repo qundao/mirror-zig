@@ -1934,7 +1934,7 @@ test "takeDelimiterInclusive on an indirect reader when it rebases" {
     }
 }
 
-test "takeStruct and peekStruct packed" {
+test "takeStruct and peekStruct bitpack" {
     var r: Reader = .fixed(&.{ 0b11110000, 0b00110011 });
     const S = bitpack struct(u16) { a: u2, b: u6, c: u7, d: u1 };
 

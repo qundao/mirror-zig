@@ -3,7 +3,7 @@
 //! a sequence of values in *packed* memory, and then unflatten through a combination of special
 //! cases (particularly for pointers and `undefined` values) and in-memory buffer reinterprets.
 //!
-//! This is a little awkward on big-endian targets, as non-packed datastructures (e.g. `extern struct`)
+//! This is a little awkward on big-endian targets, as non-bitpack datastructures (e.g. `extern struct`)
 //! have their fields reversed when represented as packed memory on such targets.
 
 /// If `host_bits` is `0`, attempts to convert the memory at offset

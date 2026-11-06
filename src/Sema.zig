@@ -20597,7 +20597,7 @@ fn zirReifyUnion(
     std.hash.autoHash(&hasher, layout);
     std.hash.autoHash(&hasher, arg_ty_val);
 
-    const explicit_tag_ty: ?Type, const explicit_packed_backing_type: ?Type = ty: {
+    const explicit_tag_ty: ?Type, const explicit_bitpack_backing_type: ?Type = ty: {
         const arg_ty = arg_ty_val.optionalValue(zcu) orelse break :ty .{ null, null };
         switch (layout) {
             .@"extern" => return sema.fail(block, arg_ty_src, "extern union does not support enum tag type", .{}),
@@ -20644,7 +20644,7 @@ fn zirReifyUnion(
             break :tag .none;
         },
         .enum_tag_type = if (explicit_tag_ty) |ty| ty.toIntern() else .none,
-        .bitpack_backing_int_type = if (explicit_packed_backing_type) |ty| ty.toIntern() else .none,
+        .bitpack_backing_int_type = if (explicit_bitpack_backing_type) |ty| ty.toIntern() else .none,
     })) {
         .existing => |ty| {
             try sema.addTypeReferenceEntry(src, .fromInterned(ty));

@@ -7726,7 +7726,7 @@ fn airAggFieldVal(cg: *CodeGen, inst: Air.Inst.Index) !?Id {
                 const struct_ty = zcu.typeToBitpackStruct(object_ty).?;
                 const struct_backing_int_bits = cg.backingIntBits(@intCast(object_ty.bitSize(zcu))).@"0";
                 const bit_offset = zcu.structPackedFieldBitOffset(struct_ty, field_index);
-                // We use the same int type the packed struct is backed by, because even though it would
+                // We use the same int type the bitpack struct is backed by, because even though it would
                 // be valid SPIR-V to use an smaller type like u16, some implementations like PoCL will complain.
                 const bit_offset_id = try cg.constInt(object_ty, bit_offset);
                 const signedness = if (field_ty.isInt(zcu)) field_ty.intInfo(zcu).signedness else .unsigned;

@@ -2580,7 +2580,7 @@ const IntType = struct {
     const @"u64": IntType = .{ .is_signed = false, .bits = 64 };
 
     // Adapted from x86_64 backend
-    // Differ from Type.intInfo as it treats pointers/booleans/packed/enums/errors as integer
+    // Differ from Type.intInfo as it treats pointers/booleans/bitpack/enums/errors as integer
     fn fromType(cg: *CodeGen, ty: Type) IntType {
         const zcu = cg.zcu;
         const ip = &zcu.intern_pool;

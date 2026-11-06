@@ -385,7 +385,7 @@ pub fn writeToMemory(val: Value, zcu: *const Zcu, buffer: []u8) error{
 /// Write a Value's contents to `buffer`.
 ///
 /// Both the start and the end of the provided buffer must be tight, since
-/// big-endian packed memory layouts start at the end of the buffer.
+/// big-endian bitpack memory layouts start at the end of the buffer.
 ///
 /// Supports arrays and vectors, for which the value is written in logical bit
 /// order, i.e. with the first element at bit offset 0.
@@ -516,7 +516,7 @@ pub fn readIntFromMemory(
 /// Load a Value from the contents of `buffer`.
 ///
 /// Both the start and the end of the provided buffer must be tight, since
-/// big-endian packed memory layouts start at the end of the buffer.
+/// big-endian bitpack memory layouts start at the end of the buffer.
 ///
 /// Supports arrays and vectors, for which the value is read in logical bit
 /// order, i.e. with the first element at bit offset 0.

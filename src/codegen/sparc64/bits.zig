@@ -163,7 +163,7 @@ pub const Instruction = union(enum) {
     // name them with letters since there's no official naming scheme.
     // TODO: need to rename the minor formats to a more descriptive name.
 
-    // I am using regular structs instead of packed ones to avoid
+    // I am using regular structs instead of bitpack ones to avoid
     // endianness-dependent behavior when constructing the actual
     // assembly instructions.
     // See also: https://github.com/ziglang/zig/issues/10113

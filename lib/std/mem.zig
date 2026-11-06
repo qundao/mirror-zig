@@ -2303,7 +2303,7 @@ pub fn byteSwapAligned(
                 ptr.* = @bitCast(@byteSwap(@as(Int, @bitCast(ptr.*))));
             } else {
                 if (@"struct".layout != .@"extern") {
-                    @compileError("byteSwapAligned expects a packed or extern struct");
+                    @compileError("byteSwapAligned expects a bitpack or extern struct");
                 }
                 inline for (@"struct".field_types, @"struct".field_names, @"struct".field_attrs) |f_type, f_name, f_attr| {
                     switch (@typeInfo(f_type)) {
@@ -2327,7 +2327,7 @@ pub fn byteSwapAligned(
             ptr.* = @bitCast(@byteSwap(@as(Int, @bitCast(ptr.*))));
         } else {
             if (@"union".layout != .@"extern") {
-                @compileError("byteSwapAligned expects a packed or extern union");
+                @compileError("byteSwapAligned expects a bitpack or extern union");
             }
 
             const first_size = @bitSizeOf(@"union".field_types[0]);
