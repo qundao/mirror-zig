@@ -3580,7 +3580,7 @@ fn buildOutputType(
     if (build_options.have_llvm and emit_asm_resolved != .no) {
         // LLVM has no way to set this non-globally.
         const argv = [_][*:0]const u8{ "zig (LLVM option parsing)", "--x86-asm-syntax=intel" };
-        @import("codegen/llvm/bindings.zig").ParseCommandLineOptions(argv.len, &argv);
+        @import("codegen/llvm/lib.zig").bindings.ParseCommandLineOptions(argv.len, &argv);
     }
 
     if (build_options.have_llvm and create_module.resolved_options.use_llvm and target.cpu.arch.isSpirv()) {
@@ -3609,7 +3609,7 @@ fn buildOutputType(
         }
 
         const argv = [_][*:0]const u8{ "zig (LLVM option parsing)", try extensions.toOwnedSliceSentinel(gpa, 0) };
-        @import("codegen/llvm/bindings.zig").ParseCommandLineOptions(argv.len, &argv);
+        @import("codegen/llvm/lib.zig").bindings.ParseCommandLineOptions(argv.len, &argv);
     }
 
     const clang_passthrough_mode = switch (arg_mode) {
@@ -5333,14 +5333,14 @@ pub fn lldMain(
     const argv = try argsCopyZ(arena, args[1..]);
     // "If an error occurs, false will be returned."
     const ok = rc: {
-        const llvm = @import("codegen/llvm/bindings.zig");
+        const libllvm = @import("codegen/llvm/lib.zig");
         const argc = @as(c_int, @intCast(argv.len));
         if (mem.eql(u8, args[1], "ld.lld")) {
-            break :rc llvm.LinkELF(argc, argv.ptr, can_exit_early, false);
+            break :rc libllvm.bindings.LinkELF(argc, argv.ptr, can_exit_early, false);
         } else if (mem.eql(u8, args[1], "lld-link")) {
-            break :rc llvm.LinkCOFF(argc, argv.ptr, can_exit_early, false);
+            break :rc libllvm.bindings.LinkCOFF(argc, argv.ptr, can_exit_early, false);
         } else if (mem.eql(u8, args[1], "wasm-ld")) {
-            break :rc llvm.LinkWasm(argc, argv.ptr, can_exit_early, false);
+            break :rc libllvm.bindings.LinkWasm(argc, argv.ptr, can_exit_early, false);
         } else {
             unreachable;
         }
