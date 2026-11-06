@@ -1208,6 +1208,7 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
     } = .start;
     var last_new_line: usize = 0;
     var open_span_count: usize = 0;
+    var splat_data: [1][]const u8 = .{"</span>"};
     while (i < input.len) : (i += 1) {
         const c = input[i];
         switch (state) {
@@ -1261,7 +1262,6 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
                     // The number could be a color or intensity. If it is reset, clear everything.
                     // Otherwise, change only the thing that is provided.
                     state = .start;
-                    var splat_data: [1][]const u8 = .{"</span>"};
                     try out.writeSplatAll(&splat_data, open_span_count);
                     open_span_count = 0;
                     const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
@@ -1301,7 +1301,6 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
                     state = .start;
                     const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
                     intensity = std.enums.fromInt(Intensity, n) orelse return error.UnsupportedSgrNumber;
-                    var splat_data: [1][]const u8 = .{"</span>"};
                     try out.writeSplatAll(&splat_data, open_span_count);
                     open_span_count = 0;
                     switch (color) {
@@ -1322,6 +1321,8 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
             },
         }
     }
+    try out.writeSplatAll(&splat_data, open_span_count);
+    open_span_count = 0;
     return try buf.toOwnedSlice();
 }
 
