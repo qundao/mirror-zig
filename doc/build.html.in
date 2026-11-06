@@ -837,15 +837,50 @@ update-protocol<span class="sgr-32m"> success</span>
 class="sgr-1m">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00</span>
 </samp></pre></figure>
     {#code|add-dependency/fetched.diff#}
-    <p>Once the dependency is declared in the {#link|Manifest File#}, it can be
-    <em>instantiated</em> from <code>build.zig</code> by providing the <em>package options</em>.</p>
+    <p>Once the dependency is declared in the manifest file, it can be
+    <strong>instantiated</strong> from <code>build.zig</code> by providing the <em>package options</em>.</p>
     {#code|add-dependency/build.zig.diff#}
+    <p>In this code snippet, we depend on the "mime" module exposed by the package. Full list of things
+    that can be exposed:</p>
+    <ul>
+      <li>Modules</li>
+      <li>{#link|Compile#} steps</li>
+      <li>Named lazy paths</li>
+      <li>{#link|WriteFile#} steps</li>
+      <li>All the files of the package are always available to access as lazy paths.</li>
+    </ul>
+    <p>See the {#syntax#}std.Build.Dependency{#endsyntax#} API documentation for precise details.</p>
 
 
     {#header_close#}
 
     {#header_open|Package Identity: Fingerprint#}
-    <p>TODO documentation</p>
+    <p>Over the lifetime of a <strong>project</strong>, there will be many releases. In the Zig
+    Build System, a <strong>package</strong> represents a snapshot of a project at one particular
+    time. In order to detect when multiple packages are releases of the same project, Zig uses the
+    {#link|fingerprint field|Top Level Field: fingerprint#} of the {#link|Manifest File#}. This field is randomly
+    generated when a project is created and includes a checksum of the
+    {#link|package name|Top Level Field: name#}.</p>
+    <p>Because the Zig Build System is decentralized, project maintainers must take care to pay
+    attention to certain conditions regarding package fingerprints. If the ownership of a project
+    falls under dispute, for example due to maintainer death, abandonment, or an irreconcilable
+    disagreement among maintainers, a new prospective owner can choose to fork the project
+    <em>without changing the fingerprint</em>. This is called a <strong>hostile fork</strong>.</p>
+    <p>When adding a new dependency, or upgrading an existing one, project maintainers are alerted
+    to these situations:</p>
+    <p>First, when two packages with the same fingerprint and same version have different contents. In
+      this case one of three things has happened:</p>
+    <ul>
+      <li>There is a package ownership dispute, as explained above.</li>
+      <li>Someone neglected to bump the package version after making changes.</li>
+      <li>Someone added a dependency on unreleased changes.</li>
+    </ul>
+    <p>In this case, Zig cannot offer an automatic resolution. The project maintainer must
+    {#link|examine their dependency tree|Dependency Tree Visualization#} and use critical thinking
+    to understand why things have gotten into this state.</p>
+    <p>In the more common case, there may be {#link|Version Conflicts#} or
+    {#link|Package Configuration Options Conflicts#} for which there are available conflict
+    resolution strategies.</p>
     {#header_close#}
 
     {#header_open|Dependency Tree Visualization#}
