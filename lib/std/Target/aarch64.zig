@@ -3944,28 +3944,6 @@ pub const cpu = struct {
             .vh,
         }),
     };
-    pub const cyclone: CpuModel = .{
-        .name = "cyclone",
-        .llvm_name = "cyclone",
-        .features = featureSet(&[_]Feature{
-            .aclass,
-            .aes,
-            .alternate_sextload_cvt_f32_pattern,
-            .arith_bcc_fusion,
-            .arith_cbz_fusion,
-            .fuse_aes,
-            .fuse_crypto_eor,
-            .no_zcz_fpr64,
-            .perfmon,
-            .sha2,
-            .zcm_fpr128,
-            .zcm_gpr64,
-            .zcz_fp_workaround,
-            .zcz_fpr128,
-            .zcz_gpr32,
-            .zcz_gpr64,
-        }),
-    };
     pub const emag: CpuModel = .{
         .name = "emag",
         .llvm_name = "generic",

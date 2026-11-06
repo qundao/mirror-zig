@@ -850,6 +850,10 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
+                .llvm_name = "cyclone",
+                .omit = true,
+            },
+            .{
                 .llvm_name = "generic",
                 .omit = true,
             },
@@ -1683,11 +1687,83 @@ const targets = [_]ArchTarget{
         },
         .model_overrides = &.{
             .{
+                .llvm_name = "bonaire",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "carrizo",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "fiji",
+                .omit = true,
+            },
+            .{
                 .llvm_name = "generic",
                 .omit = true,
             },
             .{
                 .llvm_name = "generic-hsa",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "hainan",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "hawaii",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "iceland",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "kabini",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "kaveri",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "mullins",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "oland",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pitcairn",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "polaris10",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "polaris11",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "stoney",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "tahiti",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "tonga",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "tongapro",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "verde",
                 .omit = true,
             },
         },
@@ -5307,6 +5383,10 @@ const targets = [_]ArchTarget{
                 .llvm_name = "ppc",
                 .omit = true,
             },
+            .{
+                .llvm_name = "ppc64le",
+                .omit = true,
+            },
 
             .{
                 .llvm_name = "602",
@@ -8059,56 +8139,31 @@ const targets = [_]ArchTarget{
         },
         .model_overrides = &.{
             .{
-                .llvm_name = "generic",
-                .omit = true,
-            },
-            // LLVM defines a bunch of dumb aliases with foreach loops in X86.td.
-            .{
-                .llvm_name = "pentium_mmx",
+                .llvm_name = "arrowlake_s",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_pro",
+                .llvm_name = "athlon-4",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_ii",
+                .llvm_name = "athlon-fx",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_3m",
+                .llvm_name = "athlon-mp",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_iii",
+                .llvm_name = "athlon-tbird",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_iii_no_xmm_regs",
+                .llvm_name = "athlon64",
                 .omit = true,
             },
             .{
-                .llvm_name = "pentium_m",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "pentium4m",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "pentium_4",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "pentium_4_sse3",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "core_2_duo_ssse3",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "core_2_duo_sse4_1",
+                .llvm_name = "athlon64-sse3",
                 .omit = true,
             },
             .{
@@ -8116,19 +8171,15 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
-                .llvm_name = "goldmont_plus",
+                .llvm_name = "barcelona",
                 .omit = true,
             },
             .{
-                .llvm_name = "core_i7_sse4_2",
+                .llvm_name = "core_2_duo_sse4_1",
                 .omit = true,
             },
             .{
-                .llvm_name = "core_aes_pclmulqdq",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "corei7-avx",
+                .llvm_name = "core_2_duo_ssse3",
                 .omit = true,
             },
             .{
@@ -8136,15 +8187,7 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
-                .llvm_name = "core-avx-i",
-                .omit = true,
-            },
-            .{
                 .llvm_name = "core_3rd_gen_avx",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "core-avx2",
                 .omit = true,
             },
             .{
@@ -8164,11 +8207,39 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
-                .llvm_name = "mic_avx512",
+                .llvm_name = "core_aes_pclmulqdq",
                 .omit = true,
             },
             .{
-                .llvm_name = "skylake_avx512",
+                .llvm_name = "core_i7_sse4_2",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "core-avx-i",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "core-avx2",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "corei7",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "corei7-avx",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "generic",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "goldmont_plus",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "graniterapids_d",
                 .omit = true,
             },
             .{
@@ -8180,11 +8251,71 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
-                .llvm_name = "graniterapids_d",
+                .llvm_name = "mic_avx512",
                 .omit = true,
             },
             .{
-                .llvm_name = "arrowlake_s",
+                .llvm_name = "opteron",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "opteron-sse3",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_3m",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_4",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_4_sse3",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_ii",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_iii",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_iii_no_xmm_regs",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_m",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_mmx",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium_pro",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium3m",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "pentium4m",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "skylake_avx512",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "skx",
+                .omit = true,
+            },
+            .{
+                .llvm_name = "slm",
                 .omit = true,
             },
 
@@ -8209,36 +8340,8 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{ "3dnowa", "486" },
             },
             .{
-                .llvm_name = "athlon64",
-                .extra_deps = &.{"3dnowa"},
-            },
-            .{
-                .llvm_name = "athlon64-sse3",
-                .extra_deps = &.{"3dnowa"},
-            },
-            .{
-                .llvm_name = "athlon-4",
-                .extra_deps = &.{ "3dnowa", "486" },
-            },
-            .{
-                .llvm_name = "athlon-fx",
-                .extra_deps = &.{"3dnowa"},
-            },
-            .{
-                .llvm_name = "athlon-mp",
-                .extra_deps = &.{ "3dnowa", "486" },
-            },
-            .{
-                .llvm_name = "athlon-tbird",
-                .extra_deps = &.{ "3dnowa", "486" },
-            },
-            .{
                 .llvm_name = "athlon-xp",
                 .extra_deps = &.{ "486", "3dnowa" },
-            },
-            .{
-                .llvm_name = "barcelona",
-                .extra_deps = &.{"3dnowa"},
             },
             .{
                 .llvm_name = "broadwell",
@@ -8352,14 +8455,6 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{ "smap", "smep" },
             },
             .{
-                .llvm_name = "opteron",
-                .extra_deps = &.{"3dnowa"},
-            },
-            .{
-                .llvm_name = "opteron-sse3",
-                .extra_deps = &.{"3dnowa"},
-            },
-            .{
                 .llvm_name = "pentium",
                 .extra_deps = &.{"486"},
             },
@@ -8377,10 +8472,6 @@ const targets = [_]ArchTarget{
             },
             .{
                 .llvm_name = "pentium3",
-                .extra_deps = &.{"486"},
-            },
-            .{
-                .llvm_name = "pentium3m",
                 .extra_deps = &.{"486"},
             },
             .{

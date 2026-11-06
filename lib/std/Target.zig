@@ -2166,7 +2166,7 @@ pub const Cpu = struct {
                     .ps3 => &powerpc.cpu.cell,
                     else => generic(arch),
                 },
-                .powerpc64le => &powerpc.cpu.ppc64le,
+                .powerpc64le => &powerpc.cpu.pwr8,
                 .riscv32, .riscv32be => &riscv.cpu.rv32gc,
                 .riscv64, .riscv64be => &riscv.cpu.rv64gc,
                 .s390x => &s390x.cpu.arch11,
