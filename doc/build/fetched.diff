@@ -1,0 +1,11 @@
+--- a/build.zig.zon
++++ b/build.zig.zon
+@@ -6,7 +6,7 @@
+  
+     .dependencies = .{
++         .mime = .{
++            .url = "git+https://github.com/andrewrk/mime#4535b74bd5fcaa03e22f2f25af164a4c6253af00",
++            .hash = "mime-4.0.0-zwmL--0gAACndOVlROQeDnM0chfojNDS8tpohlsBqMNy",
++         },
+     },
+
