@@ -1153,7 +1153,7 @@ fn runLineNumberProgram(d: *Dwarf, gpa: Allocator, endian: Endian, compile_unit:
                         .size = size,
                     });
                 },
-                DW.LNE.ZIG_set_decl => {
+                DW.LNE.ZIG_set_decl, DW.LNE.ZIG_set_source_decl => {
                     const decl_die_offset = try readFormatSizedInt(&fr, unit_header.format, endian);
                     var di_fr: Reader = .fixed(d.section(.debug_info) orelse continue);
                     di_fr.seek = @intCast(decl_die_offset);
@@ -1166,8 +1166,10 @@ fn runLineNumberProgram(d: *Dwarf, gpa: Allocator, endian: Endian, compile_unit:
                         addr_size_bytes,
                         compile_unit.version,
                     )) orelse continue;
-                    if (die.getAttr(AT.low_pc)) |_| {
-                        prog.address = try die.getAttrAddr(d, endian, AT.low_pc, compile_unit);
+                    if (sub_op == DW.LNE.ZIG_set_decl) {
+                        if (die.getAttr(AT.low_pc)) |_| {
+                            prog.address = try die.getAttrAddr(d, endian, AT.low_pc, compile_unit);
+                        }
                     }
                     if (die.getAttr(AT.decl_line)) |decl_line| {
                         prog.line = try decl_line.getUInt(i64);
