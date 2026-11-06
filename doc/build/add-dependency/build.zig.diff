@@ -1,0 +1,16 @@
+--- a/build.zig
++++ b/build.zig
+@@ -9,10 +9,12 @@ pub fn build(b: *std.Build) void {
+         .target = target,
+         .optimize = optimize,
+     });
++
++    const mime_dep = b.dependency("mime", .{
++        .target = target,
++        .optimize = optimize,
++    });
++    module.addImport("mime", mime_dep.module("mime"));
+ 
+     const unit_tests = b.addTest(.{
+         .root_module = b.createModule(.{
+

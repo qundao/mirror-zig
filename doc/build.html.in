@@ -656,7 +656,7 @@ th pre code {
     Likewise, accessing the network or collecting user input from <code>build.zig</code> introduces
     the possibility of false positives. We call configurations which expose the danger of false
     positives <strong>poisoned</strong>. If the cache is poisoned, it means that the
-    {#link|configuration phase|Configuration Phase vs Make Phase#}</em> had side
+    {#link|configuration phase|Configuration Phase vs Make Phase#} had side
     effects, or otherwise did something that could not be tracked by the cache system.</p>
     <p>There is an escape hatch for such cases, both for the user of <code>zig build</code>, as well
     as for the maintainer of <code>build.zig</code>.</p>
@@ -833,9 +833,13 @@ update-protocol<span class="sgr-32m"> success</span>
     <p><code>zig fetch --save &lt;url&gt;</code> is a shortcut for downloading a package from the
     network and updating the manifest file accordingly.</p>
 <figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig fetch --save git+https://github.com/andrewrk/mime</kbd>
-<span class="sgr-32_0m"></span><span class="sgr-32_1m">info</span><span class="sgr-1m"></span><span class="sgr-2m"></span><span class="sgr-1m">: </span><span class="sgr-1m">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00
+<span class="sgr-32_1m">info</span><span class="sgr-1m"></span><span class="sgr-1m">: </span><span
+class="sgr-1m">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00</span>
 </samp></pre></figure>
-    {#code|fetched.diff#}
+    {#code|add-dependency/fetched.diff#}
+    <p>Once the dependency is declared in the {#link|Manifest File#}, it can be
+    <em>instantiated</em> from <code>build.zig</code> by providing the <em>package options</em>.</p>
+    {#code|add-dependency/build.zig.diff#}
 
 
     {#header_close#}
