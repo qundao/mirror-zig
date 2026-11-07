@@ -191,8 +191,12 @@
 //!
 //! * `thread ? panic: ` matches a panic message for any thread id.
 //! * `test.zig:` matches a path ending with `test.zig` as the final component followed by a `:`.
+//! * `lib/std/debug.zig:?:?:` matches a path ending with `lib/std/debug.zig` as the final three
+//!   components, followed by any line or column number.
 //! * `0x?` matches any hex address.
-//! * ` (test*)` at the end of a line matches either ` (test)`, ` (test.zig)`, or ` (test_zcu.obj)`.
+//! * `[__func_?]` matches either ``, or `__func_12345` for some decimal integer `12345`.
+//! * ` (test*)` at the end of a line matches either ` (test)`, ` (test_zcu.obj)`, or ` (test.zig)`.
+//! * ` (std*)`  at the end of a line matches either ` (test)`, ` (test_zcu.obj)`, or ` (std.zig)`.
 //!
 //! The llvm check succeeds when the llvm backend produces the given LLVM IR.  The contents support
 //! a variety of useful patterns that are not matched exactly:
@@ -2960,12 +2964,67 @@ const Compiler = struct {
                         } },
                         .{ .literal = "test.zig:" },
                     } },
+                    .{ "lib/std/debug.zig:?:?:", .anon, &.{
+                        .{ .none = &.{
+                            .{ '\n', '\n' },
+                            .{ '\r', '\r' },
+                            .{ ' ', ' ' },
+                            .{ ':', ':' },
+                        } },
+                        .{ .@"?" = &.{
+                            .{ .literal = ":" },
+                        } },
+                        .{ .@"*" = &.{
+                            .{ .none = &.{
+                                .{ '\n', '\n' },
+                                .{ '\r', '\r' },
+                                .{ ':', ':' },
+                            } },
+                        } },
+                        .{ .any = &.{
+                            .{ '/', '/' },
+                            .{ '\\', '\\' },
+                        } },
+                        .{ .literal = "lib" },
+                        .{ .any = &.{
+                            .{ '/', '/' },
+                            .{ '\\', '\\' },
+                        } },
+                        .{ .literal = "std" },
+                        .{ .any = &.{
+                            .{ '/', '/' },
+                            .{ '\\', '\\' },
+                        } },
+                        .{ .literal = "debug.zig:" },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                            } },
+                        } },
+                        .{ .literal = ":" },
+                        .{ .@"+" = &.{
+                            .{ .any = &.{
+                                .{ '0', '9' },
+                            } },
+                        } },
+                        .{ .literal = ":" },
+                    } },
                     .{ "0x?", .anon, &.{
                         .{ .literal = "0x" },
                         .{ .@"+" = &.{
                             .{ .any = &.{
                                 .{ '0', '9' },
                                 .{ 'a', 'f' },
+                            } },
+                        } },
+                    } },
+                    .{ "[__func_?]", .anon, &.{
+                        .{ .@"?" = &.{
+                            .{ .literal = "__func_" },
+                            .{ .@"+" = &.{
+                                .{ .any = &.{
+                                    .{ '0', '9' },
+                                } },
                             } },
                         } },
                     } },
@@ -2978,6 +3037,17 @@ const Compiler = struct {
                                 .{ .literal = "_zcu.obj" },
                             } } },
                         } },
+                        .{ .literal = ")" },
+                    } ++ newline },
+                    .{ " (std*)\n", .anon, &[_]Pattern{
+                        .{ .literal = " (" },
+                        .{ .@"|" = &.{ &.{
+                            .{ .literal = "test" },
+                        }, &.{
+                            .{ .literal = "test_zcu.obj" },
+                        }, &.{
+                            .{ .literal = "std.zig" },
+                        } } },
                         .{ .literal = ")" },
                     } ++ newline },
                     .{ "...\n", .anon, &.{

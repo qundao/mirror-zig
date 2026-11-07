@@ -1171,12 +1171,41 @@ fn runLineNumberProgram(d: *Dwarf, gpa: Allocator, endian: Endian, compile_unit:
                             prog.address = try die.getAttrAddr(d, endian, AT.low_pc, compile_unit);
                         }
                     }
+                    while (die.getAttr(AT.decl_line) == null) {
+                        if (die.getAttr(AT.abstract_origin)) |_| {
+                            di_fr.seek = @intCast(try die.getAttrRef(
+                                AT.abstract_origin,
+                                compile_unit.offset,
+                                compile_unit.size,
+                            ));
+                        } else if (die.getAttr(AT.specification)) |_| {
+                            di_fr.seek = @intCast(try die.getAttrRef(
+                                AT.specification,
+                                compile_unit.offset,
+                                compile_unit.size,
+                            ));
+                        } else {
+                            // no specification, so we can't find DW_AT_decl_line
+                            break;
+                        }
+                        die = (try parseDie(
+                            &di_fr,
+                            attrs_buf,
+                            abbrev_table,
+                            unit_header.format,
+                            endian,
+                            addr_size_bytes,
+                            compile_unit.version,
+                        )) orelse break;
+                    }
+
                     if (die.getAttr(AT.decl_line)) |decl_line| {
                         prog.line = try decl_line.getUInt(i64);
                     }
                     if (die.getAttr(AT.decl_column)) |decl_column| {
                         prog.column = try decl_column.getUInt(u64);
                     }
+
                     while (die.getAttr(AT.decl_file) == null) {
                         if (die.getAttr(AT.abstract_origin)) |_| {
                             di_fr.seek = @intCast(try die.getAttrRef(
