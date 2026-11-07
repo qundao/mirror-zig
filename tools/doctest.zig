@@ -1186,20 +1186,23 @@ const Pattern = struct {
     sub: []const u8,
 };
 
-pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
-    const Color = enum(u8) { none = 0, red = 31, green = 32, cyan = 36, _ };
-    const Intensity = enum(u8) { reset = 0, bold = 1, dim = 2 };
+const Color = enum(u8) { none = 0, red = 31, green = 32, cyan = 36, _ };
+const Intensity = enum(u8) { reset = 0, bold = 1, dim = 2 };
 
+pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
     var buf: Writer.Allocating = .init(allocator);
     defer buf.deinit();
 
     const out = &buf.writer;
     var sgr_param_start_index: usize = undefined;
+    var last_color: Color = .none;
     var color: Color = .none;
+    var last_intensity: Intensity = .reset;
     var intensity: Intensity = .reset;
     var i: usize = 0;
     var state: enum {
         start,
+        printed_colors,
         escape,
         lbracket,
         number,
@@ -1207,12 +1210,36 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
         arg_number,
     } = .start;
     var last_new_line: usize = 0;
-    var open_span_count: usize = 0;
-    var splat_data: [1][]const u8 = .{"</span>"};
     while (i < input.len) : (i += 1) {
         const c = input[i];
         switch (state) {
             .start => switch (c) {
+                '\x1b' => {
+                    for (patterns) |pat| {
+                        if (mem.startsWith(u8, input[i..], pat.match)) {
+                            try printSpan(out, &last_color, &last_intensity, color, intensity);
+                            try out.writeAll(pat.sub);
+                            i += pat.match.len - 1;
+                            state = .printed_colors;
+                            break;
+                        }
+                    } else {
+                        state = .escape;
+                    }
+                },
+                '\n' => {
+                    try printSpan(out, &last_color, &last_intensity, color, intensity);
+                    try out.writeByte(c);
+                    last_new_line = buf.writer.end;
+                    state = .printed_colors;
+                },
+                else => {
+                    try printSpan(out, &last_color, &last_intensity, color, intensity);
+                    try out.writeByte(c);
+                    state = .printed_colors;
+                },
+            },
+            .printed_colors => switch (c) {
                 '\x1b' => {
                     for (patterns) |pat| {
                         if (mem.startsWith(u8, input[i..], pat.match)) {
@@ -1228,7 +1255,9 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
                     try out.writeByte(c);
                     last_new_line = buf.writer.end;
                 },
-                else => try out.writeByte(c),
+                else => {
+                    try out.writeByte(c);
+                },
             },
             .escape => switch (c) {
                 '[' => state = .lbracket,
@@ -1262,27 +1291,15 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
                     // The number could be a color or intensity. If it is reset, clear everything.
                     // Otherwise, change only the thing that is provided.
                     state = .start;
-                    try out.writeSplatAll(&splat_data, open_span_count);
-                    open_span_count = 0;
                     const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
                     if (std.enums.fromInt(Intensity, n)) |new_intensity| switch (new_intensity) {
-                        .reset => color = .none,
+                        .reset => {
+                            color = .none;
+                            intensity = .reset;
+                        },
                         else => intensity = new_intensity,
                     } else {
                         color = @fromBackingInt(n);
-                    }
-                    switch (color) {
-                        .none => switch (intensity) {
-                            .reset => {},
-                            else => {
-                                try out.print("<span class=\"sgr-{d}m\">", .{intensity});
-                                open_span_count += 1;
-                            },
-                        },
-                        else => {
-                            try out.print("<span class=\"sgr-{d}_{d}m\">", .{ color, intensity });
-                            open_span_count += 1;
-                        },
                     }
                 },
                 else => return error.UnsupportedEscape,
@@ -1301,34 +1318,32 @@ pub fn termColor(allocator: Allocator, input: []const u8) ![]u8 {
                     state = .start;
                     const n = try std.fmt.parseInt(u8, input[sgr_param_start_index..i], 10);
                     intensity = std.enums.fromInt(Intensity, n) orelse return error.UnsupportedSgrNumber;
-                    try out.writeSplatAll(&splat_data, open_span_count);
-                    open_span_count = 0;
-                    switch (color) {
-                        .none => switch (intensity) {
-                            .reset => {},
-                            else => {
-                                try out.print("<span class=\"sgr-{d}m\">", .{intensity});
-                                open_span_count += 1;
-                            },
-                        },
-                        else => {
-                            try out.print("<span class=\"sgr-{d}_{d}m\">", .{ color, intensity });
-                            open_span_count += 1;
-                        },
-                    }
                 },
                 else => return error.UnsupportedEscape,
             },
         }
     }
-    try out.writeSplatAll(&splat_data, open_span_count);
-    open_span_count = 0;
+    try printSpan(out, &last_color, &last_intensity, .none, .reset);
     return try buf.toOwnedSlice();
 }
 
-// Returns true if number is in slice.
-fn in(slice: []const u8, number: u8) bool {
-    return mem.findScalar(u8, slice, number) != null;
+fn printSpan(
+    out: *Writer,
+    last_color: *Color,
+    last_intensity: *Intensity,
+    color: Color,
+    intensity: Intensity,
+) Writer.Error!void {
+    if (last_color.* != color or last_intensity.* != intensity) {
+        if (last_color.* != .none or last_intensity.* != .reset) {
+            try out.writeAll("</span>");
+        }
+        last_color.* = color;
+        last_intensity.* = intensity;
+        if (color != .none or intensity != .reset) {
+            try out.print("<span class=\"sgr-{d}_{d}\">", .{ color, intensity });
+        }
+    }
 }
 
 pub fn run(

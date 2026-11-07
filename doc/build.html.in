@@ -54,38 +54,38 @@ a:hover,a:focus {
 dt {
   font-weight: bold;
 }
-.sgr-1m {
+.sgr-0_1 {
   font-weight: bold;
 }
-.sgr-2m {
+.sgr-0_2 {
   color: #575757;
 }
-.sgr-31_1m {
+.sgr-31_1 {
   color: #b40000;
   font-weight: bold;
 }
-.sgr-31_2m {
+.sgr-31_2 {
   color: #b40000;
 }
-.sgr-32_1m {
+.sgr-32_1 {
   color: green;
   font-weight: bold;
 }
-.sgr-32_2m {
+.sgr-32_2 {
   color: #338633;
   font-weight: bold;
 }
-.sgr-32m {
+.sgr-32_0 {
   color: green;
 }
-.sgr-35_1m {
+.sgr-35_1 {
   color: magenta;
   font-weight: bold;
 }
-.sgr-36m {
+.sgr-36_0 {
   color: #005C7A;
 }
-.sgr-36_1m {
+.sgr-36_1 {
   color: #005C7A;
   font-weight: bold;
 }
@@ -231,19 +231,19 @@ th pre code {
   table, th, td {
       border-color: grey;
   }
-  .sgr-2m {
+  .sgr-0_2 {
       color: grey;
   }
-  .sgr-31_1m {
+  .sgr-31_1 {
       color: red;
   }
-  .sgr-32_1m {
+  .sgr-32_1 {
       color: #00B800;
   }
-  .sgr-32_2m {
+  .sgr-32_2 {
     color: darkgreen;
   }
-  .sgr-36_1m {
+  .sgr-36_1 {
       color: #0086b3;
   }
   code {
@@ -833,8 +833,7 @@ update-protocol<span class="sgr-32m"> success</span>
     <p><code>zig fetch --save &lt;url&gt;</code> is a shortcut for downloading a package from the
     network and updating the manifest file accordingly.</p>
 <figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig fetch --save git+https://github.com/andrewrk/mime</kbd>
-<span class="sgr-32_1m">info</span><span class="sgr-1m"></span><span class="sgr-1m">: </span><span
-class="sgr-1m">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00</span>
+<span class="sgr-32_1">info</span>: <span class="sgr-0_0">resolved to commit 4535b74bd5fcaa03e22f2f25af164a4c6253af00</span>
 </samp></pre></figure>
     {#code|add-dependency/fetched.diff#}
     <p>Once the dependency is declared in the manifest file, it can be
