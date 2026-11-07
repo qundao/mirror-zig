@@ -6187,7 +6187,7 @@ fn moveIntImm(isel: *Select, rd: Register, si64: i64) !void {
 fn addImm(isel: *Select, rd: Register, rj: Register, si65: i65) !void {
     const gpr_size = isel.gprSize();
     if (si65 == 0) {
-        try isel.emit(.ori(rd, rj, 0));
+        if (rd != rj) try isel.emit(.ori(rd, rj, 0));
     } else if (std.math.cast(i12, si65)) |si12| {
         switch (gpr_size) {
             4 => try isel.emit(.@"addi.w"(rd, rj, si12)),
