@@ -4904,21 +4904,43 @@ pub fn body(isel: *Select, air_body: []const Air.Inst.Index) codegen.Error!void 
                     const dst_array_ty: ZigType = .fromInterned(dst_info.child);
                     const copy_size = dst_array_ty.abiSize(zcu);
 
-                    const dst_mat = try dst_vi.matIntRegZeroExt(isel);
-                    const src_mat = try src_vi.matIntRegZeroExt(isel);
-                    try isel.moveLoc(
-                        .{ .stack_slot = .{ .base = dst_mat.reg(), .offset = 0 } },
-                        0,
-                        .{ .stack_slot = .{ .base = src_mat.reg(), .offset = 0 } },
-                        0,
-                        copy_size,
-                        .{
-                            .dst_alignment = dst_info.flags.alignment,
-                            .src_alignment = src_info.flags.alignment,
-                        },
-                    );
-                    try dst_mat.finish(isel);
-                    try src_mat.finish(isel);
+                    if (isel.shouldLowerMemMoveToCompilerRtCall(copy_size)) {
+                        try isel.moveLoc(
+                            .{ .stack_slot = .{ .base = .r4, .offset = 0 } },
+                            0,
+                            .{ .stack_slot = .{ .base = .r5, .offset = 0 } },
+                            0,
+                            copy_size,
+                            .{
+                                .dst_alignment = dst_info.flags.alignment,
+                                .src_alignment = src_info.flags.alignment,
+                            },
+                        );
+                        {
+                            const r4_lock = isel.lockReg(.r4);
+                            defer r4_lock.unlock(isel);
+                            const r5_lock = isel.lockReg(.r5);
+                            defer r5_lock.unlock(isel);
+                            try dst_vi.matToReg(isel, .{ .mod = .integer, .reg = .r4 });
+                            try src_vi.matToReg(isel, .{ .mod = .integer, .reg = .r5 });
+                        }
+                    } else {
+                        const dst_mat = try dst_vi.matIntRegZeroExt(isel);
+                        const src_mat = try src_vi.matIntRegZeroExt(isel);
+                        try isel.moveLoc(
+                            .{ .stack_slot = .{ .base = dst_mat.reg(), .offset = 0 } },
+                            0,
+                            .{ .stack_slot = .{ .base = src_mat.reg(), .offset = 0 } },
+                            0,
+                            copy_size,
+                            .{
+                                .dst_alignment = dst_info.flags.alignment,
+                                .src_alignment = src_info.flags.alignment,
+                            },
+                        );
+                        try dst_mat.finish(isel);
+                        try src_mat.finish(isel);
+                    }
                 } else if (!isel.no_builtin) {
                     assert(dst_info.flags.size == .slice);
                     try call.prepareReturn(isel);
@@ -6455,6 +6477,10 @@ fn elemPtr(
     try index_mat.finish(isel);
 }
 
+fn shouldLowerMemMoveToCompilerRtCall(isel: *Select, size: u64) bool {
+    return size > 4 * @as(u64, isel.gprSize()) and !isel.no_builtin;
+}
+
 const MoveLocOptions = struct {
     dst_prot: DestProtection = .none,
     atomic: bool = false,
@@ -6530,13 +6556,14 @@ fn moveLoc(
         .stack_slot => |dst_stack| {
             if (size > isel.gprSize() and opts.atomic)
                 return isel.fail("Memory store of {d} bytes cannot be atomic", .{size});
-            if (size > 4 * @as(u64, isel.gprSize()) and !isel.no_builtin) call_compiler_rt: {
+            if (isel.shouldLowerMemMoveToCompilerRtCall(size)) call_compiler_rt: {
                 const src_stack = src_loc.stack_slot;
 
                 // If any of the caller saved registers are locked, function calls cannot be used.
                 var caller_saved_regs_it = call.caller_saved_reg_set.iterator();
                 while (caller_saved_regs_it.next()) |caller_saved_reg| {
                     if (isel.live_registers.get(caller_saved_reg) == .allocating) {
+                        wip_mir_log.debug("    move cannot be optimized to compiler-rt call due to ${t} is used", .{caller_saved_reg});
                         break :call_compiler_rt;
                     }
                 }
