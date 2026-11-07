@@ -6081,7 +6081,7 @@ const ClangSearchSanitizer = struct {
 
     const Group = enum { I, isystem, iwithsysroot, idirafter, iframework, iframeworkwithsysroot, embed_dir };
 
-    const Membership = packed struct {
+    const Membership = bitpack struct {
         I: bool = false,
         isystem: bool = false,
         iwithsysroot: bool = false,
