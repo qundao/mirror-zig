@@ -978,7 +978,11 @@ const Update = struct {
     runner: *Runner,
     test_index: u32,
     target: Compiler.Target,
-    skipped: ?bool,
+    skipped: ?union(enum) {
+        no,
+        yes_skip,
+        yes_require: struct { tag: Requirement, negate: bool },
+    },
     invalid_skip: bool,
     manifest_sr: SourceReader,
     compiler: ?Compiler,
@@ -1590,6 +1594,7 @@ fn testOne(runner: *Runner, test_index: u32) (error{ServerWriteFailed} || TestEr
     }
 }
 const Command = enum { comment, skip, require, zig, write, delete, update, check };
+const Requirement = enum { @"no-matrix", @"safe-unwind", wasm, windows };
 fn handleCommand(
     runner: *Runner,
     update: *Update,
@@ -1609,18 +1614,28 @@ fn handleCommand(
 
     switch (cmd) {
         .comment => {},
-        .skip, .require => if (update.skipped == false) return update.manifest_sr.fail(
+        .skip, .require => if (update.skipped != null and update.skipped.? == .no) return update.manifest_sr.fail(
             cmd_src_loc,
             "\"#{t}\" must appear before other commands",
             .{cmd},
         ),
         else => {
             if (update.invalid_skip) return error.AlreadyReported;
-            if (update.skipped == true) {
-                std.log.info("skipped by a \"#skip\" command", .{});
-                return error.SkipTest;
+            if (update.skipped) |s| switch (s) {
+                .no => {},
+                .yes_skip => {
+                    std.log.info("skipped by a \"#skip\" command", .{});
+                    return error.SkipTest;
+                },
+                .yes_require => |require| {
+                    std.log.info("skipped due to unsatisfied requirement \"{s}{t}\"", .{
+                        if (require.negate) "!" else "", require.tag,
+                    });
+                    return error.SkipTest;
+                },
+            } else {
+                update.skipped = .no;
             }
-            update.skipped = false;
         },
     }
 
@@ -1631,7 +1646,7 @@ fn handleCommand(
         .skip => {
             const skip_target = arg.?;
             if (runner.args.getTargetIndex(skip_target)) |skip_target_index| {
-                if (skip_target_index == update.test_index) update.skipped = true;
+                if (skip_target_index == update.test_index) update.skipped = .yes_skip;
             } else if (update.test_index == 0) {
                 const eb_wip = update.manifest_sr.eb_wip;
                 const ErrorMessage = std.zig.ErrorBundle.ErrorMessage;
@@ -1654,13 +1669,14 @@ fn handleCommand(
             } else return error.SkipTest;
         },
         .require => {
-            const Requirement = enum { @"no-matrix", @"safe-unwind", wasm, windows };
-            const negate, const requirement = if (std.mem.cutPrefix(u8, arg.?, "!")) |requirement|
+            const negate, const requirement_slice = if (std.mem.cutPrefix(u8, arg.?, "!")) |requirement|
                 .{ true, requirement }
             else
                 .{ false, arg.? };
-            const satisfied = switch (std.meta.stringToEnum(Requirement, requirement) orelse
-                return update.manifest_sr.fail(requirement, "unknown requirement", .{})) {
+            const requirement = std.meta.stringToEnum(Requirement, requirement_slice) orelse {
+                return update.manifest_sr.fail(requirement_slice, "unknown requirement", .{});
+            };
+            const satisfied: bool = switch (requirement) {
                 .@"no-matrix" => update.test_index == 0,
                 .@"safe-unwind" => switch (update.target.unwind_tables) {
                     .async => true,
@@ -1682,8 +1698,7 @@ fn handleCommand(
                 false => !satisfied,
                 true => satisfied,
             }) {
-                std.log.info("skipped due to unsatisfied requirement {q}", .{arg.?});
-                return error.SkipTest;
+                update.skipped = .{ .yes_require = .{ .tag = requirement, .negate = negate } };
             }
         },
         .zig => runner.spawnCompiler(
