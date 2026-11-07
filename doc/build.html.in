@@ -78,6 +78,9 @@ dt {
   color: #338633;
   font-weight: bold;
 }
+.sgr-33_0 {
+  color: #6c6c00;
+}
 .sgr-35_1 {
   color: magenta;
   font-weight: bold;
@@ -242,6 +245,9 @@ th pre code {
   }
   .sgr-32_2 {
     color: darkgreen;
+  }
+  .sgr-33_0 {
+    color: #b1b100;
   }
   .sgr-36_1 {
     color: #0086b3;
@@ -854,21 +860,21 @@ update-protocol<span class="sgr-32m"> success</span>
     {#header_close#}
 
     {#header_open|Package Identity: Fingerprint#}
-    <p>Over the lifetime of a <strong>project</strong>, there will be many releases. In the Zig
-    Build System, a <strong>package</strong> represents a snapshot of a project at one particular
-    time. In order to detect when multiple packages are releases of the same project, Zig uses the
+    <p>Over the lifetime of a <strong>project</strong>, are many releases. In the Zig
+    Build System, each release of a project is a <strong>package</strong>; a snapshot of a project at one particular
+    time. In order to detect when multiple different packages are releases of the same project, Zig uses the
     {#link|fingerprint field|Top Level Field: fingerprint#} of the {#link|Manifest File#}. This field is randomly
     generated when a project is created and includes a checksum of the
     {#link|package name|Top Level Field: name#}.</p>
-    <p>Because the Zig Build System is decentralized, project maintainers must take care to pay
+    <p>Because the Zig Build System is decentralized, project maintainers must pay
     attention to certain conditions regarding package fingerprints. If the ownership of a project
-    falls under dispute, for example due to maintainer death, abandonment, or an irreconcilable
+    falls under dispute, for example due to maintainer death, abandonment, or irreconcilable
     disagreement among maintainers, a new prospective owner can choose to fork the project
     <em>without changing the fingerprint</em>. This is called a <strong>hostile fork</strong>.</p>
-    <p>When adding a new dependency, or upgrading an existing one, project maintainers are alerted
-    to these situations:</p>
-    <p>First, when two packages with the same fingerprint and same version have different contents. In
-      this case one of three things has happened:</p>
+    <p>When adding a new dependency or upgrading an existing one, project maintainers are alerted
+    when different packages from the same project are added to the dependency tree.</p>
+    <p>Most importantly, when two packages with the same fingerprint and same version have different
+    contents, one of three things has happened:</p>
     <ul>
       <li>There is a package ownership dispute, as explained above.</li>
       <li>Someone neglected to bump the package version after making changes.</li>
@@ -876,14 +882,40 @@ update-protocol<span class="sgr-32m"> success</span>
     </ul>
     <p>In this case, Zig cannot offer an automatic resolution. The project maintainer must
     {#link|examine their dependency tree|Dependency Tree Visualization#} and use critical thinking
-    to understand why things have gotten into this state.</p>
+    to understand why things have gotten into this state, and then eliminate the problematic
+    package from the dependency tree.</p>
     <p>In the more common case, there may be {#link|Version Conflicts#} or
     {#link|Package Configuration Options Conflicts#} for which there are available conflict
     resolution strategies.</p>
     {#header_close#}
 
     {#header_open|Dependency Tree Visualization#}
-    <p>TODO documentation</p>
+    <p>Here is a hypothetical {#link|Manifest File#} for FFmpeg:</p>
+    {#code|dep-tree-vis/build.zig.zon#}
+    <p>To print the tree, we use <code>zig build --print-tree</code>:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --print-tree</kbd>
+libz<span class="sgr-0_2"> zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
+mbedtls<span class="sgr-0_2"> mbedtls-3.6.4-E4NUR2wWAAAUSvVbho9aaU31-e4D8glu9l1VfxKezBkV</span><span class="sgr-33_0"> (not fetched)
+</span>openssl<span class="sgr-0_2"> openssl-3.3.2-TC9C3Ze3ZABaKR5hc8KRnRPhTClKrKQKqTnXTUYkvmSR</span><span class="sgr-33_0"> (not fetched)
+</span>libmp3lame<span class="sgr-0_2"> libmp3lame-3.100.1-7-67wlF2CxEwDWlVOMMLBNPbnDi5kE2OmH0azUHU2Y4DZY</span>
+libvorbis<span class="sgr-0_2"> libvorbis-0.0.0+1.3.7-1wt9j_QPAADVure94TG4ecBMLD8eIAzWd6ZxVOmBBPCu</span>
+├─ libvorbis<span class="sgr-0_2"> N-V-__8AAA7lSAA6p7eRmPGVeA9uHmeiJ2DX-ISiPliRJ8Y7</span>
+└─ libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
+   └─ libogg<span class="sgr-0_2"> N-V-__8AAFM3CwD6iAA1kggMPR8NHZ8VTb2zvRZ1Mt4BUfq9</span>
+libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
+nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFgetb0</span>
+├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span> (selected: zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N)
+   └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
+</samp></pre></figure>
+    <p>Here we observe that the {#link|Lazy Dependencies#} <code>mbedtls</code> and
+    <code>openssl</code> were not yet needed and therefore have not been fetched.</p>
+    <p>We also see that there was a {#link|Version Conflict|Version Conflicts#}, which was
+    {#link|resolved via selection|Conflict Resolution via Selection#}. <code>nasm</code> requested
+    <code>zlib</code> <code>1.3.1-1</code>, but received <code>2.0.0+1.3.2</code> instead, because
+    the root package declared a direct dependency on <code>zlib</code>, as you can see in
+    <code>build.zig.zon</code> above.</p>
     {#header_close#}
 
     {#header_open|Lazy Dependencies#}

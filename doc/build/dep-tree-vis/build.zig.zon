@@ -1,0 +1,42 @@
+.{
+    .name = .ffmpeg,
+    .dependencies = .{
+        .libz = .{
+            .url = "https://github.com/allyourcodebase/zlib/archive/4c7c61e452b5086bdf571d06b9efdc77d8124e2a.tar.gz",
+            .hash = "zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N",
+        },
+        .mbedtls = .{
+            .url = "git+https://github.com/allyourcodebase/mbedtls#3aa71a19acc173ae57b6a1114d62f2fdfd22960c",
+            .hash = "mbedtls-3.6.4-E4NUR2wWAAAUSvVbho9aaU31-e4D8glu9l1VfxKezBkV",
+            .lazy = true,
+        },
+        .openssl = .{
+            .url = "git+https://github.com/allyourcodebase/openssl#0ac677650d43eadf669067d050992118b13338d2",
+            .hash = "openssl-3.3.2-TC9C3Ze3ZABaKR5hc8KRnRPhTClKrKQKqTnXTUYkvmSR",
+            .lazy = true,
+        },
+        .libmp3lame = .{
+            .url = "https://github.com/andrewrk/libmp3lame/archive/b2322045e93dc0361006fdc736b9617522b00cd6.tar.gz",
+            .hash = "libmp3lame-3.100.1-7-67wlF2CxEwDWlVOMMLBNPbnDi5kE2OmH0azUHU2Y4DZY",
+        },
+        .libvorbis = .{
+            .url = "git+https://codeberg.org/allyourcodebase/libvorbis#410cdd66bd207aef0d248475dbed3cf7ca1eb9d4",
+            .hash = "libvorbis-0.0.0+1.3.7-1wt9j_QPAADVure94TG4ecBMLD8eIAzWd6ZxVOmBBPCu",
+        },
+        .libogg = .{
+            .url = "git+https://codeberg.org/allyourcodebase/libogg#4accc2e0c6710e07a5070ac3bf0a9a319f9da6a6",
+            .hash = "libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj",
+        },
+        .nasm = .{
+            .url = "git+https://github.com/allyourcodebase/nasm.git#d7356eadb2d7771542fe74e8fc0668bd78732b59",
+            .hash = "nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFgetb0",
+        },
+    },
+    .paths = .{
+        "LICENSE",
+        "build.zig",
+        "build.zig.zon",
+    },
+}
+
+// syntax
