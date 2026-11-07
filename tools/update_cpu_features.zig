@@ -392,30 +392,6 @@ const targets = [_]ArchTarget{
                 .omit = true,
             },
             .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
-                .llvm_name = "reserve-x1",
-                .omit = true,
-            },
-            .{
                 .llvm_name = "store-pair-suppress",
                 .omit = true,
             },
