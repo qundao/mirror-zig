@@ -67,6 +67,9 @@ dt {
 .sgr-31_2 {
   color: #b40000;
 }
+.sgr-32_0 {
+  color: green;
+}
 .sgr-32_1 {
   color: green;
   font-weight: bold;
@@ -74,9 +77,6 @@ dt {
 .sgr-32_2 {
   color: #338633;
   font-weight: bold;
-}
-.sgr-32_0 {
-  color: green;
 }
 .sgr-35_1 {
   color: magenta;
@@ -232,19 +232,19 @@ th pre code {
       border-color: grey;
   }
   .sgr-0_2 {
-      color: grey;
+    color: grey;
   }
   .sgr-31_1 {
-      color: red;
+    color: red;
   }
   .sgr-32_1 {
-      color: #00B800;
+    color: #00B800;
   }
   .sgr-32_2 {
     color: darkgreen;
   }
   .sgr-36_1 {
-      color: #0086b3;
+    color: #0086b3;
   }
   code {
     background: #222;
