@@ -1589,6 +1589,32 @@ pub const Value = struct {
             }
         }
 
+        /// Stores a value to a certain register. dst must be locked.
+        /// Reextends to PCS mode.
+        fn matToReg(
+            vi: Value.Index,
+            isel: *Select,
+            dst: Register.Alias,
+        ) !void {
+            wip_mir_log.debug("  | # materialize {f} to {f}", .{ vi, dst });
+
+            const live_vi = isel.live_registers.getPtr(dst.reg);
+            assert(live_vi.* == .allocating);
+            // Free dst reg temporary so Value.mat can use it
+            live_vi.* = .free;
+
+            const src_mat = try vi.mat(isel, .{
+                .pref = .prefer_reg,
+                .hint_ra = dst,
+            });
+            try isel.moveLoc(.{ .register = dst }, 0, src_mat.loc(), 0, dst.mod.byteSize(isel.target), .{
+                .src_alignment = src_mat.alignment(isel),
+            });
+            try src_mat.finish(isel);
+
+            live_vi.* = .allocating;
+        }
+
         /// Moves the expected location to another location.
         /// src_loc must be well-aligned.
         fn moveTo(vi: Value.Index, isel: *Select, src_loc: Location) !void {
@@ -4863,6 +4889,61 @@ pub fn body(isel: *Select, air_body: []const Air.Inst.Index) codegen.Error!void 
                     });
                     try isel.emit(.@"lu12i.w"(ptr_reg, 0));
                 } else try isel.failUnimplemented("unimplemented runtime_nav_ptr", .{});
+            },
+            .memcpy, .memmove => {
+                const bin_op = air.data(air.inst_index).bin_op;
+                const dst_ty = isel.air.typeOf(bin_op.lhs, ip);
+                const dst_info = dst_ty.ptrInfo(zcu);
+                const src_ty = isel.air.typeOf(bin_op.rhs, ip);
+                const src_info = src_ty.ptrInfo(zcu);
+
+                const dst_vi = try isel.use(bin_op.lhs);
+                const src_vi = try isel.use(bin_op.rhs);
+
+                if (dst_info.flags.size == .one) {
+                    const dst_array_ty: ZigType = .fromInterned(dst_info.child);
+                    const copy_size = dst_array_ty.abiSize(zcu);
+
+                    const dst_mat = try dst_vi.matIntRegZeroExt(isel);
+                    const src_mat = try src_vi.matIntRegZeroExt(isel);
+                    try isel.moveLoc(
+                        .{ .stack_slot = .{ .base = dst_mat.reg(), .offset = 0 } },
+                        0,
+                        .{ .stack_slot = .{ .base = src_mat.reg(), .offset = 0 } },
+                        0,
+                        copy_size,
+                        .{
+                            .dst_alignment = dst_info.flags.alignment,
+                            .src_alignment = src_info.flags.alignment,
+                        },
+                    );
+                    try dst_mat.finish(isel);
+                    try src_mat.finish(isel);
+                } else if (!isel.no_builtin) {
+                    assert(dst_info.flags.size == .slice);
+                    try call.prepareReturn(isel);
+                    try call.finishReturn(isel);
+
+                    try call.prepareCallee(isel);
+                    try isel.emit(.jirl(.ra, .ra, 0));
+                    try isel.global_relocs.append(isel.pt.zcu.gpa, .{
+                        .name = if (air_tag == .memcpy) "memcpy" else "memmove",
+                        .reloc = .{ .label = @intCast(isel.instructions.items.len), .type = .CALL36 },
+                    });
+                    try isel.emit(.pcaddu18i(.ra, 0));
+                    try call.finishCallee(isel);
+
+                    try call.prepareParams(isel);
+                    const dst_ptr_vi = try dst_vi.partExact(isel, 0, isel.gprSize());
+                    const dst_len_vi = try dst_vi.partExact(isel, isel.gprSize(), isel.gprSize());
+                    try dst_ptr_vi.matToReg(isel, .{ .mod = .integer, .reg = .r4 });
+                    try src_vi.matToReg(isel, .{ .mod = .integer, .reg = .r5 });
+                    try dst_len_vi.matToReg(isel, .{ .mod = .integer, .reg = .r6 });
+                    try call.finishParams(isel);
+                } else {
+                    try isel.failUnimplemented("{t} in no-builtin environments", .{air_tag});
+                    return;
+                }
             },
         }
         if (air_tag != .arg) {
