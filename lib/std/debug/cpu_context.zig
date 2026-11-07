@@ -12,7 +12,7 @@ else switch (native_arch) {
     .hexagon => Hexagon,
     .kvx => Kvx,
     .lanai => Lanai,
-    .loongarch32, .loongarch64 => LoongArch,
+    .loongarch32, .loongarch64 => Loongarch,
     .m68k => M68k,
     .m88k => M88k,
     .mips, .mipsel, .mips64, .mips64el => Mips,
@@ -57,7 +57,7 @@ pub fn fromPosixSignalContext(ctx_ptr: ?*const anyopaque) ?Native {
         // The 32-bit kABI (added later) kept the 64-bit layout.
         return .{
             .r = s: {
-                var regs: [32]LoongArch.Gpr = undefined;
+                var regs: [32]Loongarch.Gpr = undefined;
                 for (uc.mcontext.r, 0..) |r, i| regs[i] = @truncate(r);
                 break :s regs;
             },
@@ -815,15 +815,15 @@ const Lanai = extern struct {
 };
 
 /// This is an `extern struct` so that inline assembly in `current` can use field offsets.
-const LoongArch = extern struct {
+const Loongarch = extern struct {
     /// The numbered general-purpose registers r0 - r31. r0 must be zero.
     r: [32]Gpr,
     pc: Gpr,
 
     pub const Gpr = if (native_arch == .loongarch64) u64 else u32;
 
-    pub inline fn current() LoongArch {
-        var ctx: LoongArch = undefined;
+    pub inline fn current() Loongarch {
+        var ctx: Loongarch = undefined;
         asm volatile (if (Gpr == u64)
                 \\ st.d $zero, $t0, 0
                 \\ st.d $ra, $t0, 8
@@ -902,14 +902,14 @@ const LoongArch = extern struct {
         return ctx;
     }
 
-    pub fn getFp(ctx: *const LoongArch) usize {
+    pub fn getFp(ctx: *const Loongarch) usize {
         return ctx.r[22];
     }
-    pub fn getPc(ctx: *const LoongArch) usize {
+    pub fn getPc(ctx: *const Loongarch) usize {
         return ctx.pc;
     }
 
-    pub fn dwarfRegisterBytes(ctx: *LoongArch, register_num: u16) DwarfRegisterError![]u8 {
+    pub fn dwarfRegisterBytes(ctx: *Loongarch, register_num: u16) DwarfRegisterError![]u8 {
         switch (register_num) {
             0...31 => return @ptrCast(&ctx.r[register_num]),
             64 => return @ptrCast(&ctx.pc),
