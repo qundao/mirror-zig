@@ -919,7 +919,35 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     {#header_close#}
 
     {#header_open|Lazy Dependencies#}
-    <p>TODO documentation</p>
+    <p>All dependencies must be declared in the {#link|Manifest File#} but that does not mean they
+    are always needed.</p>
+    <p>Other build systems have the concept of "development dependencies" which are only needed when
+    building the package from source. The Zig build system, however, is based on distributing
+    packages in source form, so it does not have this concept. Instead, there is a way to
+    fetch dependencies only when they are needed.</p>
+    <p>For smaller dependencies, it is better to leave them as non-lazy, since that will avoid a
+    situation where they are needed and unable to be fetched. On the other hand, dependencies only
+    needed on specific targets are good candidates for being lazy.</p>
+    <p>To mark a dependency as lazy, set its {#link|lazy#} field to {#syntax#}true{#endsyntax#} like
+    this:</p>
+    {#code|lazy.diff#}
+    <p>That's it. If the dependency ends up being used, such as by being called with
+    {#syntax#}b.dependency(){#endsyntax#} then
+    {#link|configuration|Configuration Phase vs Make Phase#} will restart after fetching the newly
+    discovered needed dependency.</p>
+    <p>There are two alternative to {#syntax#}std.Build.dependency{#endsyntax#} related to
+    the discovery of lazy dependencies:</p>
+    <ul>
+      <li>{#syntax#}std.Build.dependencyLazy{#endsyntax#} and
+      {#syntax#}std.Build.declareDependency{#endsyntax#} provide a way to mark multiple
+      dependencies as discovered needed before restarting configuration.</li>
+      <li>{#syntax#}std.Build.dependencyStep{#endsyntax#} and
+      {#syntax#}std.Build.declareDependencyStep{#endsyntax#} provide a way to mark a dependency
+      as needed if and only if a particular step is requested for execution.</li>
+    </ul>
+    <p><code>zig build --fetch</code> fetches all dependencies including lazy ones.</p>
+    <p>Example of using {#syntax#}dependencyStep{#endsyntax#}:</p>
+    <p>TODO</p>
     {#header_close#}
 
     {#header_open|Forking#}

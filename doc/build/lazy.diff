@@ -1,0 +1,9 @@
+--- a/build.zig.zon
++++ b/build.zig.zon
+@@ -8,6 +8,7 @@
+         .mime = .{
+             .url = "https://github.com/andrewrk/mime/archive/refs/tags/4.0.0.tar.gz",
+             .hash = "mime-4.0.0-zwmL--0gAACndOVlROQeDnM0chfojNDS8tpohlsBqMNy",
++            .lazy = true,
+         },
+     },
