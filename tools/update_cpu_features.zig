@@ -907,11 +907,63 @@ const targets = [_]ArchTarget{
                 .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
             },
             .{
+                .llvm_name = "apple-a18",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-a19",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-m1",
+                .extra_deps = &.{ "am", "mpam", "nv", "sel2", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-m2",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-m3",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
                 .llvm_name = "apple-m4",
                 .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
             },
             .{
                 .llvm_name = "apple-m5",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-s10",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-s4",
+                .extra_deps = &.{"vh"},
+            },
+            .{
+                .llvm_name = "apple-s5",
+                .extra_deps = &.{"vh"},
+            },
+            .{
+                .llvm_name = "apple-s6",
+                .extra_deps = &.{ "am", "mpam", "nv", "sel2", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-s7",
+                .extra_deps = &.{ "am", "mpam", "nv", "sel2", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-s8",
+                .extra_deps = &.{ "am", "mpam", "nv", "sel2", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "apple-s9",
+                .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
+            },
+            .{
+                .llvm_name = "armagicpu",
                 .extra_deps = &.{ "amvs", "fgt", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
             },
             .{
@@ -933,6 +985,10 @@ const targets = [_]ArchTarget{
             .{
                 .llvm_name = "carmel",
                 .extra_deps = &.{"vh"},
+            },
+            .{
+                .llvm_name = "cobalt-100",
+                .extra_deps = &.{ "am", "mpam", "nv", "sel2", "specrestrict", "tracev8_4", "vh" },
             },
             .{
                 .llvm_name = "cortex-a320",
@@ -9479,12 +9535,7 @@ fn processOneTargetInner(io: Io, job: Job) !void {
 
         const collate_progress = progress_node.start("collating LLVM data", 0);
 
-        // So far, LLVM only has a few aliases for the same CPU.
-        const Alias = struct {
-            llvm: []const u8,
-            zig: []const u8,
-        };
-        var model_aliases = std.StringHashMap(std.ArrayList(*Alias)).init(arena);
+        var model_aliases = std.StringHashMap(std.ArrayList([]const u8)).init(arena); // uses LLVM names
 
         {
             var it = root_map.iterator();
@@ -9498,18 +9549,9 @@ fn processOneTargetInner(io: Io, job: Job) !void {
                     const llvm_alias = kv.value_ptr.object.get("Name").?.string;
                     const llvm_name = kv.value_ptr.object.get("Alias").?.string;
 
-                    const gop = try model_aliases.getOrPut(try llvmNameToZigName(arena, llvm_name));
-
-                    if (!gop.found_existing) {
-                        gop.value_ptr.* = .empty;
-                    }
-
-                    const alias = try arena.create(Alias);
-                    alias.* = .{
-                        .llvm = llvm_alias,
-                        .zig = try llvmNameToZigName(arena, llvm_alias),
-                    };
-                    try gop.value_ptr.append(arena, alias);
+                    const gop = try model_aliases.getOrPut(llvm_name);
+                    if (!gop.found_existing) gop.value_ptr.* = .empty;
+                    try gop.value_ptr.append(arena, llvm_alias);
                 }
             }
         }
@@ -9587,74 +9629,11 @@ fn processOneTargetInner(io: Io, job: Job) !void {
                     const llvm_name = kv.value_ptr.object.get("Name").?.string;
                     if (llvm_name.len == 0) continue;
 
-                    var zig_name = try llvmNameToZigName(arena, llvm_name);
-                    var deps: std.ArrayList([]const u8) = .empty;
-                    var omit_deps: []const []const u8 = &.{};
-                    var extra_deps: []const []const u8 = &.{};
-                    const omitted = for (target.model_overrides) |model_override| {
-                        if (mem.eql(u8, llvm_name, model_override.llvm_name)) {
-                            if (model_override.omit) {
-                                break true;
-                            }
-                            if (model_override.zig_name) |override_name| {
-                                zig_name = override_name;
-                            }
-                            omit_deps = model_override.omit_deps;
-                            extra_deps = model_override.extra_deps;
-                            break false;
-                        }
-                    } else false;
-                    if (omitted) continue;
-                    const features = kv.value_ptr.object.get("Features").?.array;
-                    for (features.items) |feature| {
-                        const feature_key = feature.object.get("def").?.string;
-                        const feature_obj = root_map.get(feature_key).?.object;
-                        const feature_llvm_name = feature_obj.get("Name").?.string;
-                        if (feature_llvm_name.len == 0) continue;
-                        const feature_zig_name = (try llvmFeatureNameToZigNameOmit(
-                            arena,
-                            target,
-                            feature_llvm_name,
-                        )) orelse continue;
-                        for (omit_deps) |omit_dep| {
-                            if (mem.eql(u8, feature_zig_name, omit_dep)) break;
-                        } else {
-                            try deps.append(arena, feature_zig_name);
-                        }
-                    }
-                    for (extra_deps) |extra_dep| {
-                        try deps.append(arena, extra_dep);
-                    }
-                    const tune_features = kv.value_ptr.object.get("TuneFeatures").?.array;
-                    for (tune_features.items) |feature| {
-                        const feature_key = feature.object.get("def").?.string;
-                        const feature_obj = root_map.get(feature_key).?.object;
-                        const feature_llvm_name = feature_obj.get("Name").?.string;
-                        if (feature_llvm_name.len == 0) continue;
-                        const feature_zig_name = (try llvmFeatureNameToZigNameOmit(
-                            arena,
-                            target,
-                            feature_llvm_name,
-                        )) orelse continue;
-                        try deps.append(arena, feature_zig_name);
-                    }
-                    try all_models.append(arena, .{
-                        .llvm_name = llvm_name,
-                        .zig_name = zig_name,
-                        .features = deps.items,
-                    });
-
-                    if (model_aliases.get(zig_name)) |aliases| {
-                        alias_it: for (aliases.items) |alias| {
-                            for (target.model_overrides) |model_override| {
-                                if (mem.eql(u8, alias.llvm, model_override.llvm_name) and model_override.omit) continue :alias_it;
-                            }
-
-                            try all_models.append(arena, .{
-                                .llvm_name = alias.llvm,
-                                .zig_name = alias.zig,
-                                .features = deps.items,
-                            });
+                    const processor = &kv.value_ptr.object;
+                    try addModel(arena, target, root_map, processor, llvm_name, &all_models);
+                    if (model_aliases.get(llvm_name)) |aliases| {
+                        for (aliases.items) |alias| {
+                            try addModel(arena, target, root_map, processor, alias, &all_models);
                         }
                     }
                 }
@@ -9875,6 +9854,69 @@ fn usageAndExit(arg0: []const u8, code: u8) noreturn {
 
 fn featureLessThan(_: void, a: Feature, b: Feature) bool {
     return std.ascii.lessThanIgnoreCase(a.zig_name, b.zig_name);
+}
+
+fn addModel(
+    arena: mem.Allocator,
+    target: ArchTarget,
+    root_map: *const json.ObjectMap,
+    processor: *const json.ObjectMap,
+    llvm_name: []const u8,
+    all_models: *std.ArrayList(Model),
+) !void {
+    var zig_name = try llvmNameToZigName(arena, llvm_name);
+    var omit_deps: []const []const u8 = &.{};
+    var extra_deps: []const []const u8 = &.{};
+    for (target.model_overrides) |model_override| {
+        if (mem.eql(u8, llvm_name, model_override.llvm_name)) {
+            if (model_override.omit) return;
+            if (model_override.zig_name) |override_name| {
+                zig_name = override_name;
+            }
+            omit_deps = model_override.omit_deps;
+            extra_deps = model_override.extra_deps;
+            break;
+        }
+    }
+
+    var deps: std.ArrayList([]const u8) = .empty;
+    for (processor.get("Features").?.array.items) |feature| {
+        const feature_key = feature.object.get("def").?.string;
+        const feature_obj = root_map.get(feature_key).?.object;
+        const feature_llvm_name = feature_obj.get("Name").?.string;
+        if (feature_llvm_name.len == 0) continue;
+        const feature_zig_name = (try llvmFeatureNameToZigNameOmit(
+            arena,
+            target,
+            feature_llvm_name,
+        )) orelse continue;
+        for (omit_deps) |omit_dep| {
+            if (mem.eql(u8, feature_zig_name, omit_dep)) break;
+        } else {
+            try deps.append(arena, feature_zig_name);
+        }
+    }
+    for (extra_deps) |extra_dep| {
+        try deps.append(arena, extra_dep);
+    }
+    for (processor.get("TuneFeatures").?.array.items) |feature| {
+        const feature_key = feature.object.get("def").?.string;
+        const feature_obj = root_map.get(feature_key).?.object;
+        const feature_llvm_name = feature_obj.get("Name").?.string;
+        if (feature_llvm_name.len == 0) continue;
+        const feature_zig_name = (try llvmFeatureNameToZigNameOmit(
+            arena,
+            target,
+            feature_llvm_name,
+        )) orelse continue;
+        try deps.append(arena, feature_zig_name);
+    }
+
+    try all_models.append(arena, .{
+        .llvm_name = llvm_name,
+        .zig_name = zig_name,
+        .features = deps.items,
+    });
 }
 
 fn modelLessThan(_: void, a: Model, b: Model) bool {
