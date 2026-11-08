@@ -157,12 +157,17 @@ pub const all_features = blk: {
     result[@backingInt(Feature.@"8msecext")] = .{
         .llvm_name = "8msecext",
         .description = "Enable support for ARMv8-M Security Extensions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .mclass,
+            .v8m,
+        }),
     };
     result[@backingInt(Feature.aclass)] = .{
         .llvm_name = "aclass",
         .description = "Is application profile ('A' series)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .v7,
+        }),
     };
     result[@backingInt(Feature.acquire_release)] = .{
         .llvm_name = "acquire-release",
@@ -354,7 +359,6 @@ pub const all_features = blk: {
         .llvm_name = "fp16fml",
         .description = "Enable full half-precision floating point fml instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fullfp16,
             .neon,
         }),
     };
@@ -461,7 +465,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.lob)] = .{
         .llvm_name = "lob",
         .description = "Enable Low Overhead Branch extensions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .v8m_main,
+        }),
     };
     result[@backingInt(Feature.loop_align)] = .{
         .llvm_name = "loop-align",
@@ -471,7 +477,11 @@ pub const all_features = blk: {
     result[@backingInt(Feature.mclass)] = .{
         .llvm_name = "mclass",
         .description = "Is microcontroller profile ('M' series)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .db,
+            .noarm,
+            .v6m,
+        }),
     };
     result[@backingInt(Feature.mp)] = .{
         .llvm_name = "mp",
@@ -556,7 +566,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.pacbti)] = .{
         .llvm_name = "pacbti",
         .description = "Enable Pointer Authentication and Branch Target Identification",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .v8_1m_main,
+        }),
     };
     result[@backingInt(Feature.perfmon)] = .{
         .llvm_name = "perfmon",
@@ -586,7 +598,10 @@ pub const all_features = blk: {
     result[@backingInt(Feature.rclass)] = .{
         .llvm_name = "rclass",
         .description = "Is realtime profile ('R' series)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .hwdiv,
+            .v7,
+        }),
     };
     result[@backingInt(Feature.ret_addr_stack)] = .{
         .llvm_name = "ret-addr-stack",
@@ -779,7 +794,6 @@ pub const all_features = blk: {
         .dependencies = featureSet(&[_]Feature{
             .lob,
             .ras,
-            .v8m_main,
         }),
     };
     result[@backingInt(Feature.v8_2a)] = .{
@@ -853,6 +867,8 @@ pub const all_features = blk: {
         .description = "Support ARM v8M Mainline instructions",
         .dependencies = featureSet(&[_]Feature{
             .acquire_release,
+            .hwdiv,
+            .mclass,
             .v7,
         }),
     };
@@ -1369,11 +1385,8 @@ pub const cpu = struct {
         .name = "armv6m",
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
-            .db,
             .mclass,
             .no_unaligned_access,
-            .noarm,
-            .v6m,
         }),
     };
     pub const armv6t2: CpuModel = .{
@@ -1391,7 +1404,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .aclass,
             .dsp,
-            .v7,
             .vfp3d16,
         }),
     };
@@ -1402,7 +1414,6 @@ pub const cpu = struct {
             .dsp,
             .hwdiv,
             .mclass,
-            .noarm,
             .v7,
             .vfp4d16sp,
         }),
@@ -1413,7 +1424,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .hwdiv,
             .mclass,
-            .noarm,
             .v7,
         }),
     };
@@ -1422,9 +1432,7 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .dsp,
-            .hwdiv,
             .rclass,
-            .v7,
             .vfp3d16sp,
         }),
     };
@@ -1435,7 +1443,6 @@ pub const cpu = struct {
             .aclass,
             .dsp,
             .trustzone,
-            .v7,
             .vfp3d16,
             .virtualization,
         }),
@@ -1456,9 +1463,6 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .fullfp16,
-            .hwdiv,
-            .mclass,
-            .noarm,
             .v8_1m_main,
         }),
     };
@@ -1566,11 +1570,9 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .acquire_release,
-            .db,
             .hwdiv,
             .mclass,
             .no_unaligned_access,
-            .noarm,
             .v7clrex,
             .v8m,
         }),
@@ -1580,9 +1582,6 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .fp_armv8d16sp,
-            .hwdiv,
-            .mclass,
-            .noarm,
             .v8m_main,
         }),
     };
@@ -1697,7 +1696,6 @@ pub const cpu = struct {
             .perfmon,
             .ret_addr_stack,
             .trustzone,
-            .v7,
             .vfp4,
             .virtualization,
             .vmlx_forwarding,
@@ -1715,7 +1713,6 @@ pub const cpu = struct {
             .ret_addr_stack,
             .splat_vfp_neon,
             .trustzone,
-            .v7,
             .vfp4,
             .virtualization,
             .vldn_align,
@@ -1732,7 +1729,6 @@ pub const cpu = struct {
             .perfmon,
             .ret_addr_stack,
             .trustzone,
-            .v7,
             .vfp4,
             .virtualization,
             .vmlx_forwarding,
@@ -1781,7 +1777,6 @@ pub const cpu = struct {
             .slowfpvfmx,
             .slowfpvmlx,
             .trustzone,
-            .v7,
             .vfp4d16,
             .vmlx_forwarding,
         }),
@@ -1861,7 +1856,6 @@ pub const cpu = struct {
             .slowfpvfmx,
             .slowfpvmlx,
             .trustzone,
-            .v7,
             .vfp4d16,
             .virtualization,
             .vmlx_forwarding,
@@ -2019,7 +2013,6 @@ pub const cpu = struct {
             .slowfpvfmx,
             .slowfpvmlx,
             .trustzone,
-            .v7,
             .vmlx_forwarding,
             .vmlx_hazards,
         }),
@@ -2040,7 +2033,6 @@ pub const cpu = struct {
             .prefer_vmovsr,
             .ret_addr_stack,
             .trustzone,
-            .v7,
             .vfp3d16,
             .vldn_align,
             .vmlx_forwarding,
@@ -2051,36 +2043,27 @@ pub const cpu = struct {
         .name = "cortex_m0",
         .llvm_name = "cortex-m0",
         .features = featureSet(&[_]Feature{
-            .db,
             .mclass,
             .no_branch_predictor,
             .no_unaligned_access,
-            .noarm,
-            .v6m,
         }),
     };
     pub const cortex_m0plus: CpuModel = .{
         .name = "cortex_m0plus",
         .llvm_name = "cortex-m0plus",
         .features = featureSet(&[_]Feature{
-            .db,
             .mclass,
             .no_branch_predictor,
             .no_unaligned_access,
-            .noarm,
-            .v6m,
         }),
     };
     pub const cortex_m1: CpuModel = .{
         .name = "cortex_m1",
         .llvm_name = "cortex-m1",
         .features = featureSet(&[_]Feature{
-            .db,
             .mclass,
             .no_branch_predictor,
             .no_unaligned_access,
-            .noarm,
-            .v6m,
         }),
     };
     pub const cortex_m23: CpuModel = .{
@@ -2088,12 +2071,10 @@ pub const cpu = struct {
         .llvm_name = "cortex-m23",
         .features = featureSet(&[_]Feature{
             .acquire_release,
-            .db,
             .hwdiv,
             .mclass,
             .no_branch_predictor,
             .no_unaligned_access,
-            .noarm,
             .v7clrex,
             .v8m,
         }),
@@ -2106,7 +2087,6 @@ pub const cpu = struct {
             .loop_align,
             .mclass,
             .no_branch_predictor,
-            .noarm,
             .v7,
         }),
     };
@@ -2117,11 +2097,8 @@ pub const cpu = struct {
             .avoid_muls,
             .fix_cmse_cve_2021_35465,
             .fp_armv8d16sp,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .no_branch_predictor,
-            .noarm,
             .slowfpvfmx,
             .slowfpvmlx,
             .v8m_main,
@@ -2133,11 +2110,8 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .fix_cmse_cve_2021_35465,
             .fp_armv8d16sp,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .no_branch_predictor,
-            .noarm,
             .slowfpvfmx,
             .slowfpvmlx,
             .v8m_main,
@@ -2152,7 +2126,6 @@ pub const cpu = struct {
             .loop_align,
             .mclass,
             .no_branch_predictor,
-            .noarm,
             .slowfpvfmx,
             .slowfpvmlx,
             .v7,
@@ -2166,12 +2139,9 @@ pub const cpu = struct {
             .dsp,
             .fp_armv8d16,
             .fullfp16,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .mve1beat,
             .no_branch_predictor,
-            .noarm,
             .slowfpvmlx,
             .v8_1m_main,
         }),
@@ -2184,11 +2154,8 @@ pub const cpu = struct {
             .fix_cmse_cve_2021_35465,
             .fp_armv8d16,
             .fullfp16,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .no_branch_predictor,
-            .noarm,
             .slowfpvmlx,
             .v8_1m_main,
         }),
@@ -2202,7 +2169,6 @@ pub const cpu = struct {
             .fp_armv8d16sp,
             .hwdiv,
             .mclass,
-            .noarm,
             .v7,
         }),
     };
@@ -2215,9 +2181,6 @@ pub const cpu = struct {
             .dsp,
             .fp_armv8d16,
             .fullfp16,
-            .hwdiv,
-            .mclass,
-            .noarm,
             .v8_1m_main,
         }),
     };
@@ -2227,11 +2190,9 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .avoid_partial_cpsr,
             .dsp,
-            .hwdiv,
             .perfmon,
             .rclass,
             .ret_addr_stack,
-            .v7,
         }),
     };
     pub const cortex_r4f: CpuModel = .{
@@ -2240,14 +2201,12 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .avoid_partial_cpsr,
             .dsp,
-            .hwdiv,
             .perfmon,
             .rclass,
             .ret_addr_stack,
             .slow_fp_brcc,
             .slowfpvfmx,
             .slowfpvmlx,
-            .v7,
             .vfp3d16,
         }),
     };
@@ -2264,7 +2223,6 @@ pub const cpu = struct {
             .slow_fp_brcc,
             .slowfpvfmx,
             .slowfpvmlx,
-            .v7,
             .vfp3d16sp,
         }),
     };
@@ -2313,7 +2271,6 @@ pub const cpu = struct {
             .slow_fp_brcc,
             .slowfpvfmx,
             .slowfpvmlx,
-            .v7,
         }),
     };
     pub const cortex_r8: CpuModel = .{
@@ -2331,7 +2288,6 @@ pub const cpu = struct {
             .slow_fp_brcc,
             .slowfpvfmx,
             .slowfpvmlx,
-            .v7,
         }),
     };
     pub const cortex_x1: CpuModel = .{
@@ -2543,7 +2499,6 @@ pub const cpu = struct {
             .prefer_vmovsr,
             .ret_addr_stack,
             .trustzone,
-            .v7,
             .vldn_align,
             .vmlx_forwarding,
             .vmlx_hazards,
@@ -2561,7 +2516,6 @@ pub const cpu = struct {
             .neon,
             .perfmon,
             .ret_addr_stack,
-            .v7,
             .vfp4,
             .vldn_align,
             .vmlx_forwarding,
@@ -2639,12 +2593,9 @@ pub const cpu = struct {
         .name = "sc000",
         .llvm_name = "sc000",
         .features = featureSet(&[_]Feature{
-            .db,
             .mclass,
             .no_branch_predictor,
             .no_unaligned_access,
-            .noarm,
-            .v6m,
         }),
     };
     pub const sc300: CpuModel = .{
@@ -2654,7 +2605,6 @@ pub const cpu = struct {
             .hwdiv,
             .mclass,
             .no_branch_predictor,
-            .noarm,
             .v7,
         }),
     };
@@ -2665,11 +2615,8 @@ pub const cpu = struct {
             .avoid_muls,
             .fix_cmse_cve_2021_35465,
             .fp_armv8d16sp,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .no_branch_predictor,
-            .noarm,
             .slowfpvfmx,
             .slowfpvmlx,
             .v8m_main,
@@ -2682,12 +2629,9 @@ pub const cpu = struct {
             .dsp,
             .fp_armv8d16,
             .fullfp16,
-            .hwdiv,
             .loop_align,
-            .mclass,
             .mve1beat,
             .no_branch_predictor,
-            .noarm,
             .slowfpvmlx,
             .v8_1m_main,
         }),
@@ -2745,7 +2689,6 @@ pub const cpu = struct {
             .slow_vgetlni32,
             .slowfpvfmx,
             .slowfpvmlx,
-            .v7,
             .vfp4,
             .vmlx_hazards,
             .wide_stride_vfp,

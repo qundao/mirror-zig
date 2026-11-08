@@ -551,6 +551,19 @@
         },
 
         .{
+            .llvm_name = "8msecext",
+            .extra_deps = .{
+                "mclass",
+                "v8m",
+            },
+        },
+        .{
+            .llvm_name = "aclass",
+            .extra_deps = .{
+                "v7",
+            },
+        },
+        .{
             .llvm_name = "d32",
             .extra_deps = .{
                 "fpregs",
@@ -567,6 +580,9 @@
             .extra_deps = .{
                 "neon",
             },
+            .omit_deps = .{
+                "fullfp16",
+            },
         },
         .{
             .llvm_name = "hwdiv-arm",
@@ -575,8 +591,35 @@
             },
         },
         .{
+            .llvm_name = "lob",
+            .extra_deps = .{
+                "v8m_main",
+            },
+        },
+        .{
+            .llvm_name = "mclass",
+            .extra_deps = .{
+                "db",
+                "noarm",
+                "v6m",
+            },
+        },
+        .{
             .llvm_name = "strict-align",
             .zig_name = "no_unaligned_access",
+        },
+        .{
+            .llvm_name = "pacbti",
+            .extra_deps = .{
+                "v8_1m_main",
+            },
+        },
+        .{
+            .llvm_name = "rclass",
+            .extra_deps = .{
+                "hwdiv",
+                "v7",
+            },
         },
         .{
             .llvm_name = "v4t",
@@ -600,7 +643,6 @@
         .{
             .llvm_name = "v8",
             .extra_deps = .{
-                "hwdiv",
                 "hwdiv_arm",
                 "mp",
             },
@@ -644,6 +686,8 @@
             .llvm_name = "v8m.main",
             .extra_deps = .{
                 "acquire_release",
+                "hwdiv",
+                "mclass",
             },
         },
         .{
