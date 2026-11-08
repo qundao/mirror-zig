@@ -100,7 +100,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.bpermd)] = .{
         .llvm_name = "bpermd",
         .description = "Enable the bpermd instruction",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .@"64bit",
+        }),
     };
     result[@backingInt(Feature.cmpb)] = .{
         .llvm_name = "cmpb",
@@ -323,7 +325,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.ldbrx)] = .{
         .llvm_name = "ldbrx",
         .description = "Enable the ldbrx instruction",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .@"64bit",
+        }),
     };
     result[@backingInt(Feature.lfiwax)] = .{
         .llvm_name = "lfiwax",
@@ -432,7 +436,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.quadword_atomics)] = .{
         .llvm_name = "quadword-atomics",
         .description = "Enable lqarx and stqcx.",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .@"64bit",
+        }),
     };
     result[@backingInt(Feature.recipprec)] = .{
         .llvm_name = "recipprec",
@@ -605,7 +611,6 @@ pub const cpu = struct {
         .name = "a2",
         .llvm_name = "a2",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .booke,
             .cmpb,
             .fcpsgn,
@@ -671,7 +676,6 @@ pub const cpu = struct {
         .name = "e6500",
         .llvm_name = "e5500",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .altivec,
             .booke,
             .bpermd,
@@ -748,7 +752,6 @@ pub const cpu = struct {
         .name = "pwr10",
         .llvm_name = "pwr10",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .bpermd,
             .cmpb,
             .crypto,
@@ -792,7 +795,6 @@ pub const cpu = struct {
         .name = "pwr11",
         .llvm_name = "pwr11",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .bpermd,
             .cmpb,
             .crypto,
@@ -932,7 +934,6 @@ pub const cpu = struct {
         .name = "pwr7",
         .llvm_name = "pwr7",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .bpermd,
             .cmpb,
             .extdiv,
@@ -961,7 +962,6 @@ pub const cpu = struct {
         .name = "pwr8",
         .llvm_name = "pwr8",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .bpermd,
             .cmpb,
             .crypto,
@@ -1000,7 +1000,6 @@ pub const cpu = struct {
         .name = "pwr9",
         .llvm_name = "pwr9",
         .features = featureSet(&[_]Feature{
-            .@"64bit",
             .bpermd,
             .cmpb,
             .crypto,

@@ -183,6 +183,13 @@
         },
 
         .{
+            .llvm_name = "x87",
+            .zig_name = "387",
+            .extra_deps = .{
+                "287",
+            },
+        },
+        .{
             .llvm_name = "64bit",
             .extra_deps = .{
                 "486",
@@ -196,9 +203,81 @@
             },
         },
         .{
+            .llvm_name = "amx-tile",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "ccmp",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "cf",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "cmpccxadd",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "cx16",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "egpr",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "fsgsbase",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "jmpabs",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
             .llvm_name = "mmx",
             .extra_deps = .{
                 "387",
+            },
+        },
+        .{
+            .llvm_name = "ndd",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "nf",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "ppx",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "push2pop2",
+            .extra_deps = .{
+                "64bit",
             },
         },
         .{
@@ -218,10 +297,21 @@
             .zig_name = "unaligned_sse_access",
         },
         .{
-            .llvm_name = "x87",
-            .zig_name = "387",
+            .llvm_name = "uintr",
             .extra_deps = .{
-                "287",
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "usermsr",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "zu",
+            .extra_deps = .{
+                "64bit",
             },
         },
     },

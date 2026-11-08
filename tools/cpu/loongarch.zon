@@ -33,6 +33,24 @@
             },
         },
         .{
+            .llvm_name = "lam-bh",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "lamcas",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "scq",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
             .llvm_name = "ual",
             .zig_name = "unaligned_access",
         },

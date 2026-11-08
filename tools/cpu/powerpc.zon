@@ -114,6 +114,18 @@
             .zig_name = "64bit",
         },
         .{
+            .llvm_name = "bpermd",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
+            .llvm_name = "ldbrx",
+            .extra_deps = .{
+                "64bit",
+            },
+        },
+        .{
             .llvm_name = "fast-MFLR",
             .zig_name = "fast_mflr",
         },
@@ -124,6 +136,12 @@
             },
             .extra_deps = .{
                 "isa_v31_instructions",
+            },
+        },
+        .{
+            .llvm_name = "quadword-atomics",
+            .extra_deps = .{
+                "64bit",
             },
         },
         .{
