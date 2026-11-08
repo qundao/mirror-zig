@@ -2075,13 +2075,6 @@ pub const cpu = struct {
             .xaifet,
         }),
     };
-    pub const andes_45_series: CpuModel = .{
-        .name = "andes_45_series",
-        .llvm_name = "andes-45-series",
-        .features = featureSet(&[_]Feature{
-            .short_forward_branch_ialu,
-        }),
-    };
     pub const andes_a25: CpuModel = .{
         .name = "andes_a25",
         .llvm_name = "andes-a25",
@@ -2213,11 +2206,6 @@ pub const cpu = struct {
             .zbb,
             .zifencei,
         }),
-    };
-    pub const rocket: CpuModel = .{
-        .name = "rocket",
-        .llvm_name = "rocket",
-        .features = featureSet(&[_]Feature{}),
     };
     pub const rocket_rv32: CpuModel = .{
         .name = "rocket_rv32",
@@ -2746,13 +2734,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .@"64bit",
             .i,
-        }),
-    };
-    pub const sifive_7_series: CpuModel = .{
-        .name = "sifive_7_series",
-        .llvm_name = "sifive-7-series",
-        .features = featureSet(&[_]Feature{
-            .short_forward_branch_ialu,
         }),
     };
     pub const sifive_e20: CpuModel = .{

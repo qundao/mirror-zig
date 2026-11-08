@@ -406,6 +406,10 @@
     },
     .model_overrides = .{
         .{
+            .llvm_name = "andes-45-series",
+            .omit = true,
+        },
+        .{
             .llvm_name = "generic",
             .omit = true,
         },
@@ -419,6 +423,14 @@
         },
         .{
             .llvm_name = "generic-rv64",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "rocket",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sifive-7-series",
             .omit = true,
         },
     },
