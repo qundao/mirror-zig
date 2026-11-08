@@ -98,7 +98,7 @@ fn setUpModule(translate_c: *TranslateC, module: *std.Build.Module) *std.Build.M
 pub fn addAfterIncludePath(translate_c: *TranslateC, lazy_path: LazyPath) void {
     const graph = translate_c.step.owner.graph;
     const arena = graph.arena;
-    translate_c.include_dirs.append(arena, .{ .path_after = lazy_path.dupe(graph) }) catch
+    translate_c.include_dirs.append(arena, .{ .path_after = lazy_path.dupe(arena) }) catch
         @panic("OOM");
     lazy_path.addStepDependencies(&translate_c.step);
 }
@@ -106,7 +106,7 @@ pub fn addAfterIncludePath(translate_c: *TranslateC, lazy_path: LazyPath) void {
 pub fn addSystemIncludePath(translate_c: *TranslateC, lazy_path: LazyPath) void {
     const graph = translate_c.step.owner.graph;
     const arena = graph.arena;
-    translate_c.include_dirs.append(arena, .{ .path_system = lazy_path.dupe(graph) }) catch
+    translate_c.include_dirs.append(arena, .{ .path_system = lazy_path.dupe(arena) }) catch
         @panic("OOM");
     lazy_path.addStepDependencies(&translate_c.step);
 }
@@ -114,7 +114,7 @@ pub fn addSystemIncludePath(translate_c: *TranslateC, lazy_path: LazyPath) void 
 pub fn addIncludePath(translate_c: *TranslateC, lazy_path: LazyPath) void {
     const graph = translate_c.step.owner.graph;
     const arena = graph.arena;
-    translate_c.include_dirs.append(arena, .{ .path = lazy_path.dupe(graph) }) catch
+    translate_c.include_dirs.append(arena, .{ .path = lazy_path.dupe(arena) }) catch
         @panic("OOM");
     lazy_path.addStepDependencies(&translate_c.step);
 }
