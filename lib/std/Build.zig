@@ -36,7 +36,7 @@ allocator: Allocator,
 package: ?*Package,
 /// Points to the `Build` instance that created this one. Used by the build system for hierarchical
 /// version conflict resolution.
-parent: ?*const Build,
+parent: ?*Build,
 /// Maps project id to package instance. This is the one used for packages in the dependency
 /// tree that will be deduplicated based on their project id. The key is the index into
 /// `Graph.package_instances`. Value is `canonical`.
@@ -2004,7 +2004,7 @@ fn instantiatePackage(
         const project_id = package_hash.projectIdOptional() orelse break :versioned false;
 
         var build_it: ?*Build = parent_build;
-        while (build_it) |b| : (build_it = b) {
+        while (build_it) |b| : (build_it = b.parent) {
             const kv = b.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
                 .instances = &graph.package_instances,
             })) orelse continue;
