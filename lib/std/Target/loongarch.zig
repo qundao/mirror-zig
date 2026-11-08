@@ -164,7 +164,6 @@ pub const cpu = struct {
         .llvm_name = null,
         .features = featureSet(&[_]Feature{
             .@"32bit",
-            .unaligned_access,
         }),
     };
     pub const la32v1_0: CpuModel = .{

@@ -107,7 +107,6 @@
             .zig_name = "la32rv1_0",
             .features = .{
                 "32bit",
-                "unaligned_access",
             },
         },
         .{
