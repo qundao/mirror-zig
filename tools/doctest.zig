@@ -1346,7 +1346,7 @@ fn printSpan(
     }
 }
 
-pub fn run(
+fn run(
     allocator: Allocator,
     io: Io,
     environ_map: *const process.Environ.Map,

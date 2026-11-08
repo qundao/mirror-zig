@@ -42,7 +42,12 @@ pub fn main(init: std.process.Init) !void {
         }
     } else fatal("missing -- arg", .{});
 
-    const result = try doctest.run(arena, io, environ_map, cwd_path, argv);
+    const result = try std.process.run(arena, io, .{
+        .argv = argv,
+        .environ_map = environ_map,
+        .cwd = .{ .path = cwd_path },
+    });
+
     const escaped_stdout = try doctest.escapeHtml(arena, result.stdout);
     const escaped_stderr = try doctest.escapeHtml(arena, result.stderr);
 
