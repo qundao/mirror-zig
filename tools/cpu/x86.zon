@@ -196,6 +196,18 @@
             },
         },
         .{
+            .llvm_name = "mmx",
+            .extra_deps = .{
+                "387",
+            },
+        },
+        .{
+            .llvm_name = "sse",
+            .extra_deps = .{
+                "387",
+            },
+        },
+        .{
             .llvm_name = "sse4.2",
             .extra_deps = .{
                 "crc32",
@@ -1027,7 +1039,6 @@
             .llvm_name = null,
             .zig_name = "c7",
             .features = .{
-                "387",
                 "486",
                 "cmov",
                 "cx8",
@@ -1133,7 +1144,6 @@
             .llvm_name = null,
             .zig_name = "cx6x86mx",
             .features = .{
-                "387",
                 "486",
                 "cmov",
                 "cx8",
@@ -1147,7 +1157,6 @@
             .llvm_name = null,
             .zig_name = "eden_x4",
             .features = .{
-                "387",
                 "64bit",
                 "adx",
                 "aes",
@@ -1185,7 +1194,6 @@
             .llvm_name = null,
             .zig_name = "geode_gx1",
             .features = .{
-                "387",
                 "486",
                 "cx8",
                 "cxmmx",
@@ -1241,7 +1249,6 @@
             .llvm_name = null,
             .zig_name = "lujiazui",
             .features = .{
-                "387",
                 "64bit",
                 "adx",
                 "aes",
@@ -1289,7 +1296,6 @@
             .llvm_name = null,
             .zig_name = "mii",
             .features = .{
-                "387",
                 "486",
                 "cmov",
                 "cx8",
@@ -1303,7 +1309,6 @@
             .llvm_name = null,
             .zig_name = "nano",
             .features = .{
-                "387",
                 "64bit",
                 "cmov",
                 "cx16",
@@ -1320,7 +1325,6 @@
             .llvm_name = null,
             .zig_name = "nano_3000",
             .features = .{
-                "387",
                 "64bit",
                 "cmov",
                 "cx16",
@@ -1342,7 +1346,6 @@
             .llvm_name = null,
             .zig_name = "nano_x2",
             .features = .{
-                "387",
                 "64bit",
                 "cmov",
                 "cx16",
@@ -1364,7 +1367,6 @@
             .llvm_name = null,
             .zig_name = "nano_x4",
             .features = .{
-                "387",
                 "64bit",
                 "cmov",
                 "cx16",
@@ -1386,7 +1388,6 @@
             .llvm_name = null,
             .zig_name = "shijidadao",
             .features = .{
-                "387",
                 "64bit",
                 "adx",
                 "aes",
@@ -1508,7 +1509,6 @@
             .llvm_name = null,
             .zig_name = "winchip3",
             .features = .{
-                "387",
                 "3dnow",
                 "486",
                 "cx8",
@@ -1521,7 +1521,6 @@
             .llvm_name = null,
             .zig_name = "yongfeng",
             .features = .{
-                "387",
                 "64bit",
                 "adx",
                 "aes",
