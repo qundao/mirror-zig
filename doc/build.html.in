@@ -423,7 +423,7 @@ th pre code {
     {#header_close#}
     {#header_close#}
 
-    {#header_open|The Basics#}
+    {#header_open|Basics#}
 
     {#header_open|User-Provided Options#}
     <p>Use <code>b.option</code> to make the build script configurable to end users as well as other
@@ -855,8 +855,34 @@ update-protocol<span class="sgr-32m"> success</span>
       <li>All the files of the package are always available to access as lazy paths.</li>
     </ul>
     <p>See the {#syntax#}std.Build.Dependency{#endsyntax#} API documentation for precise details.</p>
+    {#header_close#}
 
-
+    {#header_open|Package Storage#}
+    <p>Fetched packages are stored locally in the <code>zig-pkg</code> directory of the project root
+    (next to the {#link|Manifest File#}).</p>
+    <p>Here are a few local packages after running <code>zig build</code> on an example project:</p>
+<pre><code>$ du -sh zig-pkg/*
+13M    freetype-2.14.1-alzUkTyBqgBwke4Jsot997WYSpl207Ij9oO-2QOvGrOi
+20K    opus-0.0.2-vuF-cMAkAADVsm707MYCtPmqmRs0gzg84Sz0qGbb5E3w
+4.3M   pulseaudio-16.1.1-9-mk_62MZkNwBaFwiZ7ZVrYRIf_3dTqqJR5PbMRCJzSuLw
+5.2M   uucode-0.1.0-ZZjBPvtWUACf5dqD_f9I37VGFsN24436CuceC5pTJ25n
+728K   vaxis-0.5.1-BWNV_AxECQCj3p4Hcv4U3Yo1WMUJ7Z2FUj0UkpuJGxQQ</code></pre>
+    <p>It is highly recommended to add this directory to the project-local source control ignore
+    file (e.g. <code>.gitignore</code>). However, by being outside of <code>.zig-cache</code>, it
+    provides the possibility of distributing self-contained source tarballs, which contain all
+    dependencies and therefore can be used to build offline, or for archival purposes.</p>
+    <p>Meanwhile, an <em>additional</em> copy of each package is cached globally. After filtering out all the
+    unused files based on the paths filter, the contents are recompressed:</p>
+<pre><code>$ du -sh ~/.cache/zig/p/*
+2.4M    freetype-2.14.1-alzUkTyBqgBwke4Jsot997WYSpl207Ij9oO-2QOvGrOi.tar.gz
+4.0K    opus-0.0.2-vuF-cMAkAADVsm707MYCtPmqmRs0gzg84Sz0qGbb5E3w.tar.gz
+636K    pulseaudio-16.1.1-9-mk_62MZkNwBaFwiZ7ZVrYRIf_3dTqqJR5PbMRCJzSuLw.tar.gz
+880K    uucode-0.1.0-ZZjBPvtWUACf5dqD_f9I37VGFsN24436CuceC5pTJ25n.tar.gz
+120K    vaxis-0.5.1-BWNV_BFECQBbXeTeFd48uTJRjD5a-KD6kPuKanzzVB01.tar.gz</code></pre>
+    <p>Both the local
+    package directory and the global package cache directory are safe to
+    delete. The only consequence is that they may need to be regenerated, by extracting from the
+    global cache, or by fetching from the network, respectively.</p>
     {#header_close#}
 
     {#header_open|Package Identity: Fingerprint#}
@@ -964,7 +990,59 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     {#header_close#}
 
     {#header_open|Forking#}
-    <p>TODO documentation</p>
+    <p>Sometimes you need to make changes to one or more packages from your
+    {#link|dependency tree|Dependency Tree Visualization#}. This is called <strong>forking</strong>.</p>
+<pre><code>  --fork=[path], --fork [path] Override one or more projects from dependency tree</code></pre>
+    <p>Given a path to a source checkout of a project, all packages with matching
+    {#link|Package Identity: Fingerprint#} across the entire dependency tree will
+    be replaced by that path.</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --fork /home/andy/dev/zlib --print-tree</kbd>
+libz<span class="sgr-0_2"> zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
+mbedtls<span class="sgr-0_2"> mbedtls-3.6.4-E4NUR2wWAAAUSvVbho9aaU31-e4D8glu9l1VfxKezBkV</span><span class="sgr-33_0"> (not fetched)
+</span>openssl<span class="sgr-0_2"> openssl-3.3.2-TC9C3Ze3ZABaKR5hc8KRnRPhTClKrKQKqTnXTUYkvmSR</span><span class="sgr-33_0"> (not fetched)
+</span>libmp3lame<span class="sgr-0_2"> libmp3lame-3.100.1-7-67wlF2CxEwDWlVOMMLBNPbnDi5kE2OmH0azUHU2Y4DZY</span>
+libvorbis<span class="sgr-0_2"> libvorbis-0.0.0+1.3.7-1wt9j_QPAADVure94TG4ecBMLD8eIAzWd6ZxVOmBBPCu</span>
+├─ libvorbis<span class="sgr-0_2"> N-V-__8AAA7lSAA6p7eRmPGVeA9uHmeiJ2DX-ISiPliRJ8Y7</span>
+└─ libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
+   └─ libogg<span class="sgr-0_2"> N-V-__8AAFM3CwD6iAA1kggMPR8NHZ8VTb2zvRZ1Mt4BUfq9</span>
+libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
+nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFgetb0</span>
+├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
+   └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
+</samp></pre></figure>
+    <p>Thanks to the fact that package content hashes include {#link|name|Top Level Field: name#}
+    and {#link|fingerprint|Top Level Field: fingerprint#}, <strong>this resolves
+    before the package is potentially fetched</strong>.</p>
+    <p>This is meant to be a convenient way to temporarily use one or more forks which are in entirely separate
+    directories. You can iterate on your entire dependency tree until everything is working, while
+    using the development environment and source control of the dependency projects.</p>
+    <p>The fact that it is a CLI flag makes it appropriately ephemeral. The moment you drop the
+    flags, you're back to using your pristine, fetched dependency tree.</p>
+    <p>If the project does not match, an error occurs:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --fork /home/andy/dev/mime</kbd>
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>fork /home/andy/dev/mime matched no mime packages
+(process exited with code 1)
+</samp></pre></figure>
+    <p>If the project does match, you get a reminder that you are using a fork:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --configure --fork /home/andy/dev/zlib</kbd>
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
+</samp></pre></figure>
+    <p>This functionality is intended to streamline the workflow of dealing with ecosystem breakage.
+    The suggested workflow looks like this:</p>
+    <ol>
+    <li>Fail to build from source due to ecosystem breakage.</li>
+    <li>Tinker with <code>--fork</code> until your project works again. During this time you can use the actual
+    upstream source control, test suite, {#link|Incremental Compilation#}, etc.</li>
+    <li>Work with upstream to get your patches merged.</li>
+    <li>Optional: if upstream is taking a long time to publish your patches, update your
+    {#link|Manifest File#} to switch to your fork, and then remove the <code>--fork</code> CLI
+    option from your build command.</li>
+    </ol>
+
+
     {#header_close#}
 
     {#header_open|Version Conflicts#}
@@ -992,6 +1070,10 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     {#header_close#}
 
     {#header_open|File System Watching#}
+    <p>TODO documentation</p>
+    {#header_close#}
+
+    {#header_open|Incremental Compilation#}
     <p>TODO documentation</p>
     {#header_close#}
 
