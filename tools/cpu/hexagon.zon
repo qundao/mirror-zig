@@ -195,6 +195,78 @@
             },
         },
         .{
+            .llvm_name = "hvxv60",
+            .extra_deps = .{
+                "v60",
+            },
+        },
+        .{
+            .llvm_name = "hvxv62",
+            .extra_deps = .{
+                "v62",
+            },
+        },
+        .{
+            .llvm_name = "hvxv65",
+            .extra_deps = .{
+                "v65",
+            },
+        },
+        .{
+            .llvm_name = "hvxv66",
+            .extra_deps = .{
+                "v66",
+            },
+        },
+        .{
+            .llvm_name = "hvxv67",
+            .extra_deps = .{
+                "v67",
+            },
+        },
+        .{
+            .llvm_name = "hvxv68",
+            .extra_deps = .{
+                "v68",
+            },
+        },
+        .{
+            .llvm_name = "hvxv69",
+            .extra_deps = .{
+                "v69",
+            },
+        },
+        .{
+            .llvm_name = "hvxv71",
+            .extra_deps = .{
+                "v71",
+            },
+        },
+        .{
+            .llvm_name = "hvxv73",
+            .extra_deps = .{
+                "v73",
+            },
+        },
+        .{
+            .llvm_name = "hvxv75",
+            .extra_deps = .{
+                "v75",
+            },
+        },
+        .{
+            .llvm_name = "hvxv79",
+            .extra_deps = .{
+                "v79",
+            },
+        },
+        .{
+            .llvm_name = "hvxv81",
+            .extra_deps = .{
+                "v81",
+            },
+        },
+        .{
             .llvm_name = "v55",
             .extra_deps = .{
                 "v5",

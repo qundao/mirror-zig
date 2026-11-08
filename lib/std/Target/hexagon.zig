@@ -101,6 +101,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvx,
+            .v60,
         }),
     };
     result[@backingInt(Feature.hvxv62)] = .{
@@ -108,6 +109,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv60,
+            .v62,
         }),
     };
     result[@backingInt(Feature.hvxv65)] = .{
@@ -115,6 +117,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv62,
+            .v65,
         }),
     };
     result[@backingInt(Feature.hvxv66)] = .{
@@ -122,6 +125,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv65,
+            .v66,
             .zreg,
         }),
     };
@@ -130,6 +134,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv66,
+            .v67,
         }),
     };
     result[@backingInt(Feature.hvxv68)] = .{
@@ -137,6 +142,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv67,
+            .v68,
         }),
     };
     result[@backingInt(Feature.hvxv69)] = .{
@@ -144,6 +150,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv68,
+            .v69,
         }),
     };
     result[@backingInt(Feature.hvxv71)] = .{
@@ -151,6 +158,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv69,
+            .v71,
         }),
     };
     result[@backingInt(Feature.hvxv73)] = .{
@@ -158,6 +166,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv71,
+            .v73,
         }),
     };
     result[@backingInt(Feature.hvxv75)] = .{
@@ -165,6 +174,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv73,
+            .v75,
         }),
     };
     result[@backingInt(Feature.hvxv79)] = .{
@@ -172,6 +182,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv75,
+            .v79,
         }),
     };
     result[@backingInt(Feature.hvxv81)] = .{
@@ -179,6 +190,7 @@ pub const all_features = blk: {
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
             .hvxv79,
+            .v81,
         }),
     };
     result[@backingInt(Feature.mem_noshuf)] = .{
