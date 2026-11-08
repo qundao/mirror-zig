@@ -132,6 +132,7 @@
             .flatten = true,
             .omit_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
@@ -141,6 +142,9 @@
         .{
             .llvm_name = "armv7-r",
             .flatten = true,
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "armv7e-m",
@@ -151,6 +155,7 @@
             .flatten = true,
             .omit_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
@@ -158,6 +163,8 @@
             .flatten = true,
             .omit_deps = .{
                 "crypto",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -172,6 +179,8 @@
             .flatten = true,
             .omit_deps = .{
                 "crypto",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -179,6 +188,8 @@
             .flatten = true,
             .omit_deps = .{
                 "crypto",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -187,6 +198,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -195,6 +208,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -203,6 +218,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -211,6 +228,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -219,6 +238,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -227,13 +248,18 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
             .llvm_name = "armv8-a",
             .flatten = true,
             .omit_deps = .{
+                "crc",
                 "crypto",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -253,12 +279,17 @@
         .{
             .llvm_name = "armv8-r",
             .flatten = true,
+            .omit_deps = .{
+                "crc",
+            },
         },
         .{
             .llvm_name = "armv9.1-a",
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -266,6 +297,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -274,6 +307,8 @@
             .omit_deps = .{
                 "crypto",
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -281,6 +316,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -288,6 +325,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -295,6 +334,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -302,6 +343,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -309,6 +352,8 @@
             .flatten = true,
             .omit_deps = .{
                 "dotprod",
+                "trustzone",
+                "virtualization",
             },
         },
         .{
@@ -518,6 +563,18 @@
             },
         },
         .{
+            .llvm_name = "fp16fml",
+            .extra_deps = .{
+                "neon",
+            },
+        },
+        .{
+            .llvm_name = "hwdiv-arm",
+            .extra_deps = .{
+                "hwdiv",
+            },
+        },
+        .{
             .llvm_name = "strict-align",
             .zig_name = "no_unaligned_access",
         },
@@ -525,6 +582,49 @@
             .llvm_name = "v4t",
             .extra_deps = .{
                 "v4",
+            },
+        },
+        .{
+            .llvm_name = "v6t2",
+            .omit_deps = .{
+                "v6k",
+            },
+        },
+        .{
+            .llvm_name = "v7",
+            .extra_deps = .{
+                "db",
+                "v6k",
+            },
+        },
+        .{
+            .llvm_name = "v8",
+            .extra_deps = .{
+                "hwdiv",
+                "hwdiv_arm",
+                "mp",
+            },
+            .omit_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "v8.1a",
+            .extra_deps = .{
+                "crc",
+            },
+        },
+        .{
+            .llvm_name = "v8.1m.main",
+            .extra_deps = .{
+                "lob",
+                "ras",
+            },
+        },
+        .{
+            .llvm_name = "v8.2a",
+            .extra_deps = .{
+                "ras",
             },
         },
         .{
@@ -538,6 +638,18 @@
             .omit_deps = .{
                 "bf16",
                 "i8mm",
+            },
+        },
+        .{
+            .llvm_name = "v8m.main",
+            .extra_deps = .{
+                "acquire_release",
+            },
+        },
+        .{
+            .llvm_name = "virtualization",
+            .extra_deps = .{
+                "mp",
             },
         },
     },
@@ -635,28 +747,40 @@
             .llvm_name = "cortex-a12",
             .extra_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
             .llvm_name = "cortex-a15",
             .extra_deps = .{
-                "neon",
+                "perfmon",
             },
         },
         .{
             .llvm_name = "cortex-a17",
             .extra_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
             .llvm_name = "cortex-a32",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a35",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
@@ -664,6 +788,7 @@
         .{
             .llvm_name = "cortex-a5",
             .extra_deps = .{
+                "perfmon",
                 "vfp4d16",
             },
             .omit_deps = .{
@@ -671,13 +796,37 @@
             },
         },
         .{
+            .llvm_name = "cortex-a510",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
             .llvm_name = "cortex-a53",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
+            .llvm_name = "cortex-a55",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
+        },
+        .{
             .llvm_name = "cortex-a57",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
@@ -685,6 +834,7 @@
         .{
             .llvm_name = "cortex-a7",
             .extra_deps = .{
+                "perfmon",
                 "vfp4d16",
             },
             .omit_deps = .{
@@ -692,49 +842,91 @@
             },
         },
         .{
+            .llvm_name = "cortex-a710",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
             .llvm_name = "cortex-a72",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a73",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
+            .llvm_name = "cortex-a75",
+            .extra_deps = .{
+                "perfmon",
+                "trustzone",
+                "virtualization",
+            },
+        },
+        .{
             .llvm_name = "cortex-a76",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a76ae",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a77",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a78",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a78ae",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-a78c",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
@@ -743,11 +935,13 @@
             .llvm_name = "cortex-a8",
             .extra_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
             .llvm_name = "cortex-a9",
             .extra_deps = .{
+                "perfmon",
                 "vfp3d16",
             },
         },
@@ -803,8 +997,21 @@
             },
         },
         .{
+            .llvm_name = "cortex-r4",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "cortex-r4f",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
             .llvm_name = "cortex-r5",
             .extra_deps = .{
+                "perfmon",
                 "vfp3d16sp",
             },
             .omit_deps = .{
@@ -813,6 +1020,10 @@
         },
         .{
             .llvm_name = "cortex-r52",
+            .extra_deps = .{
+                "crc",
+                "perfmon",
+            },
             .omit_deps = .{
                 "fp_armv8",
                 "neon",
@@ -820,6 +1031,10 @@
         },
         .{
             .llvm_name = "cortex-r52plus",
+            .extra_deps = .{
+                "crc",
+                "perfmon",
+            },
             .omit_deps = .{
                 "fp_armv8",
                 "neon",
@@ -828,6 +1043,7 @@
         .{
             .llvm_name = "cortex-r7",
             .extra_deps = .{
+                "perfmon",
                 "vfp3d16sp",
             },
             .omit_deps = .{
@@ -837,6 +1053,7 @@
         .{
             .llvm_name = "cortex-r8",
             .extra_deps = .{
+                "perfmon",
                 "vfp3d16sp",
             },
             .omit_deps = .{
@@ -845,30 +1062,67 @@
         },
         .{
             .llvm_name = "cortex-x1",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
             .llvm_name = "cortex-x1c",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
+            },
+        },
+        .{
+            .llvm_name = "exynos-m3",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "exynos-m4",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "exynos-m5",
+            .extra_deps = .{
+                "perfmon",
             },
         },
         .{
             .llvm_name = "krait",
             .extra_deps = .{
                 "neon",
+                "perfmon",
             },
         },
         .{
             .llvm_name = "neoverse-n1",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
         },
         .{
+            .llvm_name = "neoverse-n2",
+            .extra_deps = .{
+                "perfmon",
+            },
+        },
+        .{
             .llvm_name = "neoverse-v1",
+            .extra_deps = .{
+                "perfmon",
+            },
             .omit_deps = .{
                 "crypto",
             },
@@ -1199,6 +1453,7 @@
             .features = .{
                 "armv8_a",
                 "exynos",
+                "perfmon",
             },
         },
         .{
@@ -1207,6 +1462,7 @@
             .features = .{
                 "armv8_a",
                 "exynos",
+                "perfmon",
             },
         },
         .{
@@ -1221,6 +1477,7 @@
                 "muxed_units",
                 "neon",
                 "neon_fpmovs",
+                "perfmon",
                 "prefer_vmovsr",
                 "ret_addr_stack",
                 "trustzone",
