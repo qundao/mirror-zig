@@ -118,6 +118,15 @@
             .zig_name = "fast_mflr",
         },
         .{
+            .llvm_name = "paired-vector-memops",
+            .omit_deps = .{
+                "isa_v30_instructions",
+            },
+            .extra_deps = .{
+                "isa_v31_instructions",
+            },
+        },
+        .{
             .llvm_name = "allow-unaligned-fp-access",
             .zig_name = "unaligned_fp_access",
         },

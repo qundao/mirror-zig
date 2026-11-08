@@ -357,7 +357,7 @@ pub const all_features = blk: {
         .llvm_name = "paired-vector-memops",
         .description = "32Byte load and store instructions",
         .dependencies = featureSet(&[_]Feature{
-            .isa_v30_instructions,
+            .isa_v31_instructions,
             .vsx,
         }),
     };
