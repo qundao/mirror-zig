@@ -2032,8 +2032,8 @@ fn instantiatePackage(
                     .gt => entry.hash,
                 };
                 log.info("possible resolution: zig fetch --save {s}", .{suggested_winner});
-                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{old_package_path});
-                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{new_package_path});
+                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
+                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
                 process.exit(1);
             }
@@ -2050,8 +2050,8 @@ fn instantiatePackage(
                     .gt => entry.hash,
                 };
                 log.info("possible resolution: \"zig fetch --save {s}\" and then in build.zig, use dependencyCanoncial, dependencyStepCanonical, or dependencyLazyCanonical", .{suggested_winner});
-                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{old_package_path});
-                log.info("possible resolution: add {q} to \"instances\" in build.zig.zon", .{new_package_path});
+                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
+                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
                 process.exit(1);
             }
