@@ -922,21 +922,23 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     <p>All dependencies must be declared in the {#link|Manifest File#} but that does not mean they
     are always needed.</p>
     <p>Other build systems have the concept of "development dependencies" which are only needed when
-    building the package from source. The Zig build system, however, is based on distributing
-    packages in source form, so it does not have this concept. Instead, there is a way to
+    building the package from source. The Zig Build System, however, is based on distributing
+    packages in source form, so it does not have this concept. Instead, there is a more general way to
     fetch dependencies only when they are needed.</p>
     <p>For smaller dependencies, it is better to leave them as non-lazy, since that will avoid a
-    situation where they are needed and unable to be fetched. On the other hand, dependencies only
-    needed on specific targets are good candidates for being lazy.</p>
+    potential situation where a maintainer finds themselves without a network connection and needs
+    the dependency. On the other hand, dependencies only needed on specific targets are good
+    candidates for being lazy. Maintainers can always use <code>zig build --fetch</code> to fetch
+    the full dependency tree, including lazy dependencies.</p>
     <p>To mark a dependency as lazy, set its {#link|lazy#} field to {#syntax#}true{#endsyntax#} like
     this:</p>
-    {#code|lazy.diff#}
+    {#code|lazy-deps/lazy.diff#}
     <p>That's it. If the dependency ends up being used, such as by being called with
     {#syntax#}b.dependency(){#endsyntax#} then
     {#link|configuration|Configuration Phase vs Make Phase#} will restart after fetching the newly
     discovered needed dependency.</p>
-    <p>There are two alternative to {#syntax#}std.Build.dependency{#endsyntax#} related to
-    the discovery of lazy dependencies:</p>
+    <p>In <code>build.zig</code>, there are two alternatives to
+    {#syntax#}std.Build.dependency{#endsyntax#} related to the discovery of lazy dependencies:</p>
     <ul>
       <li>{#syntax#}std.Build.dependencyLazy{#endsyntax#} and
       {#syntax#}std.Build.declareDependency{#endsyntax#} provide a way to mark multiple
@@ -945,9 +947,20 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
       {#syntax#}std.Build.declareDependencyStep{#endsyntax#} provide a way to mark a dependency
       as needed if and only if a particular step is requested for execution.</li>
     </ul>
-    <p><code>zig build --fetch</code> fetches all dependencies including lazy ones.</p>
     <p>Example of using {#syntax#}dependencyStep{#endsyntax#}:</p>
-    <p>TODO</p>
+    {#code|lazy-deps/build.zig.zon#}
+    {#code|lazy-deps/test.zig#}
+    {#code|lazy-deps/build.zig#}
+    <p>In this example, the <code>mime</code> dependency will only be fetched if the unit tests
+    compilation artifact is requested. Note that due to
+    {#link|Configuration Phase vs Make Phase#} separation, {#syntax#}dependencyStep{#endsyntax#}
+    does <em>not</em> return whether the step is requested, because the <code>build.zig</code> logic
+    does not have access to that information. Instead, the function returns whether the dependency
+    <em>happens to be already fetched</em>, in which case more of the configuration can be populated. After
+    the configuration phase, the build system determines whether or not any additional packages
+    need to be fetched, and if so, restarts the configuration phase after fetching them.</p>
+    <p>See the API documentation for the related functions for more details about the respective
+    {#syntax#}std.Build{#endsyntax#} functions.</p>
     {#header_close#}
 
     {#header_open|Forking#}
