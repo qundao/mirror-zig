@@ -2517,8 +2517,35 @@ pub const Cpu = struct {
     }
 };
 
-pub fn zigTriple(target: *const Target, allocator: Allocator) Allocator.Error![]u8 {
-    return Query.fromTarget(target).zigTriple(allocator);
+/// Deprecated; to be removed in 0.19.0. Use `printZigTriple` instead.
+pub fn zigTriple(target: *const Target, gpa: Allocator) Allocator.Error![]u8 {
+    return gpa.print("{f}", .{std.fmt.alt(target, .printZigTriple)});
+}
+
+pub fn printZigTriple(target: *const Target, w: *std.Io.Writer) std.Io.Writer.Error!void {
+    const version_range = target.os.versionRange();
+
+    try w.print("{t}-{t}", .{ target.cpu.arch, target.os.tag });
+    switch (version_range) {
+        .none => {},
+        .semver => |vr| try w.print(".{f}...{f}", .{
+            Query.PrintVersion{ .version = vr.min },
+            Query.PrintVersion{ .version = vr.max },
+        }),
+        inline .hurd, .linux => |vr| try w.print(".{f}...{f}", .{
+            Query.PrintVersion{ .version = vr.range.min },
+            Query.PrintVersion{ .version = vr.range.max },
+        }),
+        // This is counting on a custom format() function defined on `WindowsVersion`
+        // to add a prefix '.' and make there be a total of three dots.
+        .windows => |range| try w.print("{f}..{f}", .{ range.min, range.max }),
+    }
+    if (version_range.gnuLibCVersion()) |glibc|
+        try w.print("-{t}.{f}", .{ target.abi, Query.PrintVersion{ .version = glibc } })
+    else if (target.abi.isAndroid())
+        try w.print("-{t}.{d}", .{ target.abi, target.os.version_range.linux.android })
+    else
+        try w.print("-{t}", .{target.abi});
 }
 
 pub const hurdTupleSimple = @compileError("Deprecated. Use `std.zig.target.hurdTupleSimple` instead");

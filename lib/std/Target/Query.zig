@@ -531,7 +531,7 @@ pub fn serializeCpuAlloc(query: Query, gpa: Allocator) Allocator.Error![]u8 {
     return gpa.print("{f}", .{std.fmt.alt(&query, .printCpu)});
 }
 
-/// Deprecated; use `zigTriple` instead. Will be removed in 0.18.0.
+/// Deprecated; use `printZigTriple` instead. Will be removed in 0.18.0.
 pub fn allocDescription(query: Query, allocator: Allocator) ![]u8 {
     return query.zigTriple(allocator);
 }
