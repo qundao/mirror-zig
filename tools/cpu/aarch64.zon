@@ -923,6 +923,7 @@
         .{
             .llvm_name = "apple-a10",
             .omit_deps = .{
+                "perfmon",
                 "vh",
             },
         },
@@ -1004,11 +1005,17 @@
             .extra_deps = .{
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-a12",
             .extra_deps = .{
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1021,6 +1028,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-a14",
@@ -1031,6 +1041,9 @@
                 "sel2",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1045,6 +1058,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-a16",
@@ -1057,6 +1073,9 @@
                 "specrestrict",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1071,6 +1090,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-a18",
@@ -1083,6 +1105,9 @@
                 "specrestrict",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1097,6 +1122,27 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "apple-a7",
+            .omit_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "apple-a8",
+            .omit_deps = .{
+                "perfmon",
+            },
+        },
+        .{
+            .llvm_name = "apple-a9",
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-m1",
@@ -1107,6 +1153,9 @@
                 "sel2",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1121,6 +1170,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-m3",
@@ -1133,6 +1185,9 @@
                 "specrestrict",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1147,6 +1202,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-m5",
@@ -1159,6 +1217,9 @@
                 "specrestrict",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1173,17 +1234,26 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-s4",
             .extra_deps = .{
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-s5",
             .extra_deps = .{
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1196,6 +1266,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-s7",
@@ -1207,6 +1280,9 @@
                 "tracev8_4",
                 "vh",
             },
+            .omit_deps = .{
+                "perfmon",
+            },
         },
         .{
             .llvm_name = "apple-s8",
@@ -1217,6 +1293,9 @@
                 "sel2",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
@@ -1230,6 +1309,9 @@
                 "specrestrict",
                 "tracev8_4",
                 "vh",
+            },
+            .omit_deps = .{
+                "perfmon",
             },
         },
         .{
