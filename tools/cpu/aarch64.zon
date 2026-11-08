@@ -602,6 +602,15 @@
             .desc = "Enable RW operand Context ID Register (EL2)",
         },
         .{
+            .llvm_name = "fp8",
+            .extra_deps = .{
+                "bf16",
+                "faminmax",
+                "fpmr",
+                "lut",
+            },
+        },
+        .{
             .llvm_name = "sme",
             .extra_deps = .{
                 "complxnum",
@@ -760,6 +769,15 @@
         .{
             .llvm_name = "use-experimental-zeroing-pseudos",
             .omit = true,
+        },
+    },
+    .extra_features = .{
+        .{
+            .zig_name = "fpmr",
+            .desc = "Enable Armv9.2-A Floating-point Mode Register",
+            .deps = .{
+                "neon",
+            },
         },
     },
     .model_overrides = .{

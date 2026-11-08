@@ -62,6 +62,7 @@ pub const Feature = enum {
     fp8fma,
     fp_armv8,
     fpac,
+    fpmr,
     fprcvt,
     fptoint,
     fullfp16,
@@ -530,7 +531,10 @@ pub const all_features = blk: {
         .llvm_name = "fp8",
         .description = "Enable FP8 instructions",
         .dependencies = featureSet(&[_]Feature{
-            .neon,
+            .bf16,
+            .faminmax,
+            .fpmr,
+            .lut,
         }),
     };
     result[@backingInt(Feature.fp8dot2)] = .{
@@ -563,6 +567,13 @@ pub const all_features = blk: {
         .llvm_name = "fpac",
         .description = "Enable Armv8.3-A Pointer Authentication Faulting enhancement",
         .dependencies = featureSet(&[_]Feature{}),
+    };
+    result[@backingInt(Feature.fpmr)] = .{
+        .llvm_name = null,
+        .description = "Enable Armv9.2-A Floating-point Mode Register",
+        .dependencies = featureSet(&[_]Feature{
+            .neon,
+        }),
     };
     result[@backingInt(Feature.fprcvt)] = .{
         .llvm_name = "fprcvt",
@@ -1726,7 +1737,6 @@ pub const cpu = struct {
             .ccidx,
             .cmp_bcc_fusion,
             .cssc,
-            .faminmax,
             .fgt,
             .fp16fml,
             .fp8fma,
@@ -1734,7 +1744,6 @@ pub const cpu = struct {
             .fuse_adrp_add,
             .fuse_aes,
             .fuse_literals,
-            .lut,
             .mpam,
             .mte,
             .nv,
@@ -4074,7 +4083,6 @@ pub const cpu = struct {
             .ccidx,
             .clrbhb,
             .ete,
-            .faminmax,
             .fgt,
             .fp16fml,
             .fp8dot2,
@@ -4082,7 +4090,6 @@ pub const cpu = struct {
             .fp8fma,
             .fpac,
             .ls64,
-            .lut,
             .mec,
             .mpam,
             .nv,
@@ -4571,7 +4578,6 @@ pub const cpu = struct {
             .chk,
             .cmp_bcc_fusion,
             .ete,
-            .faminmax,
             .fgt,
             .fp16fml,
             .fp8dot2,
@@ -4581,7 +4587,6 @@ pub const cpu = struct {
             .fuse_adrp_add,
             .fuse_aes,
             .ls64,
-            .lut,
             .mec,
             .mpam,
             .mte,
@@ -4649,7 +4654,6 @@ pub const cpu = struct {
             .chk,
             .cmp_bcc_fusion,
             .ete,
-            .faminmax,
             .fgt,
             .fp16fml,
             .fp8dot2,
@@ -4659,7 +4663,6 @@ pub const cpu = struct {
             .fuse_adrp_add,
             .fuse_aes,
             .ls64,
-            .lut,
             .mec,
             .mpam,
             .mte,
