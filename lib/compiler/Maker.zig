@@ -1637,12 +1637,16 @@ fn configure(graph: *Graph, options: ConfigureOptions) ConfigureError!ScannedCon
         const term = term: {
             const child_node = options.parent_progress_node.start("Run Configure Script", 0);
             defer child_node.end();
+
+            try graph.handleVerbose(null, &graph.environ_map, configure_argv);
+
             var child = process.spawn(io, .{
                 .argv = configure_argv,
                 .stdout = .{ .file = config_tmp_file },
                 .progress_node = child_node,
             }) catch |err| fatal("failed to spawn configure script {q}: {t}", .{ configure_argv[0], err });
             defer child.kill(io);
+
             break :term child.wait(io) catch |err|
                 fatal("failed to wait configure script {q}: {t}", .{ configure_argv[0], err });
         };
