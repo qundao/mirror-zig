@@ -460,8 +460,8 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
     }
 
     resolveCpuFeatures(
+        cpu.arch,
         &cpu.features,
-        cpu.arch.allFeaturesList(),
         abiRemovedFeatures(cpu.arch, detected.abi),
         query.cpu_features_add,
         query.cpu_features_sub,
@@ -477,22 +477,123 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
 }
 
 fn resolveCpuFeatures(
+    arch: Target.Cpu.Arch,
     set: *Target.Cpu.Feature.Set,
-    all_features_list: []const Target.Cpu.Feature,
     abi_sub_set: Target.Cpu.Feature.Set,
     add_set: Target.Cpu.Feature.Set,
     sub_set: Target.Cpu.Feature.Set,
 ) void {
-    var full_abi_sub_set = abi_sub_set;
-    full_abi_sub_set.populateDependents(all_features_list);
-    var full_sub_set = sub_set;
-    full_sub_set.populateDependents(all_features_list);
+    const all = arch.allFeaturesList();
 
-    set.removeFeatureSet(full_abi_sub_set);
-    set.removeFeatureSet(full_sub_set);
+    var abi_sub = abi_sub_set;
+    abi_sub.populateDependents(all);
+
+    var sub = sub_set;
+    sub.populateDependents(all);
+
+    set.removeFeatureSet(abi_sub);
+    set.removeFeatureSet(sub);
     set.addFeatureSet(add_set);
-    set.populateDependencies(all_features_list);
-    set.removeFeatureSet(full_sub_set);
+    set.populateDependencies(all);
+    set.removeFeatureSet(sub);
+
+    const blocked = sub;
+
+    // This loop isn't necessary if derivation rules are ordered perfectly, but
+    // that's far too easy to mess up and cause subtle bugs as a result. Still,
+    // please do try to keep the rules ordered sensibly so derivation completes
+    // in one iteration.
+    while (true) {
+        const old = set.*;
+
+        switch (arch.family()) {
+            .aarch64 => {
+                const when = Target.aarch64.featureSetHas;
+                const whenAll = Target.aarch64.featureSetHasAll;
+
+                derive(set, blocked, .aarch64, .ete, when(set.*, .trbe));
+                derive(set, blocked, .aarch64, .neon, when(set.*, .fp_armv8));
+                derive(set, blocked, .aarch64, .rdm, whenAll(set.*, .{ .neon, .v8_1a }));
+                derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .fp16fml, .v8_2a }));
+                derive(set, blocked, .aarch64, .complxnum, whenAll(set.*, .{ .fp_armv8, .v8_3a }));
+                derive(set, blocked, .aarch64, .jsconv, whenAll(set.*, .{ .fp_armv8, .v8_3a }));
+                derive(set, blocked, .aarch64, .dotprod, whenAll(set.*, .{ .neon, .v8_4a }));
+                derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .neon, .v9a }));
+                derive(set, blocked, .aarch64, .fp16fml, whenAll(set.*, .{ .fullfp16, .v8_4a }));
+                derive(set, blocked, .aarch64, .fptoint, whenAll(set.*, .{ .fp_armv8, .v8_5a }));
+                derive(set, blocked, .aarch64, .bf16, whenAll(set.*, .{ .fp_armv8, .v8_6a }));
+                derive(set, blocked, .aarch64, .i8mm, whenAll(set.*, .{ .neon, .v8_6a }));
+                derive(set, blocked, .aarch64, .spe_eef, whenAll(set.*, .{ .spe, .v8_7a }));
+                derive(set, blocked, .aarch64, .ete, whenAll(set.*, .{ .tracev8_4, .v9a }));
+                derive(set, blocked, .aarch64, .sve2p1, whenAll(set.*, .{ .sve2, .v9_4a }));
+                derive(set, blocked, .aarch64, .sme2p1, whenAll(set.*, .{ .sme2, .v9_4a }));
+                derive(set, blocked, .aarch64, .faminmax, whenAll(set.*, .{ .fp_armv8, .v9_5a }));
+                derive(set, blocked, .aarch64, .lut, whenAll(set.*, .{ .neon, .v9_5a }));
+                derive(set, blocked, .aarch64, .sve_bfscale, whenAll(set.*, .{ .sve_b16b16, .v9_6a }));
+                derive(set, blocked, .aarch64, .fprcvt, whenAll(set.*, .{ .fp_armv8, .v9_7a }));
+                derive(set, blocked, .aarch64, .f16f32dot, whenAll(set.*, .{ .fp16fml, .v9_7a }));
+                derive(set, blocked, .aarch64, .sve2p3, whenAll(set.*, .{ .sve2, .v9_7a }));
+                derive(set, blocked, .aarch64, .sme2p3, whenAll(set.*, .{ .sme, .v9_7a }));
+                derive(set, blocked, .aarch64, .lscp, whenAll(set.*, .{ .d128, .v9_7a }));
+                derive(set, blocked, .aarch64, .f16f32mm, whenAll(set.*, .{ .sve_f16f32mm, .v9_7a }));
+                derive(set, blocked, .aarch64, .sme2p1, whenAll(set.*, .{ .sme, .sve2p1 }));
+                derive(set, blocked, .aarch64, .sme2p2, whenAll(set.*, .{ .sme, .sve2p2 }));
+                derive(set, blocked, .aarch64, .sme2p3, whenAll(set.*, .{ .sme, .sve2p3 }));
+                derive(set, blocked, .aarch64, .sve2p1, whenAll(set.*, .{ .sme2p1, .sve2 }));
+                derive(set, blocked, .aarch64, .sve2p2, whenAll(set.*, .{ .sme2p2, .sve2 }));
+                derive(set, blocked, .aarch64, .sve2p3, whenAll(set.*, .{ .sme2p3, .sve2 }));
+                derive(set, blocked, .aarch64, .ssve_fp8fma, whenAll(set.*, .{ .fp8fma, .sme2 }));
+                derive(set, blocked, .aarch64, .ssve_fp8dot2, whenAll(set.*, .{ .fp8dot2, .sme2 }));
+                derive(set, blocked, .aarch64, .ssve_fp8dot4, whenAll(set.*, .{ .fp8dot4, .sme2 }));
+                derive(set, blocked, .aarch64, .sve_sha3, whenAll(set.*, .{ .sve, .sve_aes }));
+                derive(set, blocked, .aarch64, .sve_aes, whenAll(set.*, .{ .sve, .sve_sha3 }));
+                derive(set, blocked, .aarch64, .sha2, whenAll(set.*, .{ .aes, .rme }));
+                derive(set, blocked, .aarch64, .sha3, whenAll(set.*, .{ .aes, .rme }));
+                derive(set, blocked, .aarch64, .aes, whenAll(set.*, .{ .rme, .sha2 }));
+                derive(set, blocked, .aarch64, .sha3, whenAll(set.*, .{ .rme, .sha2 }));
+                derive(set, blocked, .aarch64, .aes, whenAll(set.*, .{ .rme, .sm4 }));
+                derive(set, blocked, .aarch64, .sha2, whenAll(set.*, .{ .rme, .sm4 }));
+                derive(set, blocked, .aarch64, .sha3, whenAll(set.*, .{ .rme, .sm4 }));
+                derive(set, blocked, .aarch64, .sve_aes, whenAll(set.*, .{ .aes, .rme, .sve }));
+                derive(set, blocked, .aarch64, .sve_aes, whenAll(set.*, .{ .rme, .sha2, .sve }));
+                derive(set, blocked, .aarch64, .sve_sha3, whenAll(set.*, .{ .aes, .rme, .sve }));
+                derive(set, blocked, .aarch64, .sve_sha3, whenAll(set.*, .{ .rme, .sha2, .sve }));
+                derive(set, blocked, .aarch64, .spe_eef, whenAll(set.*, .{ .rme, .spe }));
+                derive(set, blocked, .aarch64, .sve2_aes, whenAll(set.*, .{ .sve_aes, .sve2 }));
+                derive(set, blocked, .aarch64, .sve2_bitperm, whenAll(set.*, .{ .sve_bitperm, .sve2 }));
+                derive(set, blocked, .aarch64, .sve2_sha3, whenAll(set.*, .{ .sve_sha3, .sve2 }));
+                derive(set, blocked, .aarch64, .sve2_sm4, whenAll(set.*, .{ .sve_sm4, .sve2 }));
+                derive(set, blocked, .aarch64, .crypto, whenAll(set.*, .{ .aes, .sha2 }));
+                derive(set, blocked, .aarch64, .dotprod, whenAll(set.*, .{ .neon, .rclass }));
+                derive(set, blocked, .aarch64, .rdm, whenAll(set.*, .{ .neon, .rclass }));
+                derive(set, blocked, .aarch64, .complxnum, whenAll(set.*, .{ .fp_armv8, .rclass }));
+                derive(set, blocked, .aarch64, .jsconv, whenAll(set.*, .{ .fp_armv8, .rclass }));
+                derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .fp16fml, .rclass }));
+                derive(set, blocked, .aarch64, .fp16fml, whenAll(set.*, .{ .fullfp16, .rclass }));
+            },
+            else => {},
+        }
+
+        if (set.eql(old)) break;
+    }
+}
+
+fn derive(
+    set: *Target.Cpu.Feature.Set,
+    blocked: Target.Cpu.Feature.Set,
+    comptime family: Target.Cpu.Arch.Family,
+    feature: @field(Target, @tagName(family)).Feature,
+    condition: bool,
+) void {
+    if (!condition) return;
+
+    var add: Target.Cpu.Feature.Set = @field(Target, @tagName(family)).featureSet(&.{feature});
+    add.populateDependencies(&@field(Target, @tagName(family)).all_features);
+
+    var unblocked = add;
+    unblocked.removeFeatureSet(blocked);
+
+    if (unblocked.eql(add)) set.addFeatureSet(add);
 }
 
 fn abiRemovedFeatures(arch: Target.Cpu.Arch, abi: Target.Abi) Target.Cpu.Feature.Set {
