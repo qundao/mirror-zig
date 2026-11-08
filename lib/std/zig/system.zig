@@ -401,13 +401,6 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
         .explicit => |model| model.toCpu(query_cpu_arch),
     } orelse Target.Cpu.baseline(query_cpu_arch, os);
 
-    updateCpuFeatures(
-        &cpu.features,
-        cpu.arch.allFeaturesList(),
-        query.cpu_features_add,
-        query.cpu_features_sub,
-    );
-
     var detected = detectAbiAndDynamicLinker(io, cpu.arch, os, query) catch |err| switch (err) {
         error.Canceled => |e| return e,
         error.Unexpected => |e| return e,
@@ -467,12 +460,13 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
         }
     }
 
-    {
-        // https://github.com/llvm/llvm-project/issues/105978
-        if (cpu.arch.isArm() and detected.abi.float() == .soft) {
-            cpu.features.removeFeature(@backingInt(Target.arm.Feature.fpregs));
-        }
-    }
+    resolveCpuFeatures(
+        &cpu.features,
+        cpu.arch.allFeaturesList(),
+        abiRemovedFeatures(cpu.arch, detected.abi),
+        query.cpu_features_add,
+        query.cpu_features_sub,
+    );
 
     return .{
         .cpu = cpu,
@@ -483,16 +477,88 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
     };
 }
 
-fn updateCpuFeatures(
+fn resolveCpuFeatures(
     set: *Target.Cpu.Feature.Set,
     all_features_list: []const Target.Cpu.Feature,
+    abi_sub_set: Target.Cpu.Feature.Set,
     add_set: Target.Cpu.Feature.Set,
     sub_set: Target.Cpu.Feature.Set,
 ) void {
-    set.removeFeatureSet(sub_set);
+    var full_abi_sub_set = abi_sub_set;
+    full_abi_sub_set.populateDependents(all_features_list);
+    var full_sub_set = sub_set;
+    full_sub_set.populateDependents(all_features_list);
+
+    set.removeFeatureSet(full_abi_sub_set);
+    set.removeFeatureSet(full_sub_set);
     set.addFeatureSet(add_set);
     set.populateDependencies(all_features_list);
-    set.removeFeatureSet(sub_set);
+    set.removeFeatureSet(full_sub_set);
+}
+
+fn abiRemovedFeatures(arch: Target.Cpu.Arch, abi: Target.Abi) Target.Cpu.Feature.Set {
+    return switch (abi.float()) {
+        .soft => switch (arch.family()) {
+            .aarch64 => Target.aarch64.featureSet(&.{
+                .fp_armv8,
+            }),
+            .alpha => Target.alpha.featureSet(&.{
+                .fpu,
+            }),
+            .arm => Target.arm.featureSet(&.{
+                .fpregs,
+            }),
+            .csky => Target.csky.featureSet(&.{
+                .floate1,
+                .float7e60,
+            }),
+            .hppa => Target.hppa.featureSet(&.{
+                .fpu,
+            }),
+            .loongarch => Target.loongarch.featureSet(&.{
+                .f,
+            }),
+            .m68k => Target.m68k.featureSet(&.{
+                .isa_68881,
+            }),
+            .mips => Target.mips.featureSet(&.{
+                .fpu_s,
+            }),
+            .powerpc => Target.powerpc.featureSet(&.{
+                .fpu,
+            }),
+            .riscv => Target.riscv.featureSet(&.{
+                .f,
+            }),
+            .sh => Target.sh.featureSet(&.{
+                .fpu,
+            }),
+            .sparc => Target.sparc.featureSet(&.{
+                .fpu,
+            }),
+            .x86 => Target.x86.featureSet(&.{
+                .@"8087",
+            }),
+            else => .empty,
+        },
+        .hard32 => switch (arch.family()) {
+            .csky => Target.csky.featureSet(&.{
+                .float1e2,
+                .fpuv3_df,
+            }),
+            .loongarch => Target.loongarch.featureSet(&.{
+                .d,
+            }),
+            .mips => Target.mips.featureSet(&.{
+                .fpu_d,
+            }),
+            .riscv => Target.riscv.featureSet(&.{
+                .d,
+            }),
+            else => .empty,
+        },
+        .hard64 => .empty,
+    };
 }
 
 fn detectNativeCpuAndFeatures(io: Io, cpu_arch: Target.Cpu.Arch) ?Target.Cpu {
