@@ -597,9 +597,40 @@
             .desc = "Is application profile ('A' series)",
         },
         .{
+            .llvm_name = "cmpbr",
+            .extra_deps = .{
+                "cssc",
+            },
+        },
+        .{
             .llvm_name = "CONTEXTIDREL2",
             .zig_name = "contextidr_el2",
             .desc = "Enable RW operand Context ID Register (EL2)",
+        },
+        .{
+            .llvm_name = "f16f32mm",
+            .extra_deps = .{
+                "f16f32dot",
+            },
+        },
+        .{
+            .llvm_name = "f8f16mm",
+            .extra_deps = .{
+                "f8f32mm",
+                "fp8dot2",
+            },
+        },
+        .{
+            .llvm_name = "f8f32mm",
+            .extra_deps = .{
+                "fp8dot4",
+            },
+        },
+        .{
+            .llvm_name = "fp16fml",
+            .omit_deps = .{
+                "fullfp16",
+            },
         },
         .{
             .llvm_name = "fp8",
@@ -611,10 +642,65 @@
             },
         },
         .{
+            .llvm_name = "fp8dot2",
+            .extra_deps = .{
+                "fp8dot4",
+            },
+        },
+        .{
+            .llvm_name = "fp8dot4",
+            .extra_deps = .{
+                "fp8fma",
+            },
+        },
+        .{
+            .llvm_name = "fpac",
+            .extra_deps = .{
+                "pauth",
+            },
+        },
+        .{
+            .llvm_name = "fullfp16",
+            .extra_deps = .{
+                "neon",
+            },
+        },
+        .{
+            .llvm_name = "pauth-lr",
+            .extra_deps = .{
+                "fpac",
+            },
+        },
+        .{
+            .llvm_name = "poe2",
+            .extra_deps = .{
+                "btie",
+            },
+        },
+        .{
+            .llvm_name = "v8r",
+            .zig_name = "rclass",
+            .desc = "Is realtime profile ('R' series)",
+            .omit_deps = .{
+                "sel2",
+                "specrestrict",
+                "tracev8_4",
+            },
+            .extra_deps = .{
+                "lse2",
+            },
+        },
+        .{
             .llvm_name = "sme",
             .extra_deps = .{
                 "complxnum",
                 "fp16fml",
+            },
+        },
+        .{
+            .llvm_name = "sme-f8f16",
+            .extra_deps = .{
+                "sme_f8f32",
             },
         },
         .{
@@ -638,16 +724,15 @@
             },
         },
         .{
-            .llvm_name = "v8r",
-            .zig_name = "rclass",
-            .desc = "Is realtime profile ('R' series)",
-            .omit_deps = .{
-                "sel2",
-                "specrestrict",
-                "tracev8_4",
-            },
+            .llvm_name = "sme2p3",
             .extra_deps = .{
-                "lse2",
+                "sme_lutv2",
+            },
+        },
+        .{
+            .llvm_name = "spe-eef",
+            .extra_deps = .{
+                "spe",
             },
         },
         .{
@@ -669,8 +754,26 @@
             },
         },
         .{
+            .llvm_name = "ssve-fp8dot2",
+            .extra_deps = .{
+                "ssve_fp8dot4",
+            },
+        },
+        .{
+            .llvm_name = "ssve-fp8dot4",
+            .extra_deps = .{
+                "ssve_fp8fma",
+            },
+        },
+        .{
             .llvm_name = "strict-align",
             .zig_name = "no_unaligned_access",
+        },
+        .{
+            .llvm_name = "sve-aes",
+            .extra_deps = .{
+                "sha3",
+            },
         },
         .{
             .llvm_name = "sve-aes2",
@@ -685,6 +788,12 @@
             },
         },
         .{
+            .llvm_name = "sve-b16mm",
+            .extra_deps = .{
+                "sve_bfscale",
+            },
+        },
+        .{
             .llvm_name = "sve-bfscale",
             .extra_deps = .{
                 "sve_b16b16",
@@ -694,6 +803,36 @@
             .llvm_name = "sve-bitperm",
             .extra_deps = .{
                 "fullfp16",
+            },
+        },
+        .{
+            .llvm_name = "sve-f16f32mm",
+            .extra_deps = .{
+                "sve2p1",
+            },
+        },
+        .{
+            .llvm_name = "sve-sha3",
+            .extra_deps = .{
+                "aes",
+            },
+        },
+        .{
+            .llvm_name = "tev",
+            .extra_deps = .{
+                "poe2",
+            },
+        },
+        .{
+            .llvm_name = "trbe",
+            .extra_deps = .{
+                "tracev8_4",
+            },
+        },
+        .{
+            .llvm_name = "vh",
+            .extra_deps = .{
+                "lse",
             },
         },
         .{
@@ -781,6 +920,12 @@
         },
     },
     .model_overrides = .{
+        .{
+            .llvm_name = "apple-a10",
+            .omit_deps = .{
+                "vh",
+            },
+        },
         // Who thought this alias was a good idea? Upgrade your compiler and suddenly your
         // programs SIGILL because this changed meaning. Brilliant.
         .{

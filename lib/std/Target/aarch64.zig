@@ -362,7 +362,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.cmpbr)] = .{
         .llvm_name = "cmpbr",
         .description = "Enable Armv9.6-A base compare and branch instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .cssc,
+        }),
     };
     result[@backingInt(Feature.complxnum)] = .{
         .llvm_name = "complxnum",
@@ -445,15 +447,13 @@ pub const all_features = blk: {
         .description = "Enable Armv9.7-A Advanced SIMD half-precision dot product accumulate to single-precision",
         .dependencies = featureSet(&[_]Feature{
             .fullfp16,
-            .neon,
         }),
     };
     result[@backingInt(Feature.f16f32mm)] = .{
         .llvm_name = "f16f32mm",
         .description = "Enable Armv9.7-A Advanced SIMD half-precision matrix multiply-accumulate to single-precision",
         .dependencies = featureSet(&[_]Feature{
-            .fullfp16,
-            .neon,
+            .f16f32dot,
         }),
     };
     result[@backingInt(Feature.f16mm)] = .{
@@ -461,7 +461,6 @@ pub const all_features = blk: {
         .description = "Enable Armv9.7-A non-widening half-precision matrix multiply-accumulate",
         .dependencies = featureSet(&[_]Feature{
             .fullfp16,
-            .neon,
         }),
     };
     result[@backingInt(Feature.f32mm)] = .{
@@ -482,14 +481,15 @@ pub const all_features = blk: {
         .llvm_name = "f8f16mm",
         .description = "Enable Armv9.6-A FP8 to Half-Precision Matrix Multiplication",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
+            .f8f32mm,
+            .fp8dot2,
         }),
     };
     result[@backingInt(Feature.f8f32mm)] = .{
         .llvm_name = "f8f32mm",
         .description = "Enable Armv9.6-A FP8 to Single-Precision Matrix Multiplication",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
+            .fp8dot4,
         }),
     };
     result[@backingInt(Feature.faminmax)] = .{
@@ -523,7 +523,6 @@ pub const all_features = blk: {
         .llvm_name = "fp16fml",
         .description = "Enable FP16 FML instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fullfp16,
             .neon,
         }),
     };
@@ -541,14 +540,14 @@ pub const all_features = blk: {
         .llvm_name = "fp8dot2",
         .description = "Enable FP8 2-way dot instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
+            .fp8dot4,
         }),
     };
     result[@backingInt(Feature.fp8dot4)] = .{
         .llvm_name = "fp8dot4",
         .description = "Enable FP8 4-way dot instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
+            .fp8fma,
         }),
     };
     result[@backingInt(Feature.fp8fma)] = .{
@@ -566,7 +565,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.fpac)] = .{
         .llvm_name = "fpac",
         .description = "Enable Armv8.3-A Pointer Authentication Faulting enhancement",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .pauth,
+        }),
     };
     result[@backingInt(Feature.fpmr)] = .{
         .llvm_name = null,
@@ -593,7 +594,7 @@ pub const all_features = blk: {
         .llvm_name = "fullfp16",
         .description = "Enable half-precision floating-point data processing",
         .dependencies = featureSet(&[_]Feature{
-            .fp_armv8,
+            .neon,
         }),
     };
     result[@backingInt(Feature.fuse_address)] = .{
@@ -844,7 +845,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.pauth_lr)] = .{
         .llvm_name = "pauth-lr",
         .description = "Enable Armv9.5-A PAC enhancements",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .fpac,
+        }),
     };
     result[@backingInt(Feature.perfmon)] = .{
         .llvm_name = "perfmon",
@@ -854,7 +857,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.poe2)] = .{
         .llvm_name = "poe2",
         .description = "Enable Stage 1 Permission Overlays Extension 2 instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .btie,
+        }),
     };
     result[@backingInt(Feature.pops)] = .{
         .llvm_name = "pops",
@@ -996,6 +1001,7 @@ pub const all_features = blk: {
             .bf16,
             .complxnum,
             .fp16fml,
+            .fullfp16,
         }),
     };
     result[@backingInt(Feature.sme2)] = .{
@@ -1026,6 +1032,7 @@ pub const all_features = blk: {
         .description = "Enable Armv9.7-A Scalable Matrix Extension 2.3 instructions",
         .dependencies = featureSet(&[_]Feature{
             .sme2p2,
+            .sme_lutv2,
         }),
     };
     result[@backingInt(Feature.sme_b16b16)] = .{
@@ -1054,8 +1061,7 @@ pub const all_features = blk: {
         .llvm_name = "sme-f8f16",
         .description = "Enable Scalable Matrix Extension (SME) F8F16 instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
-            .sme2,
+            .sme_f8f32,
         }),
     };
     result[@backingInt(Feature.sme_f8f32)] = .{
@@ -1110,7 +1116,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.spe_eef)] = .{
         .llvm_name = "spe-eef",
         .description = "Enable extra register in the Statistical Profiling Extension",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .spe,
+        }),
     };
     result[@backingInt(Feature.specres2)] = .{
         .llvm_name = "specres2",
@@ -1156,16 +1164,14 @@ pub const all_features = blk: {
         .llvm_name = "ssve-fp8dot2",
         .description = "Enable SVE2 FP8 2-way dot product instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
-            .sme2,
+            .ssve_fp8dot4,
         }),
     };
     result[@backingInt(Feature.ssve_fp8dot4)] = .{
         .llvm_name = "ssve-fp8dot4",
         .description = "Enable SVE2 FP8 4-way dot product instructions",
         .dependencies = featureSet(&[_]Feature{
-            .fp8,
-            .sme2,
+            .ssve_fp8fma,
         }),
     };
     result[@backingInt(Feature.ssve_fp8fma)] = .{
@@ -1253,6 +1259,7 @@ pub const all_features = blk: {
         .description = "Enable SVE AES and quadword SVE polynomial multiply instructions",
         .dependencies = featureSet(&[_]Feature{
             .aes,
+            .sha3,
         }),
     };
     result[@backingInt(Feature.sve_aes2)] = .{
@@ -1274,6 +1281,7 @@ pub const all_features = blk: {
         .description = "Enable Armv9.7-A SVE non-widening BFloat16 matrix multiply-accumulate",
         .dependencies = featureSet(&[_]Feature{
             .sve,
+            .sve_bfscale,
         }),
     };
     result[@backingInt(Feature.sve_bfscale)] = .{
@@ -1294,13 +1302,14 @@ pub const all_features = blk: {
         .llvm_name = "sve-f16f32mm",
         .description = "Enable Armv9.6-A FP16 to FP32 Matrix Multiply instructions",
         .dependencies = featureSet(&[_]Feature{
-            .sve,
+            .sve2p1,
         }),
     };
     result[@backingInt(Feature.sve_sha3)] = .{
         .llvm_name = "sve-sha3",
         .description = "Enable SVE SHA3 instructions",
         .dependencies = featureSet(&[_]Feature{
+            .aes,
             .sha3,
         }),
     };
@@ -1314,7 +1323,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.tev)] = .{
         .llvm_name = "tev",
         .description = "Enable TIndex Exception-like Vector instructions",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .poe2,
+        }),
     };
     result[@backingInt(Feature.the)] = .{
         .llvm_name = "the",
@@ -1344,7 +1355,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.trbe)] = .{
         .llvm_name = "trbe",
         .description = "Enable Trace Buffer Extension",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .tracev8_4,
+        }),
     };
     result[@backingInt(Feature.uaops)] = .{
         .llvm_name = "uaops",
@@ -1521,6 +1534,7 @@ pub const all_features = blk: {
         .description = "Enable Armv8.1-A Virtual Host extension",
         .dependencies = featureSet(&[_]Feature{
             .contextidr_el2,
+            .lse,
         }),
     };
     result[@backingInt(Feature.wfxt)] = .{
@@ -1781,7 +1795,6 @@ pub const cpu = struct {
             .perfmon,
             .rdm,
             .sha2,
-            .vh,
             .zcm_fpr128,
             .zcm_gpr64,
             .zcz_fpr128,
@@ -1851,6 +1864,7 @@ pub const cpu = struct {
             .complxnum,
             .dotprod,
             .fp16fml,
+            .fullfp16,
             .fuse_aes,
             .fuse_crypto_eor,
             .jsconv,
@@ -1889,6 +1903,7 @@ pub const cpu = struct {
             .fast_ld1_single,
             .fp16fml,
             .fptoint,
+            .fullfp16,
             .fuse_address,
             .fuse_aes,
             .fuse_arith_logic,
@@ -1934,6 +1949,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -1979,6 +1995,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2025,6 +2042,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2234,6 +2252,7 @@ pub const cpu = struct {
             .fast_ld1_single,
             .fp16fml,
             .fptoint,
+            .fullfp16,
             .fuse_address,
             .fuse_aes,
             .fuse_arith_logic,
@@ -2279,6 +2298,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2324,6 +2344,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2466,6 +2487,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2559,6 +2581,7 @@ pub const cpu = struct {
             .complxnum,
             .dotprod,
             .fp16fml,
+            .fullfp16,
             .fuse_aes,
             .fuse_crypto_eor,
             .jsconv,
@@ -2591,6 +2614,7 @@ pub const cpu = struct {
             .complxnum,
             .dotprod,
             .fp16fml,
+            .fullfp16,
             .fuse_aes,
             .fuse_crypto_eor,
             .jsconv,
@@ -2623,6 +2647,7 @@ pub const cpu = struct {
             .complxnum,
             .dotprod,
             .fp16fml,
+            .fullfp16,
             .fuse_aes,
             .fuse_crypto_eor,
             .jsconv,
@@ -2660,6 +2685,7 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -2722,13 +2748,11 @@ pub const cpu = struct {
             .rdm,
             .rme,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -2914,7 +2938,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .use_wzr_to_vec_move,
             .v9_3a,
             .vh,
@@ -2949,14 +2972,12 @@ pub const cpu = struct {
             .rdm,
             .sel2,
             .sme2,
-            .spe,
             .spe_eef,
             .specres2,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_3a,
             .vh,
         }),
@@ -2990,14 +3011,12 @@ pub const cpu = struct {
             .rdm,
             .sel2,
             .sme2,
-            .spe,
             .spe_eef,
             .specres2,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_3a,
             .vh,
         }),
@@ -3031,14 +3050,12 @@ pub const cpu = struct {
             .rdm,
             .sel2,
             .sme2,
-            .spe,
             .spe_eef,
             .specres2,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_3a,
             .vh,
         }),
@@ -3086,7 +3103,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -3115,7 +3131,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .use_wzr_to_vec_move,
             .v9_2a,
             .vh,
@@ -3169,7 +3184,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .use_wzr_to_vec_move,
             .v9a,
             .vh,
@@ -3202,7 +3216,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .use_wzr_to_vec_move,
             .v9_2a,
             .vh,
@@ -3235,7 +3248,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .use_wzr_to_vec_move,
             .v9_2a,
             .vh,
@@ -3365,7 +3377,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -3402,7 +3413,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -3451,13 +3461,11 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -3490,13 +3498,11 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -3529,13 +3535,11 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -3724,6 +3728,7 @@ pub const cpu = struct {
             .dotprod,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .jsconv,
             .perfmon,
             .predres,
@@ -3745,6 +3750,7 @@ pub const cpu = struct {
             .dotprod,
             .fp16fml,
             .fpac,
+            .fullfp16,
             .jsconv,
             .perfmon,
             .predres,
@@ -3835,7 +3841,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -3870,7 +3875,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -3903,13 +3907,11 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -3942,13 +3944,11 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4086,8 +4086,6 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fp8dot2,
-            .fp8dot4,
-            .fp8fma,
             .fpac,
             .ls64,
             .mec,
@@ -4105,7 +4103,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v9_3a,
             .vh,
         }),
@@ -4138,7 +4135,6 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
@@ -4147,7 +4143,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4188,7 +4183,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -4224,7 +4218,6 @@ pub const cpu = struct {
             .rdm,
             .rme,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
@@ -4233,7 +4226,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v8_7a,
             .vh,
         }),
@@ -4359,7 +4351,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -4392,13 +4383,11 @@ pub const cpu = struct {
             .rand,
             .rdm,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4475,7 +4464,6 @@ pub const cpu = struct {
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9a,
             .vh,
         }),
@@ -4512,13 +4500,11 @@ pub const cpu = struct {
             .rdm,
             .rme,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4556,13 +4542,11 @@ pub const cpu = struct {
             .rdm,
             .rme,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
             .sve2,
             .sve_bitperm,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4581,8 +4565,6 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fp8dot2,
-            .fp8dot4,
-            .fp8fma,
             .fpac,
             .fuse_adrp_add,
             .fuse_aes,
@@ -4595,7 +4577,6 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rand,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
@@ -4604,7 +4585,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4621,6 +4601,7 @@ pub const cpu = struct {
             .dotprod,
             .fgt,
             .fp16fml,
+            .fullfp16,
             .fuse_address,
             .fuse_adrp_add,
             .fuse_aes,
@@ -4657,8 +4638,6 @@ pub const cpu = struct {
             .fgt,
             .fp16fml,
             .fp8dot2,
-            .fp8dot4,
-            .fp8fma,
             .fpac,
             .fuse_adrp_add,
             .fuse_aes,
@@ -4671,7 +4650,6 @@ pub const cpu = struct {
             .predictable_select_expensive,
             .rand,
             .sel2,
-            .spe,
             .spe_eef,
             .specrestrict,
             .ssbs,
@@ -4680,7 +4658,6 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .tracev8_4,
             .v9_2a,
             .vh,
         }),
@@ -4797,6 +4774,7 @@ pub const cpu = struct {
             .complxnum,
             .dotprod,
             .fp16fml,
+            .fullfp16,
             .fuse_aes,
             .jsconv,
             .perfmon,
