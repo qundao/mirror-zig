@@ -118,6 +118,8 @@ pub const OsVersion = union(enum) {
 
 pub const SemanticVersion = std.SemanticVersion;
 
+/// Deprecated; to be removed in 0.19.0. If you need both `Target` and `Query`,
+/// keep both around instead of using this function.
 pub fn fromTarget(target: *const Target) Query {
     var result: Query = .{
         .cpu_arch = target.cpu.arch,
