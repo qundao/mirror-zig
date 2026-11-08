@@ -1623,7 +1623,7 @@ pub const Dependency = struct {
             }
         }
         return found orelse {
-            const graph = d.package.install_tls.owner.graph;
+            const graph = d.package.install_tls.step.owner.graph;
             if (graph.unlazy_deps.count() != 0) {
                 d.package.serializeConfigurationExiting();
             }
