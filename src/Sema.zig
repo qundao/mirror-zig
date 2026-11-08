@@ -2565,14 +2565,15 @@ fn failWithInvalidFieldAccess(
 fn typeSupportsFieldAccess(zcu: *const Zcu, ty: Type, field_name: InternPool.NullTerminatedString) bool {
     const ip = &zcu.intern_pool;
     switch (ty.zigTypeTag(zcu)) {
-        .array => return field_name.eqlSlice("len", ip),
+        .array, .vector => return field_name.eqlSlice("len", ip),
         .pointer => {
             const ptr_info = ty.ptrInfo(zcu);
             if (ptr_info.flags.size == .slice) {
                 return field_name.eqlSlice("ptr", ip) or field_name.eqlSlice("len", ip);
-            } else if (Type.fromInterned(ptr_info.child).zigTypeTag(zcu) == .array) {
-                return field_name.eqlSlice("len", ip);
-            } else return false;
+            } else switch (Type.fromInterned(ptr_info.child).zigTypeTag(zcu)) {
+                .array, .vector => return field_name.eqlSlice("len", ip),
+                else => return false,
+            }
         },
         .type, .@"struct", .@"union" => return true,
         else => return false,
@@ -9671,7 +9672,8 @@ fn zirElemVal(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air
     const extra = sema.code.extraData(Zir.Inst.Bin, inst_data.payload_index).data;
     const array = sema.resolveInst(extra.lhs);
     const elem_index = sema.resolveInst(extra.rhs);
-    return sema.elemVal(block, src, array, elem_index, src, false);
+    const array_src = src;
+    return sema.elemVal(block, src, array, array_src, elem_index, src, false);
 }
 
 fn zirElemPtrLoad(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -9684,7 +9686,8 @@ fn zirElemPtrLoad(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError
     if (try sema.resolveDefinedValue(block, src, array_ptr)) |array_ptr_val| {
         if (try sema.maybeDerefPtr(block, src, array_ptr_val)) |array_val| {
             const array: Air.Inst.Ref = .fromValue(array_val);
-            return elemVal(sema, block, src, array, uncoerced_elem_index, elem_index_src, true);
+            const array_src = src;
+            return elemVal(sema, block, src, array, array_src, uncoerced_elem_index, elem_index_src, true);
         }
     }
     const elem_index = try sema.coerce(block, .usize, uncoerced_elem_index, elem_index_src);
@@ -9696,7 +9699,7 @@ fn zirElemValImm(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!
     const inst_data = sema.code.instructions.items(.data)[@backingInt(inst)].elem_val_imm;
     const array = sema.resolveInst(inst_data.operand);
     const elem_index = try sema.pt.intRef(.usize, inst_data.idx);
-    return sema.elemVal(block, LazySrcLoc.unneeded, array, elem_index, LazySrcLoc.unneeded, false);
+    return sema.elemVal(block, LazySrcLoc.unneeded, array, LazySrcLoc.unneeded, elem_index, LazySrcLoc.unneeded, false);
 }
 
 fn zirElemPtr(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -12835,7 +12838,7 @@ fn zirHasField(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
             .enum_type => {
                 break :hf ip.loadEnumType(ty.toIntern()).nameIndex(ip, field_name) != null;
             },
-            .array_type => break :hf field_name.eqlSlice("len", ip),
+            .array_type, .vector_type => break :hf field_name.eqlSlice("len", ip),
             else => {},
         }
         return sema.fail(block, ty_src, "type '{f}' does not support '@hasField'", .{
@@ -13716,7 +13719,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = elem_i,
             } });
-            const init = try sema.elemVal(block, operand_src, lhs, elem_index, src, true);
+            const init = try sema.elemVal(block, operand_src, lhs, lhs_src, elem_index, src, true);
             try sema.storePtr2(block, src, elem_ptr, src, init, operand_src, .store);
         }
         while (elem_i < result_len) : (elem_i += 1) {
@@ -13728,7 +13731,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = @intCast(rhs_elem_i),
             } });
-            const init = try sema.elemVal(block, operand_src, rhs, rhs_index, src, true);
+            const init = try sema.elemVal(block, operand_src, rhs, rhs_src, rhs_index, src, true);
             try sema.storePtr2(block, src, elem_ptr, src, init, operand_src, .store);
         }
         if (res_sent_val) |sent_val| {
@@ -13750,7 +13753,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = elem_i,
             } });
-            const init = try sema.elemVal(block, operand_src, lhs, index, src, true);
+            const init = try sema.elemVal(block, operand_src, lhs, lhs_src, index, src, true);
             element_refs[elem_i] = try sema.coerce(block, resolved_elem_ty, init, operand_src);
         }
         while (elem_i < result_len) : (elem_i += 1) {
@@ -13760,7 +13763,7 @@ fn zirArrayCat(sema: *Sema, block: *Block, inst: Zir.Inst.Index) CompileError!Ai
                 .array_cat_offset = inst_data.src_node,
                 .elem_index = @intCast(rhs_elem_i),
             } });
-            const init = try sema.elemVal(block, operand_src, rhs, index, src, true);
+            const init = try sema.elemVal(block, operand_src, rhs, rhs_src, index, src, true);
             element_refs[elem_i] = try sema.coerce(block, resolved_elem_ty, init, operand_src);
         }
     }
@@ -26287,6 +26290,18 @@ fn fieldVal(
         object_ty;
 
     switch (inner_ty.zigTypeTag(zcu)) {
+        .vector => {
+            if (field_name.eqlSlice("len", ip)) {
+                return Air.internedToRef((try pt.intValue(.usize, inner_ty.vectorLen(zcu))).toIntern());
+            } else {
+                return sema.fail(
+                    block,
+                    field_name_src,
+                    "no member named {qf} in {qf}",
+                    .{ field_name.fmt(ip), object_ty.fmt(zcu) },
+                );
+            }
+        },
         .array => {
             if (field_name.eqlSlice("len", ip)) {
                 return Air.internedToRef((try pt.intValue(.usize, inner_ty.arrayLen(zcu))).toIntern());
@@ -26621,6 +26636,19 @@ fn fieldPtr(
                     block,
                     field_name_src,
                     "no member named '{f}' in '{f}'",
+                    .{ field_name.fmt(ip), object_ty.fmt(zcu) },
+                );
+            }
+        },
+        .vector => {
+            if (field_name.eqlSlice("len", ip)) {
+                const int_val = try pt.intValue(.usize, inner_ty.vectorLen(zcu));
+                return uavRef(sema, int_val);
+            } else {
+                return sema.fail(
+                    block,
+                    field_name_src,
+                    "no member named {qf} in {qf}",
                     .{ field_name.fmt(ip), object_ty.fmt(zcu) },
                 );
             }
@@ -27451,11 +27479,11 @@ fn elemVal(
     block: *Block,
     src: LazySrcLoc,
     indexable: Air.Inst.Ref,
+    indexable_src: LazySrcLoc,
     elem_index_uncasted: Air.Inst.Ref,
     elem_index_src: LazySrcLoc,
     oob_safety: bool,
 ) CompileError!Air.Inst.Ref {
-    const indexable_src = src; // TODO better source location
     const indexable_ty = sema.typeOf(indexable);
     const pt = sema.pt;
     const zcu = pt.zcu;
@@ -27517,7 +27545,7 @@ fn elemVal(
         .array => return sema.elemValArray(block, src, indexable_src, indexable, elem_index_src, elem_index, oob_safety),
         .vector => {
             // TODO: If the index is a vector, the result should be a vector.
-            return sema.elemValArray(block, src, indexable_src, indexable, elem_index_src, elem_index, oob_safety);
+            return sema.elemValVector(block, indexable_src, indexable, elem_index_src, elem_index);
         },
         .@"struct" => {
             // Tuple field access.
@@ -27695,6 +27723,47 @@ fn elemValArray(
     return block.addBinOp(.array_elem_val, array, elem_index);
 }
 
+fn elemValVector(
+    sema: *Sema,
+    block: *Block,
+    vector_src: LazySrcLoc,
+    vector: Air.Inst.Ref,
+    elem_index_src: LazySrcLoc,
+    elem_index: Air.Inst.Ref,
+) CompileError!Air.Inst.Ref {
+    const pt = sema.pt;
+    const zcu = pt.zcu;
+    const vector_ty = sema.typeOf(vector);
+    const vector_len = vector_ty.vectorLen(zcu);
+    const elem_ty = vector_ty.childType(zcu);
+
+    if (vector_len == 0) {
+        return sema.fail(block, vector_src, "index into empty vector", .{});
+    }
+
+    const maybe_undef_vector_val = sema.resolveValue(vector);
+    const index_val = try sema.resolveConstValue(block, elem_index_src, elem_index, .{
+        .simple = .vector_index,
+    });
+
+    const index: usize = @intCast(index_val.toUnsignedInt(zcu));
+    if (index >= vector_len) {
+        return sema.fail(block, elem_index_src, "index {d} outside vector of length {d}", .{ index, vector_len });
+    }
+
+    if (maybe_undef_vector_val) |vector_val| {
+        if (vector_val.isUndef(zcu)) {
+            return pt.undefRef(elem_ty);
+        }
+        return .fromValue(try vector_val.elemValue(pt, index));
+    }
+
+    try sema.validateRuntimeElemAccess(block, elem_index_src, elem_ty, vector_src);
+    try sema.validateRuntimeValue(block, vector_src, vector);
+
+    return block.addBinOp(.array_elem_val, vector, elem_index);
+}
+
 fn elemPtrVector(
     sema: *Sema,
     block: *Block,
@@ -27712,14 +27781,13 @@ fn elemPtrVector(
     const vector_len = vector_ty.vectorLen(zcu);
 
     if (vector_len == 0) {
-        return sema.fail(block, vector_ptr_src, "cannot index into empty vector", .{});
+        return sema.fail(block, vector_ptr_src, "index into empty vector", .{});
     }
 
     const maybe_vector_ptr_val = sema.resolveValue(vector_ptr);
-    // The index must not be undefined since it can be out of bounds.
-    const index_val = try sema.resolveDefinedValue(block, elem_index_src, elem_index) orelse {
-        return sema.fail(block, elem_index_src, "vector index not comptime known", .{});
-    };
+    const index_val = try sema.resolveConstValue(block, elem_index_src, elem_index, .{
+        .simple = .vector_index,
+    });
     const index = index_val.toUnsignedInt(zcu);
     if (index >= vector_len) {
         return sema.fail(block, elem_index_src, "index {d} outside vector of length {d}", .{ index, vector_len });
@@ -30651,7 +30719,7 @@ fn coerceArrayLike(
         const index_ref = Air.internedToRef((try pt.intValue(.usize, i)).toIntern());
         const src = inst_src; // TODO better source location
         const elem_src = inst_src; // TODO better source location
-        const elem_ref = try sema.elemValArray(block, src, inst_src, inst, elem_src, index_ref, true);
+        const elem_ref = try sema.elemVal(block, src, inst, inst_src, index_ref, elem_src, true);
         const coerced = try sema.coerce(block, dest_elem_ty, elem_ref, elem_src);
         ref.* = coerced;
         if (runtime_src == null) {
