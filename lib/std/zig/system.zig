@@ -222,25 +222,24 @@ pub fn getExternalExecutor(io: Io, candidate: *const std.Target, options: GetExt
     }
 }
 
-pub const DetectError = error{
+pub const ResolveTargetError = error{
     FileSystem,
     SystemResources,
     SymLinkLoop,
     ProcessFdQuotaExceeded,
     SystemFdQuotaExceeded,
     DeviceBusy,
-    OSVersionDetectionFail,
-    Unexpected,
+    OsVersionQueryFailed,
     /// Android-only. Querying API level through `getprop` failed.
     ApiLevelQueryFailed,
-} || Io.Cancelable;
+} || Io.Cancelable || Io.UnexpectedError;
 
 /// Given a `Target.Query`, which specifies in detail which parts of the
 /// target should be detected natively, which should be standard or default,
 /// and which are provided explicitly, this function resolves the native
 /// components by detecting the native system, and then resolves
 /// standard/default parts relative to that.
-pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
+pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target {
     // Until https://github.com/ziglang/zig/issues/4592 is implemented (support detecting the
     // native CPU architecture as being different than the current target), we use this:
     const query_cpu_arch = query.cpu_arch orelse builtin.cpu.arch;
@@ -286,7 +285,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
                     .PERM => unreachable, // only when setting values,
                     .NOMEM => unreachable, // memory already on the stack
                     .NOENT => unreachable, // constant, known good value
-                    else => return error.OSVersionDetectionFail,
+                    else => return error.OsVersionQueryFailed,
                 }
 
                 switch (builtin.target.os.tag) {
@@ -344,7 +343,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
                     error.PermissionDenied => unreachable, // only when setting values,
                     error.SystemResources => unreachable, // memory already on the stack
                     error.UnknownName => unreachable, // constant, known good value
-                    error.Unexpected => return error.OSVersionDetectionFail,
+                    error.Unexpected => return error.OsVersionQueryFailed,
                 };
 
                 if (Target.Query.parseVersion(buf[0 .. len - 1 :0])) |ver| {
@@ -353,7 +352,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) DetectError!Target {
                     os.version_range.semver.min = ver;
                     os.version_range.semver.max = ver;
                 } else |_| {
-                    return error.OSVersionDetectionFail;
+                    return error.OsVersionQueryFailed;
                 }
             },
             else => {
@@ -584,7 +583,7 @@ fn detectNativeCpuAndFeatures(io: Io, cpu_arch: Target.Cpu.Arch) ?Target.Cpu {
     return null;
 }
 
-pub const AbiAndDynamicLinkerFromFileError = error{
+const AbiAndDynamicLinkerFromFileError = error{
     Canceled,
     AccessDenied,
     Unexpected,
