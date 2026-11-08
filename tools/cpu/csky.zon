@@ -6,51 +6,6 @@
     },
     .feature_overrides = .{
         .{
-            .llvm_name = "ccrt",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "constpool",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "hard-float",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "hard-float-abi",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "hard-tp",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "multiple_stld",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "nvic",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "pushpop",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "smart",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "soft-tp",
-            .omit = true,
-        },
-        .{
-            .llvm_name = "stack-size",
-            .omit = true,
-        },
-
-        .{
             .llvm_name = "ck801",
             .flatten = true,
         },
@@ -93,6 +48,51 @@
         .{
             .llvm_name = "ck860v",
             .flatten = true,
+        },
+
+        .{
+            .llvm_name = "ccrt",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "constpool",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "hard-float",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "hard-float-abi",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "hard-tp",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "multiple_stld",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "nvic",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "pushpop",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "smart",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "soft-tp",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "stack-size",
+            .omit = true,
         },
 
         .{
