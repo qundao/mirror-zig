@@ -125,7 +125,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.dsp)] = .{
         .llvm_name = "dsp",
         .description = "Mips DSP ASE",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .mips32r2,
+        }),
     };
     result[@backingInt(Feature.dspr2)] = .{
         .llvm_name = "dspr2",
@@ -139,12 +141,15 @@ pub const all_features = blk: {
         .description = "Mips DSP-R3 ASE",
         .dependencies = featureSet(&[_]Feature{
             .dspr2,
+            .mips32r6,
         }),
     };
     result[@backingInt(Feature.eva)] = .{
         .llvm_name = "eva",
         .description = "Mips EVA ASE",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .mips32r3,
+        }),
     };
     result[@backingInt(Feature.fix_r5900)] = .{
         .llvm_name = "fix-r5900",
@@ -166,7 +171,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.ginv)] = .{
         .llvm_name = "ginv",
         .description = "Mips Global Invalidate ASE",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .mips32r6,
+        }),
     };
     result[@backingInt(Feature.interaptiv_mr2)] = .{
         .llvm_name = null,
@@ -344,7 +351,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.mt)] = .{
         .llvm_name = "mt",
         .description = "Mips MT ASE",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .mips32r2,
+        }),
     };
     result[@backingInt(Feature.mxa)] = .{
         .llvm_name = null,
@@ -498,7 +507,6 @@ pub const cpu = struct {
         .name = "1004kc",
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
-            .mips32r2,
             .mt,
         }),
     };
@@ -507,7 +515,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
             .fpu_d,
-            .mips32r2,
             .mt,
         }),
     };
@@ -516,7 +523,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
             .dspr2,
-            .mips32r2,
         }),
     };
     pub const @"1074kf": CpuModel = .{
@@ -525,7 +531,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .dspr2,
             .fpu_d,
-            .mips32r2,
         }),
     };
     pub const @"20kc": CpuModel = .{
@@ -548,7 +553,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
             .dsp,
-            .mips32r2,
         }),
     };
     pub const @"24kef": CpuModel = .{
@@ -557,7 +561,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .dsp,
             .fpu_d,
-            .mips32r2,
         }),
     };
     pub const @"24kf": CpuModel = .{
@@ -572,7 +575,6 @@ pub const cpu = struct {
         .name = "34kc",
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
-            .mips32r2,
             .mt,
         }),
     };
@@ -581,7 +583,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
             .fpu_d,
-            .mips32r2,
             .mt,
         }),
     };
@@ -634,7 +635,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r2",
         .features = featureSet(&[_]Feature{
             .dspr2,
-            .mips32r2,
         }),
     };
     pub const @"74kf": CpuModel = .{
@@ -643,7 +643,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .dspr2,
             .fpu_d,
-            .mips32r2,
         }),
     };
     pub const allegrex: CpuModel = .{
@@ -734,7 +733,6 @@ pub const cpu = struct {
         .llvm_name = "mips32r3",
         .features = featureSet(&[_]Feature{
             .eva,
-            .mips32r3,
             .mt,
         }),
     };
@@ -1020,7 +1018,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .dspr2,
             .eva,
-            .mips32r3,
         }),
     };
     pub const r10000: CpuModel = .{
