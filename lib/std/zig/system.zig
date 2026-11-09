@@ -571,6 +571,12 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .fp16fml, .rclass }));
                 derive(set, blocked, .aarch64, .fp16fml, whenAll(set.*, .{ .fullfp16, .rclass }));
             },
+            .sh => {
+                const whenAll = Target.sh.featureSetHasAll;
+
+                derive(set, blocked, .sh, .fsca, whenAll(set.*, .{ .fpu, .sh4 }));
+                derive(set, blocked, .sh, .fsrra, whenAll(set.*, .{ .fpu, .sh4 }));
+            },
             else => {},
         }
 
