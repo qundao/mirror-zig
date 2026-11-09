@@ -831,6 +831,12 @@
             },
         },
         .{
+            .llvm_name = "diamondrapids",
+            .extra_deps = .{
+                "cf",
+            },
+        },
+        .{
             .llvm_name = "emeraldrapids",
             .extra_deps = .{
                 "smap",
@@ -973,6 +979,12 @@
             .extra_deps = .{
                 "smap",
                 "smep",
+            },
+        },
+        .{
+            .llvm_name = "novalake",
+            .extra_deps = .{
+                "cf",
             },
         },
         .{
