@@ -642,6 +642,35 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .mips, .mips64r6, whenAll(set.*, .{ .mips32r6, .mips64 }));
                 derive(set, blocked, .mips, .dspr3, whenAll(set.*, .{ .dspr2, .mips32r6 }));
             },
+            .powerpc => {
+                const when = Target.powerpc.featureSetHas;
+                const whenAll = Target.powerpc.featureSetHasAll;
+
+                derive(set, blocked, .powerpc, .fsqrt, whenAll(set.*, .{ .fpu, .isa_v203_instructions }));
+                derive(set, blocked, .powerpc, .stfiwx, whenAll(set.*, .{ .fpu, .isa_v203_instructions }));
+                derive(set, blocked, .powerpc, .fcpsgn, whenAll(set.*, .{ .fpu, .isa_v205_instructions }));
+                derive(set, blocked, .powerpc, .lfiwax, whenAll(set.*, .{ .fpu, .isa_v205_instructions }));
+                derive(set, blocked, .powerpc, .fre, whenAll(set.*, .{ .fpu, .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .fres, whenAll(set.*, .{ .fpu, .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .fprnd, whenAll(set.*, .{ .fpu, .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .frsqrte, whenAll(set.*, .{ .fpu, .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .frsqrtes, whenAll(set.*, .{ .fpu, .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .fpcvt, whenAll(set.*, .{ .fpu, .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .ldbrx, whenAll(set.*, .{ .@"64bit", .isa_v206_instructions }));
+                derive(set, blocked, .powerpc, .bpermd, whenAll(set.*, .{ .@"64bit", .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .extdiv, whenAll(set.*, .{ .@"64bit", .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .popcntd, whenAll(set.*, .{ .@"64bit", .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .quadword_atomics, whenAll(set.*, .{ .@"64bit", .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .vsx, whenAll(set.*, .{ .altivec, .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .power8_altivec, whenAll(set.*, .{ .altivec, .isa_v207_instructions }));
+                derive(set, blocked, .powerpc, .direct_move, whenAll(set.*, .{ .isa_v207_instructions, .vsx }));
+                derive(set, blocked, .powerpc, .power8_vector, whenAll(set.*, .{ .isa_v207_instructions, .vsx }));
+                derive(set, blocked, .powerpc, .crypto, whenAll(set.*, .{ .altivec, .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .power9_altivec, whenAll(set.*, .{ .altivec, .isa_v30_instructions }));
+                derive(set, blocked, .powerpc, .paired_vector_memops, whenAll(set.*, .{ .altivec, .isa_v31_instructions }));
+                derive(set, blocked, .powerpc, .prefix_instrs, whenAll(set.*, .{ .@"64bit", .isa_v31_instructions }));
+                derive(set, blocked, .powerpc, .pcrelative_memops, when(set.*, .prefix_instrs));
+            },
             .s390x => {
                 const whenAny = Target.s390x.featureSetHasAny;
 
