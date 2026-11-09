@@ -123,6 +123,7 @@ pub const all_features = blk: {
         .llvm_name = "hvxv66",
         .description = "Hexagon HVX instructions",
         .dependencies = featureSet(&[_]Feature{
+            .hvx_length128b,
             .hvxv65,
             .v66,
         }),

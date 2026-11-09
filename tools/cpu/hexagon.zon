@@ -219,6 +219,7 @@
         .{
             .llvm_name = "hvxv66",
             .extra_deps = .{
+                "hvx_length128b",
                 "v66",
             },
         },
