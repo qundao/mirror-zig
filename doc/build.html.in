@@ -523,7 +523,7 @@ th pre code {
     {#syntax#}exe.linkLibrary(libfizzbuzz);{#endsyntax#}</p>
     {#header_close#}
 
-    {#header_open|Configuring a Module#}
+    {#header_open|Modules#}
     <p><strong>Modules</strong> are attached to {#link|Compile#} steps and are typically
     used via {#syntax#}@import{#endsyntax#} from Zig code, however in the build system they have
     utility beyond this use case. Modules can be configured in many ways:</p>
@@ -826,12 +826,14 @@ update-protocol<span class="sgr-32m"> success</span>
     {#header_close#}
 
     {#header_open|Package Management#}
-    <p>The purpose of organizing code into a package is <em>distribution of labor</em>. By investing
-    in additional release management chores, one provides the opportunity for others within the
-    ecosystem to share the maintenance burden of code within a package. Together, we can build
-    far greater software for our users than we could build alone.</p>
-    <p>However, such collaboration comes with challenges, some technical and some social. The Zig
-    Build System aims to help you overcome both kinds.</p>
+    <p>The purpose of organizing code into a <strong>package</strong> is <em>distribution of
+    labor</em>. By investing in additional release management chores, one provides the opportunity
+    for others within the ecosystem to share the maintenance burden of code within a package.
+    Together, we can build far greater software for our users than we can build alone. However,
+    such collaboration comes with challenges, some technical and some social. The Zig Build System
+    aims to help overcome both kinds.</p>
+    <p>When coordination of efforts is done other than via release management, such as by using a
+    monorepo, {#link|Modules#} are a lightweight alternative to packages.</p>
 
     {#header_open|Adding a Dependency#}
     <p>All potential dependencies must be declared in the {#link|Manifest File#} in the
