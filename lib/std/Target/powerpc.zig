@@ -847,7 +847,6 @@ pub const cpu = struct {
         .llvm_name = "pwr3",
         .features = featureSet(&[_]Feature{
             .@"64bit",
-            .altivec,
             .fres,
             .frsqrte,
             .mfocrf,
@@ -859,7 +858,6 @@ pub const cpu = struct {
         .llvm_name = "pwr4",
         .features = featureSet(&[_]Feature{
             .@"64bit",
-            .altivec,
             .fres,
             .frsqrte,
             .fsqrt,
@@ -872,7 +870,6 @@ pub const cpu = struct {
         .llvm_name = "pwr5",
         .features = featureSet(&[_]Feature{
             .@"64bit",
-            .altivec,
             .fre,
             .fres,
             .frsqrte,
@@ -887,7 +884,6 @@ pub const cpu = struct {
         .llvm_name = "pwr5x",
         .features = featureSet(&[_]Feature{
             .@"64bit",
-            .altivec,
             .fprnd,
             .fre,
             .fres,

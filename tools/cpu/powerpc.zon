@@ -217,7 +217,28 @@
             },
         },
         .{
+            .llvm_name = "pwr3",
+            .omit_deps = .{
+                "altivec",
+            },
+        },
+        .{
+            .llvm_name = "pwr4",
+            .omit_deps = .{
+                "altivec",
+            },
+        },
+        .{
+            .llvm_name = "pwr5",
+            .omit_deps = .{
+                "altivec",
+            },
+        },
+        .{
             .llvm_name = "pwr5x",
+            .omit_deps = .{
+                "altivec",
+            },
             .extra_deps = .{
                 "isa_v203_instructions",
             },
