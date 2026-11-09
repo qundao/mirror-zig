@@ -24,6 +24,20 @@
 
 #skip mipsel-psx-sf-baseline-whole-llvm-debug-lld
 
+#skip mipsf32-freestanding-none-baseline-whole-llvm-debug-lld
+#skip mipsf32-linux-gnu-baseline-whole-llvm-debug-lld
+#skip mipsf32-linux-musl-baseline-whole-llvm-debug-lld
+#skip mipsf32-linux-none-baseline-whole-llvm-debug-lld
+#skip mipsf32-netbsd-none-baseline-whole-llvm-debug-lld
+#skip mipsf32-rtems-none-baseline-whole-llvm-debug-lld
+
+#skip mipsf32el-freestanding-none-baseline-whole-llvm-debug-lld
+#skip mipsf32el-linux-gnu-baseline-whole-llvm-debug-lld
+#skip mipsf32el-linux-musl-baseline-whole-llvm-debug-lld
+#skip mipsf32el-linux-none-baseline-whole-llvm-debug-lld
+#skip mipsf32el-netbsd-none-baseline-whole-llvm-debug-lld
+#skip mipsf32el-rtems-none-baseline-whole-llvm-debug-lld
+
 #skip nvptx-cuda-none-baseline-whole-llvm-debug-lld
 #skip nvptx-nvcl-none-baseline-whole-llvm-debug-lld
 
@@ -51,11 +65,6 @@
 #skip spirv64-vulkan-none-baseline-whole-llvm-debug-lld
 
 #skip xcore-freestanding-none-baseline-whole-llvm-debug-lld
-
-#skip xtensa-freestanding-call0-baseline-whole-llvm-debug-lld
-#skip xtensa-freestanding-none-baseline-whole-llvm-debug-lld
-#skip xtensa-linux-call0-baseline-whole-llvm-debug-lld
-#skip xtensa-linux-none-baseline-whole-llvm-debug-lld
 
 #zig build-obj {
 --name test
