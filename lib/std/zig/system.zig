@@ -671,6 +671,30 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .powerpc, .prefix_instrs, whenAll(set.*, .{ .@"64bit", .isa_v31_instructions }));
                 derive(set, blocked, .powerpc, .pcrelative_memops, when(set.*, .prefix_instrs));
             },
+            .riscv => {
+                const when = Target.riscv.featureSetHas;
+                const whenAll = Target.riscv.featureSetHasAll;
+
+                derive(set, blocked, .riscv, .zcd, whenAll(set.*, .{ .c, .d }));
+                derive(set, blocked, .riscv, .zcf, whenAll(set.*, .{ .@"32bit", .c, .f }));
+                derive(set, blocked, .riscv, .zcf, whenAll(set.*, .{ .@"32bit", .f, .zce }));
+                derive(set, blocked, .riscv, .c, when(set.*, .zca) and (when(set.*, .zcf) or !whenAll(set.*, .{ .@"32bit", .f })) and (when(set.*, .zcd) or !when(set.*, .d)));
+                derive(set, blocked, .riscv, .zce, whenAll(set.*, .{ .zcb, .zcmp, .zcmt }) and (when(set.*, .zcf) or !whenAll(set.*, .{ .@"32bit", .f })));
+                derive(set, blocked, .riscv, .a, whenAll(set.*, .{ .zaamo, .zalrsc }));
+                derive(set, blocked, .riscv, .b, whenAll(set.*, .{ .zba, .zbb, .zbs }));
+                derive(set, blocked, .riscv, .zkn, whenAll(set.*, .{ .zbkb, .zbkc, .zbkx, .zknd, .zkne, .zknh }));
+                derive(set, blocked, .riscv, .zks, whenAll(set.*, .{ .zbkb, .zbkc, .zbkx, .zksed, .zksh }));
+                derive(set, blocked, .riscv, .zk, whenAll(set.*, .{ .zkn, .zkr, .zkt }));
+                derive(set, blocked, .riscv, .zvkn, whenAll(set.*, .{ .zvkb, .zvkned, .zvknhb, .zvkt }));
+                derive(set, blocked, .riscv, .zvknc, whenAll(set.*, .{ .zvbc, .zvkn }));
+                derive(set, blocked, .riscv, .zvkng, whenAll(set.*, .{ .zvkg, .zvkn }));
+                derive(set, blocked, .riscv, .zvks, whenAll(set.*, .{ .zvkb, .zvksed, .zvksh, .zvkt }));
+                derive(set, blocked, .riscv, .zvksc, whenAll(set.*, .{ .zvbc, .zvks }));
+                derive(set, blocked, .riscv, .zvksg, whenAll(set.*, .{ .zvkg, .zvks }));
+                derive(set, blocked, .riscv, .zve64f, whenAll(set.*, .{ .zve32f, .zve64x }));
+                derive(set, blocked, .riscv, .sha, whenAll(set.*, .{ .h, .shcounterenw, .shgatpa, .shtvala, .shvsatpa, .shvstvala, .shvstvecd, .ssstateen }));
+                derive(set, blocked, .riscv, .smcdeleg, when(set.*, .ssccfg));
+            },
             .s390x => {
                 const whenAny = Target.s390x.featureSetHasAny;
 
