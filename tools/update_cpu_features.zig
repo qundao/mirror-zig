@@ -9276,7 +9276,7 @@ fn walkFeatures(
     feature: Feature,
 ) error{OutOfMemory}!void {
     for (feature.deps) |dep| {
-        try deletion_set.put(dep, {});
+        if ((try deletion_set.getOrPut(dep)).found_existing) continue;
         const other_feature = features_table.get(dep).?;
         try walkFeatures(features_table, deletion_set, other_feature);
     }
