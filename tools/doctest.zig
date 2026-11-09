@@ -1441,7 +1441,7 @@ test "term supported colors" {
 
     {
         const input = "A\x1b[31;1mred\x1b[0mB";
-        const expect = "A<span class=\"sgr-31_1m\">red</span>B";
+        const expect = "A<span class=\"sgr-31_1\">red</span>B";
 
         const result = try termColor(test_allocator, input);
         defer test_allocator.free(result);
@@ -1450,7 +1450,7 @@ test "term supported colors" {
 
     {
         const input = "A\x1b[32;1mgreen\x1b[0mB";
-        const expect = "A<span class=\"sgr-32_1m\">green</span>B";
+        const expect = "A<span class=\"sgr-32_1\">green</span>B";
 
         const result = try termColor(test_allocator, input);
         defer test_allocator.free(result);
@@ -1459,7 +1459,7 @@ test "term supported colors" {
 
     {
         const input = "A\x1b[36;1mcyan\x1b[0mB";
-        const expect = "A<span class=\"sgr-36_1m\">cyan</span>B";
+        const expect = "A<span class=\"sgr-36_1\">cyan</span>B";
 
         const result = try termColor(test_allocator, input);
         defer test_allocator.free(result);
@@ -1468,7 +1468,7 @@ test "term supported colors" {
 
     {
         const input = "A\x1b[1mbold\x1b[0mB";
-        const expect = "A<span class=\"sgr-1m\">bold</span>B";
+        const expect = "A<span class=\"sgr-0_1\">bold</span>B";
 
         const result = try termColor(test_allocator, input);
         defer test_allocator.free(result);
@@ -1477,7 +1477,7 @@ test "term supported colors" {
 
     {
         const input = "A\x1b[2mdim\x1b[0mB";
-        const expect = "A<span class=\"sgr-2m\">dim</span>B";
+        const expect = "A<span class=\"sgr-0_2\">dim</span>B";
 
         const result = try termColor(test_allocator, input);
         defer test_allocator.free(result);
@@ -1504,10 +1504,10 @@ test "term output from zig" {
         // 2.1-with-reference-traces.out
         const input = "\x1b[1msrc/2.1-with-reference-traces.zig:3:7: \x1b[31;1merror: \x1b[0m\x1b[1mcannot assign to constant\n\x1b[0m    x += 1;\n    \x1b[32;1m~~^~~~\n\x1b[0m\x1b[0m\x1b[2mreferenced by:\n    main: src/2.1-with-reference-traces.zig:7:5\n    callMain: /usr/local/lib/zig/lib/std/start.zig:607:17\n    remaining reference traces hidden; use '-freference-trace' to see all reference traces\n\n\x1b[0m";
         const expect =
-            \\<span class="sgr-1m">src/2.1-with-reference-traces.zig:3:7: </span><span class="sgr-31_1m">error: </span><span class="sgr-1m">cannot assign to constant
+            \\<span class="sgr-0_1">src/2.1-with-reference-traces.zig:3:7: </span><span class="sgr-31_1">error: </span><span class="sgr-0_1">cannot assign to constant
             \\</span>    x += 1;
-            \\    <span class="sgr-32_1m">~~^~~~
-            \\</span><span class="sgr-2m">referenced by:
+            \\    <span class="sgr-32_1">~~^~~~
+            \\</span><span class="sgr-0_2">referenced by:
             \\    main: src/2.1-with-reference-traces.zig:7:5
             \\    callMain: /usr/local/lib/zig/lib/std/start.zig:607:17
             \\    remaining reference traces hidden; use '-freference-trace' to see all reference traces
@@ -1524,12 +1524,12 @@ test "term output from zig" {
         // 2.2-without-reference-traces.out
         const input = "\x1b[1m/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:128:29: \x1b[31;1merror: \x1b[0m\x1b[1minvalid type given to fixedBufferStream\n\x1b[0m                    else => @compileError(\"invalid type given to fixedBufferStream\"),\n                            \x1b[32;1m^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\x1b[0m\x1b[1m/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:116:66: \x1b[36;1mnote: \x1b[0m\x1b[1mcalled from here\n\x1b[0mpub fn fixedBufferStream(buffer: anytype) FixedBufferStream(Slice(@TypeOf(buffer))) {\n;                                                            \x1b[32;1m~~~~~^~~~~~~~~~~~~~~~~\n\x1b[0m";
         const expect =
-            \\<span class="sgr-1m">/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:128:29: </span><span class="sgr-31_1m">error: </span><span class="sgr-1m">invalid type given to fixedBufferStream
+            \\<span class="sgr-0_1">/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:128:29: </span><span class="sgr-31_1">error: </span><span class="sgr-0_1">invalid type given to fixedBufferStream
             \\</span>                    else => @compileError("invalid type given to fixedBufferStream"),
-            \\                            <span class="sgr-32_1m">^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            \\</span><span class="sgr-1m">/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:116:66: </span><span class="sgr-36_1m">note: </span><span class="sgr-1m">called from here
+            \\                            <span class="sgr-32_1">^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            \\</span><span class="sgr-0_1">/usr/local/lib/zig/lib/std/io/fixed_buffer_stream.zig:116:66: </span><span class="sgr-36_1">note: </span><span class="sgr-0_1">called from here
             \\</span>pub fn fixedBufferStream(buffer: anytype) FixedBufferStream(Slice(@TypeOf(buffer))) {
-            \\;                                                            <span class="sgr-32_1m">~~~~~^~~~~~~~~~~~~~~~~
+            \\;                                                            <span class="sgr-32_1">~~~~~^~~~~~~~~~~~~~~~~
             \\</span>
         ;
 
@@ -1542,20 +1542,20 @@ test "term output from zig" {
         // 2.3-with-notes.out
         const input = "\x1b[1msrc/2.3-with-notes.zig:6:9: \x1b[31;1merror: \x1b[0m\x1b[1mexpected type '*2.3-with-notes.Derp', found '*2.3-with-notes.Wat'\n\x1b[0m    bar(w);\n        \x1b[32;1m^\n\x1b[0m\x1b[1msrc/2.3-with-notes.zig:6:9: \x1b[36;1mnote: \x1b[0m\x1b[1mpointer type child '2.3-with-notes.Wat' cannot cast into pointer type child '2.3-with-notes.Derp'\n\x1b[0m\x1b[1msrc/2.3-with-notes.zig:2:13: \x1b[36;1mnote: \x1b[0m\x1b[1mopaque declared here\n\x1b[0mconst Wat = opaque {};\n            \x1b[32;1m^~~~~~~~~\n\x1b[0m\x1b[1msrc/2.3-with-notes.zig:1:14: \x1b[36;1mnote: \x1b[0m\x1b[1mopaque declared here\n\x1b[0mconst Derp = opaque {};\n             \x1b[32;1m^~~~~~~~~\n\x1b[0m\x1b[1msrc/2.3-with-notes.zig:4:18: \x1b[36;1mnote: \x1b[0m\x1b[1mparameter type declared here\n\x1b[0mextern fn bar(d: *Derp) void;\n                 \x1b[32;1m^~~~~\n\x1b[0m\x1b[0m\x1b[2mreferenced by:\n    main: src/2.3-with-notes.zig:10:5\n    callMain: /usr/local/lib/zig/lib/std/start.zig:607:17\n    remaining reference traces hidden; use '-freference-trace' to see all reference traces\n\n\x1b[0m";
         const expect =
-            \\<span class="sgr-1m">src/2.3-with-notes.zig:6:9: </span><span class="sgr-31_1m">error: </span><span class="sgr-1m">expected type '*2.3-with-notes.Derp', found '*2.3-with-notes.Wat'
+            \\<span class="sgr-0_1">src/2.3-with-notes.zig:6:9: </span><span class="sgr-31_1">error: </span><span class="sgr-0_1">expected type '*2.3-with-notes.Derp', found '*2.3-with-notes.Wat'
             \\</span>    bar(w);
-            \\        <span class="sgr-32_1m">^
-            \\</span><span class="sgr-1m">src/2.3-with-notes.zig:6:9: </span><span class="sgr-36_1m">note: </span><span class="sgr-1m">pointer type child '2.3-with-notes.Wat' cannot cast into pointer type child '2.3-with-notes.Derp'
-            \\</span><span class="sgr-1m">src/2.3-with-notes.zig:2:13: </span><span class="sgr-36_1m">note: </span><span class="sgr-1m">opaque declared here
+            \\        <span class="sgr-32_1">^
+            \\</span><span class="sgr-0_1">src/2.3-with-notes.zig:6:9: </span><span class="sgr-36_1">note: </span><span class="sgr-0_1">pointer type child '2.3-with-notes.Wat' cannot cast into pointer type child '2.3-with-notes.Derp'
+            \\src/2.3-with-notes.zig:2:13: </span><span class="sgr-36_1">note: </span><span class="sgr-0_1">opaque declared here
             \\</span>const Wat = opaque {};
-            \\            <span class="sgr-32_1m">^~~~~~~~~
-            \\</span><span class="sgr-1m">src/2.3-with-notes.zig:1:14: </span><span class="sgr-36_1m">note: </span><span class="sgr-1m">opaque declared here
+            \\            <span class="sgr-32_1">^~~~~~~~~
+            \\</span><span class="sgr-0_1">src/2.3-with-notes.zig:1:14: </span><span class="sgr-36_1">note: </span><span class="sgr-0_1">opaque declared here
             \\</span>const Derp = opaque {};
-            \\             <span class="sgr-32_1m">^~~~~~~~~
-            \\</span><span class="sgr-1m">src/2.3-with-notes.zig:4:18: </span><span class="sgr-36_1m">note: </span><span class="sgr-1m">parameter type declared here
+            \\             <span class="sgr-32_1">^~~~~~~~~
+            \\</span><span class="sgr-0_1">src/2.3-with-notes.zig:4:18: </span><span class="sgr-36_1">note: </span><span class="sgr-0_1">parameter type declared here
             \\</span>extern fn bar(d: *Derp) void;
-            \\                 <span class="sgr-32_1m">^~~~~
-            \\</span><span class="sgr-2m">referenced by:
+            \\                 <span class="sgr-32_1">^~~~~
+            \\</span><span class="sgr-0_2">referenced by:
             \\    main: src/2.3-with-notes.zig:10:5
             \\    callMain: /usr/local/lib/zig/lib/std/start.zig:607:17
             \\    remaining reference traces hidden; use '-freference-trace' to see all reference traces
@@ -1574,15 +1574,15 @@ test "term output from zig" {
         const input = "error: Error\n\x1b[1m/home/zig/src/3.1-with-error-return-traces.zig:5:5\x1b[0m: \x1b[2m0x20b008 in callee (3.1-with-error-return-traces)\x1b[0m\n    return error.Error;\n    \x1b[32;1m^\x1b[0m\n\x1b[1m/home/zig/src/3.1-with-error-return-traces.zig:9:5\x1b[0m: \x1b[2m0x20b113 in caller (3.1-with-error-return-traces)\x1b[0m\n    try callee();\n    \x1b[32;1m^\x1b[0m\n\x1b[1m/home/zig/src/3.1-with-error-return-traces.zig:13:5\x1b[0m: \x1b[2m0x20b153 in main (3.1-with-error-return-traces)\x1b[0m\n    try caller();\n    \x1b[32;1m^\x1b[0m\n";
         const expect =
             \\error: Error
-            \\<span class="sgr-1m">/home/zig/src/3.1-with-error-return-traces.zig:5:5</span>: <span class="sgr-2m">0x20b008 in callee (3.1-with-error-return-traces)</span>
+            \\<span class="sgr-0_1">/home/zig/src/3.1-with-error-return-traces.zig:5:5</span>: <span class="sgr-0_2">0x20b008 in callee (3.1-with-error-return-traces)</span>
             \\    return error.Error;
-            \\    <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/home/zig/src/3.1-with-error-return-traces.zig:9:5</span>: <span class="sgr-2m">0x20b113 in caller (3.1-with-error-return-traces)</span>
+            \\    <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/home/zig/src/3.1-with-error-return-traces.zig:9:5</span>: <span class="sgr-0_2">0x20b113 in caller (3.1-with-error-return-traces)</span>
             \\    try callee();
-            \\    <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/home/zig/src/3.1-with-error-return-traces.zig:13:5</span>: <span class="sgr-2m">0x20b153 in main (3.1-with-error-return-traces)</span>
+            \\    <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/home/zig/src/3.1-with-error-return-traces.zig:13:5</span>: <span class="sgr-0_2">0x20b153 in main (3.1-with-error-return-traces)</span>
             \\    try caller();
-            \\    <span class="sgr-32_1m">^</span>
+            \\    <span class="sgr-32_1">^</span>
             \\
         ;
 
@@ -1595,24 +1595,24 @@ test "term output from zig" {
         // 3.2-with-stack-trace.out
         const input = "\x1b[1m/usr/local/lib/zig/lib/std/debug.zig:561:19\x1b[0m: \x1b[2m0x22a107 in writeCurrentStackTrace__anon_5898 (3.2-with-stack-trace)\x1b[0m\n    while (it.next()) |return_address| {\n                  \x1b[32;1m^\x1b[0m\n\x1b[1m/usr/local/lib/zig/lib/std/debug.zig:157:80\x1b[0m: \x1b[2m0x20bb23 in dumpCurrentStackTrace (3.2-with-stack-trace)\x1b[0m\n        writeCurrentStackTrace(stderr, debug_info, detectTTYConfig(io.getStdErr()), start_addr) catch |err| {\n                                                                               \x1b[32;1m^\x1b[0m\n\x1b[1m/home/zig/src/3.2-with-stack-trace.zig:5:36\x1b[0m: \x1b[2m0x20d3b2 in foo (3.2-with-stack-trace)\x1b[0m\n    std.debug.dumpCurrentStackTrace(null);\n                                   \x1b[32;1m^\x1b[0m\n\x1b[1m/home/zig/src/3.2-with-stack-trace.zig:9:8\x1b[0m: \x1b[2m0x20b458 in main (3.2-with-stack-trace)\x1b[0m\n    foo();\n       \x1b[32;1m^\x1b[0m\n\x1b[1m/usr/local/lib/zig/lib/std/start.zig:607:22\x1b[0m: \x1b[2m0x20a965 in posixCallMainAndExit (3.2-with-stack-trace)\x1b[0m\n            root.main();\n                     \x1b[32;1m^\x1b[0m\n\x1b[1m/usr/local/lib/zig/lib/std/start.zig:376:5\x1b[0m: \x1b[2m0x20a411 in _start (3.2-with-stack-trace)\x1b[0m\n    @call(.never_inline, posixCallMainAndExit, .{});\n    \x1b[32;1m^\x1b[0m\n";
         const expect =
-            \\<span class="sgr-1m">/usr/local/lib/zig/lib/std/debug.zig:561:19</span>: <span class="sgr-2m">0x22a107 in writeCurrentStackTrace__anon_5898 (3.2-with-stack-trace)</span>
+            \\<span class="sgr-0_1">/usr/local/lib/zig/lib/std/debug.zig:561:19</span>: <span class="sgr-0_2">0x22a107 in writeCurrentStackTrace__anon_5898 (3.2-with-stack-trace)</span>
             \\    while (it.next()) |return_address| {
-            \\                  <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/usr/local/lib/zig/lib/std/debug.zig:157:80</span>: <span class="sgr-2m">0x20bb23 in dumpCurrentStackTrace (3.2-with-stack-trace)</span>
+            \\                  <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/usr/local/lib/zig/lib/std/debug.zig:157:80</span>: <span class="sgr-0_2">0x20bb23 in dumpCurrentStackTrace (3.2-with-stack-trace)</span>
             \\        writeCurrentStackTrace(stderr, debug_info, detectTTYConfig(io.getStdErr()), start_addr) catch |err| {
-            \\                                                                               <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/home/zig/src/3.2-with-stack-trace.zig:5:36</span>: <span class="sgr-2m">0x20d3b2 in foo (3.2-with-stack-trace)</span>
+            \\                                                                               <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/home/zig/src/3.2-with-stack-trace.zig:5:36</span>: <span class="sgr-0_2">0x20d3b2 in foo (3.2-with-stack-trace)</span>
             \\    std.debug.dumpCurrentStackTrace(null);
-            \\                                   <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/home/zig/src/3.2-with-stack-trace.zig:9:8</span>: <span class="sgr-2m">0x20b458 in main (3.2-with-stack-trace)</span>
+            \\                                   <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/home/zig/src/3.2-with-stack-trace.zig:9:8</span>: <span class="sgr-0_2">0x20b458 in main (3.2-with-stack-trace)</span>
             \\    foo();
-            \\       <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/usr/local/lib/zig/lib/std/start.zig:607:22</span>: <span class="sgr-2m">0x20a965 in posixCallMainAndExit (3.2-with-stack-trace)</span>
+            \\       <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/usr/local/lib/zig/lib/std/start.zig:607:22</span>: <span class="sgr-0_2">0x20a965 in posixCallMainAndExit (3.2-with-stack-trace)</span>
             \\            root.main();
-            \\                     <span class="sgr-32_1m">^</span>
-            \\<span class="sgr-1m">/usr/local/lib/zig/lib/std/start.zig:376:5</span>: <span class="sgr-2m">0x20a411 in _start (3.2-with-stack-trace)</span>
+            \\                     <span class="sgr-32_1">^</span>
+            \\<span class="sgr-0_1">/usr/local/lib/zig/lib/std/start.zig:376:5</span>: <span class="sgr-0_2">0x20a411 in _start (3.2-with-stack-trace)</span>
             \\    @call(.never_inline, posixCallMainAndExit, .{});
-            \\    <span class="sgr-32_1m">^</span>
+            \\    <span class="sgr-32_1">^</span>
             \\
         ;
 
