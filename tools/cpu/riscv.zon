@@ -383,6 +383,38 @@
         },
 
         .{
+            .llvm_name = "smcdeleg",
+            .extra_deps = .{
+                "ssccfg",
+            },
+        },
+        .{
+            .llvm_name = "smcntrpmf",
+            .extra_deps = .{
+                "zicntr",
+            },
+        },
+        .{
+            .llvm_name = "smctr",
+            .extra_deps = .{
+                "ssctr",
+            },
+        },
+        .{
+            .llvm_name = "ssccfg",
+            .extra_deps = .{
+                "sscsrind",
+            },
+        },
+        .{
+            .llvm_name = "unaligned-scalar-mem",
+            .zig_name = "unaligned_access",
+        },
+        .{
+            .llvm_name = "unaligned-vector-mem",
+            .zig_name = "unaligned_vector_access",
+        },
+        .{
             .llvm_name = "xsfvfbfexp16e",
             .extra_deps = .{
                 "zve32f",
@@ -395,12 +427,16 @@
             },
         },
         .{
-            .llvm_name = "unaligned-scalar-mem",
-            .zig_name = "unaligned_access",
+            .llvm_name = "za64rs",
+            .extra_deps = .{
+                "za128rs",
+            },
         },
         .{
-            .llvm_name = "unaligned-vector-mem",
-            .zig_name = "unaligned_vector_access",
+            .llvm_name = "ziccamoc",
+            .extra_deps = .{
+                "ziccamoa",
+            },
         },
     },
     .model_overrides = .{

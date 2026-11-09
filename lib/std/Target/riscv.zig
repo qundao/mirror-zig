@@ -665,12 +665,16 @@ pub const all_features = blk: {
     result[@backingInt(Feature.smcdeleg)] = .{
         .llvm_name = "smcdeleg",
         .description = "'Smcdeleg' (Counter Delegation Machine Level)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .ssccfg,
+        }),
     };
     result[@backingInt(Feature.smcntrpmf)] = .{
         .llvm_name = "smcntrpmf",
         .description = "'Smcntrpmf' (Cycle and Instret Privilege Mode Filtering)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .zicntr,
+        }),
     };
     result[@backingInt(Feature.smcsrind)] = .{
         .llvm_name = "smcsrind",
@@ -681,7 +685,7 @@ pub const all_features = blk: {
         .llvm_name = "smctr",
         .description = "'Smctr' (Control Transfer Records Machine Level)",
         .dependencies = featureSet(&[_]Feature{
-            .sscsrind,
+            .ssctr,
         }),
     };
     result[@backingInt(Feature.smdbltrp)] = .{
@@ -724,7 +728,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.ssccfg)] = .{
         .llvm_name = "ssccfg",
         .description = "'Ssccfg' (Counter Configuration Supervisor Level)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .sscsrind,
+        }),
     };
     result[@backingInt(Feature.ssccptr)] = .{
         .llvm_name = "ssccptr",
@@ -1399,7 +1405,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.za64rs)] = .{
         .llvm_name = "za64rs",
         .description = "'Za64rs' (Reservation Set Size of at Most 64 Bytes)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .za128rs,
+        }),
     };
     result[@backingInt(Feature.zaamo)] = .{
         .llvm_name = "zaamo",
@@ -1628,7 +1636,9 @@ pub const all_features = blk: {
     result[@backingInt(Feature.ziccamoc)] = .{
         .llvm_name = "ziccamoc",
         .description = "'Ziccamoc' (Main Memory Supports Atomics in Zacas)",
-        .dependencies = featureSet(&[_]Feature{}),
+        .dependencies = featureSet(&[_]Feature{
+            .ziccamoa,
+        }),
     };
     result[@backingInt(Feature.ziccid)] = .{
         .llvm_name = "ziccid",
