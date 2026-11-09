@@ -1103,7 +1103,7 @@
                 "nv",
                 "sel2",
                 "specrestrict",
-                "tracev8_4",
+                "v9_2a",
                 "vh",
             },
             .omit_deps = .{
@@ -1119,7 +1119,7 @@
                 "nv",
                 "sel2",
                 "specrestrict",
-                "tracev8_4",
+                "v9_2a",
                 "vh",
             },
             .omit_deps = .{
@@ -1199,7 +1199,7 @@
                 "nv",
                 "sel2",
                 "specrestrict",
-                "tracev8_4",
+                "v9_2a",
                 "vh",
             },
             .omit_deps = .{
@@ -1215,7 +1215,7 @@
                 "nv",
                 "sel2",
                 "specrestrict",
-                "tracev8_4",
+                "v9_2a",
                 "vh",
             },
             .omit_deps = .{
