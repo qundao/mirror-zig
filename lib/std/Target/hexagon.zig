@@ -41,7 +41,6 @@ pub const Feature = enum {
     v75,
     v79,
     v81,
-    zreg,
 };
 
 pub const featureSet = CpuFeature.FeatureSetFns(Feature).featureSet;
@@ -126,7 +125,6 @@ pub const all_features = blk: {
         .dependencies = featureSet(&[_]Feature{
             .hvxv65,
             .v66,
-            .zreg,
         }),
     };
     result[@backingInt(Feature.hvxv67)] = .{
@@ -303,11 +301,6 @@ pub const all_features = blk: {
         .dependencies = featureSet(&[_]Feature{
             .v79,
         }),
-    };
-    result[@backingInt(Feature.zreg)] = .{
-        .llvm_name = "zreg",
-        .description = "Hexagon ZReg extension instructions",
-        .dependencies = featureSet(&[_]Feature{}),
     };
     const ti = @typeInfo(Feature);
     for (&result, 0..) |*elem, i| {

@@ -181,6 +181,10 @@
             .llvm_name = "small-data",
             .omit = true,
         },
+        .{
+            .llvm_name = "zreg",
+            .omit = true,
+        },
 
         .{
             .llvm_name = "hvx-ieee-fp",
