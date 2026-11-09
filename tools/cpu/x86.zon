@@ -206,6 +206,13 @@
             .llvm_name = "amx-tile",
             .extra_deps = .{
                 "64bit",
+                "xsave",
+            },
+        },
+        .{
+            .llvm_name = "avx",
+            .extra_deps = .{
+                "xsave",
             },
         },
         .{
@@ -236,6 +243,8 @@
             .llvm_name = "egpr",
             .extra_deps = .{
                 "64bit",
+                "cmov",
+                "xsave",
             },
         },
         .{
@@ -283,7 +292,8 @@
         .{
             .llvm_name = "sse",
             .extra_deps = .{
-                "387",
+                "fxsr",
+                "mmx",
             },
         },
         .{
@@ -322,6 +332,7 @@
             .desc = "Enable 3DNow! instructions",
             .deps = .{
                 "mmx",
+                "prfchw",
             },
         },
         .{
