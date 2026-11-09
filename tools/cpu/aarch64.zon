@@ -2050,6 +2050,7 @@
             .zig_name = "xgene1",
             .features = .{
                 "aclass",
+                "neon",
                 "perfmon",
             },
         },

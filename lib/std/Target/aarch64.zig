@@ -4765,6 +4765,7 @@ pub const cpu = struct {
         .llvm_name = "generic",
         .features = featureSet(&[_]Feature{
             .aclass,
+            .neon,
             .perfmon,
         }),
     };
