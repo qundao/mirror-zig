@@ -2410,7 +2410,8 @@ pub const Cpu = struct {
         /// the baseline would be for `arch` in isolation; for example, for `aarch64-macos`, the
         /// baseline is considered to be `apple_m1`. To avoid this behavior entirely, pass
         /// `Os.Tag.freestanding`.
-        pub fn baseline(arch: Arch, os: Os) *const Model {
+        pub fn baseline(arch: Arch, os: Os, abi: Abi) *const Model {
+            _ = abi;
             return switch (arch) {
                 .alpha => &alpha.cpu.ev56,
                 .amdgcn => &amdgcn.cpu.gfx906,
@@ -2511,8 +2512,8 @@ pub const Cpu = struct {
 
     /// The "default" set of CPU features for cross-compiling. A conservative set
     /// of features that is expected to be supported on most available hardware.
-    pub fn baseline(arch: Arch, os: Os) Cpu {
-        return Model.baseline(arch, os).toCpu(arch);
+    pub fn baseline(arch: Arch, os: Os, abi: Abi) Cpu {
+        return Model.baseline(arch, os, abi).toCpu(arch);
     }
 
     /// Returns true if `feature` is enabled.

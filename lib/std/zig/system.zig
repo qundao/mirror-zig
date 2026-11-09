@@ -390,7 +390,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
         os.version_range.linux.android = android;
     }
 
-    var cpu = switch (query.cpu_model) {
+    const maybe_cpu: ?Target.Cpu = switch (query.cpu_model) {
         .native => detectNativeCpuAndFeatures(io, query_cpu_arch),
         .baseline => null,
         .determined_by_arch_os => if (query.cpu_arch == null)
@@ -398,9 +398,11 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
         else
             null,
         .explicit => |model| model.toCpu(query_cpu_arch),
-    } orelse Target.Cpu.baseline(query_cpu_arch, os);
+    };
 
-    var detected = detectAbiAndDynamicLinker(io, cpu.arch, os, query) catch |err| switch (err) {
+    const arch = if (maybe_cpu) |c| c.arch else query_cpu_arch;
+
+    var detected = detectAbiAndDynamicLinker(io, arch, os, query) catch |err| switch (err) {
         error.Canceled => |e| return e,
         error.Unexpected => |e| return e,
         error.ApiLevelQueryFailed => |e| return e,
@@ -425,7 +427,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
         error.UnhelpfulFile,
         error.InvalidElfFile,
         error.RelativeShebang,
-        => defaultAbiAndDynamicLinker(cpu.arch, os, query),
+        => defaultAbiAndDynamicLinker(arch, os, query),
     };
 
     // It's possible that we detect the native ABI, but fail to detect the OS version or were told
@@ -435,7 +437,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
     // we know is required.
     if (detected.abi != query_abi and query.os_version_min == null) {
         const result_ver_range = &detected.os.version_range;
-        const abi_ver_range = detected.os.tag.defaultVersionRange(cpu.arch, detected.abi).version_range;
+        const abi_ver_range = detected.os.tag.defaultVersionRange(arch, detected.abi).version_range;
 
         switch (detected.os.tag.versionRangeTag()) {
             .none => {},
@@ -459,10 +461,12 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
         }
     }
 
+    var cpu: Target.Cpu = maybe_cpu orelse .baseline(arch, detected.os, detected.abi);
+
     resolveCpuFeatures(
-        cpu.arch,
+        arch,
         &cpu.features,
-        abiRemovedFeatures(cpu.arch, detected.abi),
+        abiRemovedFeatures(arch, detected.abi),
         query.cpu_features_add,
         query.cpu_features_sub,
     );
@@ -471,7 +475,7 @@ pub fn resolveTargetQuery(io: Io, query: Target.Query) ResolveTargetError!Target
         .cpu = cpu,
         .os = detected.os,
         .abi = detected.abi,
-        .ofmt = query.ofmt orelse .default(detected.os.tag, cpu.arch),
+        .ofmt = query.ofmt orelse .default(detected.os.tag, arch),
         .dynamic_linker = detected.dynamic_linker,
     };
 }
