@@ -435,7 +435,7 @@ pub fn addOptionPath(options: *Options, name: []const u8, path: LazyPath) void {
 
     options.files.append(arena, .{
         .name = wc.addString(name) catch @panic("OOM"),
-        .path = path.dupe(options.step.owner.graph),
+        .path = path.dupe(arena),
     }) catch @panic("OOM");
     path.addStepDependencies(&options.step);
 }
@@ -453,7 +453,7 @@ pub fn addOptionPathDirectory(options: *Options, name: []const u8, path: LazyPat
 
     options.directories.append(arena, .{
         .name = wc.addString(name) catch @panic("OOM"),
-        .path = path.dupe(options.step.owner.graph),
+        .path = path.dupe(arena),
     }) catch @panic("OOM");
     path.addStepDependencies(&options.step);
 }
@@ -471,7 +471,7 @@ pub fn addOptionPathUntracked(options: *Options, name: []const u8, path: LazyPat
 
     options.untracked_paths.append(arena, .{
         .name = wc.addString(name) catch @panic("OOM"),
-        .path = path.dupe(options.step.owner.graph),
+        .path = path.dupe(arena),
     }) catch @panic("OOM");
     path.addStepDependencies(&options.step);
 }

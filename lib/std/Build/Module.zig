@@ -494,7 +494,7 @@ pub fn addSystemFrameworkPath(m: *Module, directory_path: LazyPath) void {
 pub fn addFrameworkPath(m: *Module, directory_path: LazyPath) void {
     const graph = m.owner.graph;
     const arena = graph.arena;
-    m.include_dirs.append(arena, .{ .framework_path = directory_path.dupe(graph) }) catch @panic("OOM");
+    m.include_dirs.append(arena, .{ .framework_path = directory_path.dupe(arena) }) catch @panic("OOM");
 }
 
 pub fn addEmbedPath(m: *Module, lazy_path: LazyPath) void {

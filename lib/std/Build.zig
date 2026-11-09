@@ -649,14 +649,9 @@ pub fn addNamedWriteFiles(b: *Build, name: []const u8) *Step.WriteFile {
 pub fn addNamedLazyPath(b: *Build, name: []const u8, lp: LazyPath) void {
     const graph = b.graph;
     const p = b.getPackage();
-    const gop = p.named_lazy_paths.getOrPutValue(
-        graph.arena,
-        graph.dupeString(name),
-        lp.dupe(graph),
-    ) catch @panic("OOM");
-    if (gop.found_existing) {
-        panic("a LazyPath named {q} has already been added to the package.", .{name});
-    }
+    const arena = graph.arena;
+    const gop = p.named_lazy_paths.getOrPutValue(arena, graph.dupeString(name), lp.dupe(arena)) catch @panic("OOM");
+    if (gop.found_existing) panic("a LazyPath named {q} has already been added to the package.", .{name});
 }
 
 /// Creates a step for mutating files inside a temporary directory created lazily

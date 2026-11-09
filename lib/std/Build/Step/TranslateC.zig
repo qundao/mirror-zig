@@ -130,7 +130,7 @@ pub fn addConfigHeader(translate_c: *TranslateC, config_header: *Step.ConfigHead
 pub fn addSystemFrameworkPath(translate_c: *TranslateC, directory_path: LazyPath) void {
     const graph = translate_c.step.owner.graph;
     const arena = graph.arena;
-    translate_c.include_dirs.append(arena, .{ .framework_path_system = directory_path.dupe(graph) }) catch
+    translate_c.include_dirs.append(arena, .{ .framework_path_system = directory_path.dupe(arena) }) catch
         @panic("OOM");
     directory_path.addStepDependencies(&translate_c.step);
 }
@@ -138,7 +138,7 @@ pub fn addSystemFrameworkPath(translate_c: *TranslateC, directory_path: LazyPath
 pub fn addFrameworkPath(translate_c: *TranslateC, directory_path: LazyPath) void {
     const graph = translate_c.step.owner.graph;
     const arena = graph.arena;
-    translate_c.include_dirs.append(arena, .{ .framework_path = directory_path.dupe(graph) }) catch
+    translate_c.include_dirs.append(arena, .{ .framework_path = directory_path.dupe(arena) }) catch
         @panic("OOM");
     directory_path.addStepDependencies(&translate_c.step);
 }
