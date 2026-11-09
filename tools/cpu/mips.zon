@@ -222,7 +222,7 @@
             .zig_name = "loongson_ext2",
             .desc = "Loongson EXTensions R2 instructions",
             .deps = .{
-                "mips3",
+                "loongson_ext",
             },
         },
         .{

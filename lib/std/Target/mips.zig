@@ -215,7 +215,7 @@ pub const all_features = blk: {
         .llvm_name = null,
         .description = "Loongson EXTensions R2 instructions",
         .dependencies = featureSet(&[_]Feature{
-            .mips3,
+            .loongson_ext,
         }),
     };
     result[@backingInt(Feature.loongson_mmi)] = .{
@@ -666,7 +666,6 @@ pub const cpu = struct {
         .llvm_name = "mips64r2",
         .features = featureSet(&[_]Feature{
             .fpu_d,
-            .loongson_ext,
             .loongson_ext2,
             .loongson_mmi,
             .mips64r2,
@@ -689,7 +688,6 @@ pub const cpu = struct {
             .dspr2,
             .fpu_d,
             .loongson_cam,
-            .loongson_ext,
             .loongson_ext2,
             .loongson_mmi,
             .mips64r2,
@@ -701,7 +699,6 @@ pub const cpu = struct {
         .features = featureSet(&[_]Feature{
             .fpu_d,
             .loongson_cam,
-            .loongson_ext,
             .loongson_ext2,
             .loongson_mmi,
             .mips64r2,
