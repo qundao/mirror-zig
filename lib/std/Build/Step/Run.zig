@@ -694,11 +694,7 @@ pub fn setPreopen(run: *Run, name: []const u8, resource: Build.LazyPath) void {
     const wc = &graph.wip_configuration;
     const arena = graph.arena;
     resource.addStepDependencies(&run.step);
-    run.preopens.put(
-        arena,
-        wc.addString(name) catch @panic("OOM"),
-        resource.dupe(graph),
-    ) catch @panic("OOM");
+    run.preopens.put(arena, wc.addString(name) catch @panic("OOM"), resource.dupe(arena)) catch @panic("OOM");
 }
 
 /// Adds a check for exact stderr match. Does not add any other checks.

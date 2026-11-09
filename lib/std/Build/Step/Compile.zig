@@ -580,8 +580,8 @@ pub fn setLinkerScript(compile: *Compile, source: LazyPath) void {
 }
 
 pub fn setVersionScript(compile: *Compile, source: LazyPath) void {
-    const graph = compile.step.owner.graph;
-    compile.version_script = source.dupe(graph);
+    const arena = compile.step.owner.graph.arena;
+    compile.version_script = source.dupe(arena);
     source.addStepDependencies(&compile.step);
 }
 
@@ -673,9 +673,9 @@ pub fn setVerboseCC(compile: *Compile, value: bool) void {
 }
 
 pub fn setLibCFile(compile: *Compile, libc_file: ?LazyPath) void {
-    const graph = compile.step.owner.graph;
+    const arena = compile.step.owner.graph.arena;
     if (libc_file) |f| {
-        compile.libc_file = f.dupe(graph);
+        compile.libc_file = f.dupe(arena);
         f.addStepDependencies(&compile.step);
     } else {
         compile.libc_file = null;
