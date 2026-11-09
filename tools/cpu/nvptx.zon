@@ -4,4 +4,40 @@
         .name = "NVPTX",
         .td_name = "NVPTX",
     },
+    .feature_overrides = .{
+        .{
+            .llvm_name = "sm_101",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_101a",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_101f",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_21",
+            .omit = true,
+        },
+    },
+    .model_overrides = .{
+        .{
+            .llvm_name = "sm_101",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_101a",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_101f",
+            .omit = true,
+        },
+        .{
+            .llvm_name = "sm_21",
+            .omit = true,
+        },
+    },
 }
