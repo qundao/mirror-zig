@@ -571,6 +571,45 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .fp16fml, .rclass }));
                 derive(set, blocked, .aarch64, .fp16fml, whenAll(set.*, .{ .fullfp16, .rclass }));
             },
+            .arm => {
+                const when = Target.arm.featureSetHas;
+                const whenAll = Target.arm.featureSetHasAll;
+
+                derive(set, blocked, .arm, .hwdiv, whenAll(set.*, .{ .mclass, .v8m }));
+                derive(set, blocked, .arm, .v7clrex, whenAll(set.*, .{ .mclass, .v8m }));
+                derive(set, blocked, .arm, .acquire_release, whenAll(set.*, .{ .mclass, .v8m }) and !when(set.*, .v7));
+                derive(set, blocked, .arm, .no_unaligned_access, when(set.*, .mclass) and !when(set.*, .v7));
+                derive(set, blocked, .arm, .no_unaligned_access, !when(set.*, .v6));
+                derive(set, blocked, .arm, .dsp, !when(set.*, .mclass) and when(set.*, .v5te));
+                derive(set, blocked, .arm, .trustzone, whenAll(set.*, .{ .aclass, .virtualization }) and !when(set.*, .v8));
+                derive(set, blocked, .arm, .virtualization, whenAll(set.*, .{ .rclass, .v8 }));
+                derive(set, blocked, .arm, .dfb, whenAll(set.*, .{ .rclass, .v8 }));
+                derive(set, blocked, .arm, .neon, whenAll(set.*, .{ .fp64, .rclass, .v8 }));
+                derive(set, blocked, .arm, .neon, whenAll(set.*, .{ .aclass, .v8, .vfp2sp }));
+                derive(set, blocked, .arm, .fp_armv8, whenAll(set.*, .{ .aclass, .v8, .vfp2sp }));
+                derive(set, blocked, .arm, .fp_armv8, whenAll(set.*, .{ .neon, .v8 }));
+                derive(set, blocked, .arm, .fp_armv8d16sp, whenAll(set.*, .{ .fp64, .mclass }));
+                derive(set, blocked, .arm, .vfp4d16sp, whenAll(set.*, .{ .mclass, .vfp2sp }));
+                derive(set, blocked, .arm, .fp_armv8d16sp, whenAll(set.*, .{ .v8m_main, .vfp2sp }));
+                derive(set, blocked, .arm, .fullfp16, whenAll(set.*, .{ .v8_1m_main, .vfp2sp }));
+                derive(set, blocked, .arm, .vfp3d16sp, whenAll(set.*, .{ .v7, .vfp2sp }));
+                derive(set, blocked, .arm, .fp_armv8d16sp, whenAll(set.*, .{ .v8, .vfp2sp }));
+                derive(set, blocked, .arm, .fullfp16, whenAll(set.*, .{ .fp16fml, .v8_2a }));
+                derive(set, blocked, .arm, .fullfp16, whenAll(set.*, .{ .neon, .v9a }));
+                derive(set, blocked, .arm, .fp16fml, whenAll(set.*, .{ .fullfp16, .v8_4a }));
+                derive(set, blocked, .arm, .dotprod, whenAll(set.*, .{ .neon, .v8_4a }));
+                derive(set, blocked, .arm, .vfp2, whenAll(set.*, .{ .fp64, .vfp2sp }));
+                derive(set, blocked, .arm, .vfp3d16, whenAll(set.*, .{ .fp64, .vfp3d16sp }));
+                derive(set, blocked, .arm, .vfp3sp, whenAll(set.*, .{ .d32, .vfp3d16sp }));
+                derive(set, blocked, .arm, .vfp3, whenAll(set.*, .{ .vfp3d16, .vfp3sp }));
+                derive(set, blocked, .arm, .vfp4d16, whenAll(set.*, .{ .fp64, .vfp4d16sp }));
+                derive(set, blocked, .arm, .vfp4sp, whenAll(set.*, .{ .d32, .vfp4d16sp }));
+                derive(set, blocked, .arm, .vfp4, whenAll(set.*, .{ .vfp4d16, .vfp4sp }));
+                derive(set, blocked, .arm, .fp_armv8d16, whenAll(set.*, .{ .fp_armv8d16sp, .fp64 }));
+                derive(set, blocked, .arm, .fp_armv8sp, whenAll(set.*, .{ .d32, .fp_armv8d16sp }));
+                derive(set, blocked, .arm, .fp_armv8, whenAll(set.*, .{ .fp_armv8d16, .fp_armv8sp }));
+                derive(set, blocked, .arm, .crypto, whenAll(set.*, .{ .aes, .sha2 }));
+            },
             .hexagon => {
                 const when = Target.hexagon.featureSetHas;
                 const whenAll = Target.hexagon.featureSetHasAll;
