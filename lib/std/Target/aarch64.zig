@@ -4197,7 +4197,7 @@ pub const cpu = struct {
             .sve_bitperm,
             .sve_sha3,
             .sve_sm4,
-            .v8_7a,
+            .v9_2a,
             .vh,
         }),
     };
