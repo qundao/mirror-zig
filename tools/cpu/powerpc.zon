@@ -120,6 +120,22 @@
             },
         },
         .{
+            .llvm_name = "isa-v206-instructions",
+            .extra_deps = .{
+                "isa_v205_instructions",
+                "isel",
+                "mfocrf",
+            },
+        },
+        .{
+            .llvm_name = "isa-v207-instructions",
+            .extra_deps = .{
+                "icbt",
+                "isa_v206_instructions",
+                "partword_atomics",
+            },
+        },
+        .{
             .llvm_name = "ldbrx",
             .extra_deps = .{
                 "64bit",
@@ -149,6 +165,21 @@
             .zig_name = "unaligned_fp_access",
         },
     },
+    .extra_features = .{
+        .{
+            .zig_name = "isa_v203_instructions",
+            .desc = "Enable instructions in ISA 2.03.",
+            .deps = .{},
+        },
+        .{
+            .zig_name = "isa_v205_instructions",
+            .desc = "Enable instructions in ISA 2.05.",
+            .deps = .{
+                "cmpb",
+                "isa_v203_instructions",
+            },
+        },
+    },
     .model_overrides = .{
         .{
             .llvm_name = "e500",
@@ -167,6 +198,12 @@
             .omit = true,
         },
 
+        // Future ISA extensions; omit until they are stabilized.
+        .{
+            .llvm_name = "future",
+            .omit = true,
+        },
+
         .{
             .llvm_name = "602",
             .omit_deps = .{
@@ -179,11 +216,23 @@
                 "fpu",
             },
         },
-
-        // Future ISA extensions; omit until they are stabilized.
         .{
-            .llvm_name = "future",
-            .omit = true,
+            .llvm_name = "pwr5x",
+            .extra_deps = .{
+                "isa_v203_instructions",
+            },
+        },
+        .{
+            .llvm_name = "pwr6",
+            .extra_deps = .{
+                "isa_v205_instructions",
+            },
+        },
+        .{
+            .llvm_name = "pwr6x",
+            .extra_deps = .{
+                "isa_v205_instructions",
+            },
         },
     },
     .extra_models = .{
