@@ -571,6 +571,24 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .aarch64, .fullfp16, whenAll(set.*, .{ .fp16fml, .rclass }));
                 derive(set, blocked, .aarch64, .fp16fml, whenAll(set.*, .{ .fullfp16, .rclass }));
             },
+            .hexagon => {
+                const when = Target.hexagon.featureSetHas;
+                const whenAll = Target.hexagon.featureSetHasAll;
+
+                derive(set, blocked, .hexagon, .hvxv60, whenAll(set.*, .{ .hvx, .v60 }));
+                derive(set, blocked, .hexagon, .hvxv62, whenAll(set.*, .{ .hvx, .v62 }));
+                derive(set, blocked, .hexagon, .hvxv65, whenAll(set.*, .{ .hvx, .v65 }));
+                derive(set, blocked, .hexagon, .hvxv66, whenAll(set.*, .{ .hvx, .v66 }));
+                derive(set, blocked, .hexagon, .hvxv67, whenAll(set.*, .{ .hvx, .v67 }));
+                derive(set, blocked, .hexagon, .hvxv68, whenAll(set.*, .{ .hvx, .v68 }));
+                derive(set, blocked, .hexagon, .hvxv69, whenAll(set.*, .{ .hvx, .v69 }));
+                derive(set, blocked, .hexagon, .hvxv71, whenAll(set.*, .{ .hvx, .v71 }));
+                derive(set, blocked, .hexagon, .hvxv73, whenAll(set.*, .{ .hvx, .v73 }));
+                derive(set, blocked, .hexagon, .hvxv75, whenAll(set.*, .{ .hvx, .v75 }));
+                derive(set, blocked, .hexagon, .hvxv79, whenAll(set.*, .{ .hvx, .v79 }));
+                derive(set, blocked, .hexagon, .hvxv81, whenAll(set.*, .{ .hvx, .v81 }));
+                derive(set, blocked, .hexagon, .hvx_length64b, when(set.*, .hvx) and !when(set.*, .hvx_length128b));
+            },
             .sh => {
                 const whenAll = Target.sh.featureSetHasAll;
 
