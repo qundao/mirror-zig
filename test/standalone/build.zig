@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) void {
         tools_tests_step.dependOn(&run.step);
     }
 
-    add_dep_steps: for (b.package.?.available_deps) |available_dep| {
+    add_dep_steps: for (b.package.available_deps) |available_dep| {
         const dep_name, const dep_hash = available_dep;
 
         // The 'simple' dependency was already handled manually above.

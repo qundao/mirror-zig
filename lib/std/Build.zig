@@ -29,18 +29,25 @@ pub const Package = @import("Build/Package.zig");
 
 /// Shared state among all `Build` instances.
 graph: *Graph,
-/// Convenience field. Alias of `graph.arena`.
+/// Alias of `graph.arena`.
 allocator: Allocator,
-/// Each `Package` has one `Build` as a direct child. Each `Build` may have a child `Build` of its
-/// own which creates an independent version resolution namespace.
-package: ?*Package,
-/// Points to the `Build` instance that created this one. Used by the build system for hierarchical
-/// version conflict resolution.
-parent: ?*Build,
-/// Maps project id to package instance. This is the one used for packages in the dependency
-/// tree that will be deduplicated based on their project id. The key is the index into
-/// `Graph.package_instances`. Value is `canonical`.
-deduplicated_dependencies: DeduplicatedPackageMap,
+/// Each `Package` has a `Build`. However, each `Build` may have a child `Build` of its own which
+/// creates an independent version resolution namespace.
+package: *Package,
+namespace: *Namespace,
+
+pub const Namespace = struct {
+    /// Points to the `Build` instance that created this one. Used by the build system for hierarchical
+    /// version conflict resolution.
+    parent: ?*Namespace,
+    /// Maps project id to package instance. This is the one used for packages in the dependency
+    /// tree that will be deduplicated based on their project id. The key is the index into
+    /// `Graph.package_instances`. Value is `canonical`.
+    deduplicated_dependencies: DeduplicatedPackageMap,
+    /// Indexes of `Graph.deduplicated_dependencies` that should be downgraded to non-canonical
+    /// after build.zig finishes running.
+    pushed_canonical_instances: std.ArrayList(u32) = .empty,
+};
 
 pub const ConfigureDependency = struct {
     lazy_path: LazyPath,
@@ -301,22 +308,28 @@ const ProjectIdAdapter = struct {
     }
 };
 
-/// Makes a new namespace with respect to version conflict resolution. Artifacts added to the
-/// returned `Build` are added to the same `Package`, however, any packages instantiated in the new
-/// instance's subtree do not affect version resolution outside that subtree.
+/// Makes a child namespace with respect to version conflict resolution. Artifacts added to the
+/// returned `Build` are added to the same `Package`, however, any dependencies instantiated in the
+/// new instance's subtree do not affect version resolution outside that subtree.
 ///
 /// This is appropriate to use when, for example, creating a build for multiple different operating
 /// systems.
-pub fn createBuild(b: *Build) *Build {
+pub fn createNamespace(b: *Build) *Build {
     const graph = b.graph;
-    const child = graph.arena.create(Build) catch @panic("OOM");
-    child.* = .{
-        .graph = b.graph,
-        .allocator = b.allocator,
-        .package = null,
-        .parent = b,
+    const arena = graph.arena;
+    const namespace = arena.create(Namespace) catch @panic("OOM");
+    namespace.* = .{
+        .parent = b.namespace,
         .deduplicated_dependencies = .empty,
     };
+    const child = arena.create(Build) catch @panic("OOM");
+    child.* = .{
+        .graph = b.graph,
+        .allocator = arena,
+        .package = b.package,
+        .namespace = namespace,
+    };
+    b.package.bottom_namespace = namespace;
     return child;
 }
 
@@ -475,7 +488,7 @@ pub const AssemblyOptions = struct {
 /// it available to other packages which depend on this one.
 /// `createModule` can be used instead to create a private module.
 pub fn addModule(b: *Build, name: []const u8, options: Module.CreateOptions) *Module {
-    const p = b.getPackage();
+    const p = b.package;
     const graph = b.graph;
     const arena = graph.arena;
     const module = Module.create(b, options);
@@ -632,7 +645,7 @@ pub fn addWriteFile(b: *Build, file_path: []const u8, data: []const u8) *Step.Wr
 
 pub fn addNamedWriteFiles(b: *Build, name: []const u8) *Step.WriteFile {
     const graph = b.graph;
-    const p = b.getPackage();
+    const p = b.package;
     const wf = Step.WriteFile.create(b);
     const gop = p.named_writefiles.getOrPutValue(
         graph.arena,
@@ -648,7 +661,7 @@ pub fn addNamedWriteFiles(b: *Build, name: []const u8) *Step.WriteFile {
 
 pub fn addNamedLazyPath(b: *Build, name: []const u8, lp: LazyPath) void {
     const graph = b.graph;
-    const p = b.getPackage();
+    const p = b.package;
     const arena = graph.arena;
     const gop = p.named_lazy_paths.getOrPutValue(arena, graph.dupeString(name), lp.dupe(arena)) catch @panic("OOM");
     if (gop.found_existing) panic("a LazyPath named {q} has already been added to the package.", .{name});
@@ -717,11 +730,11 @@ pub fn addTranslateC(b: *Build, options: Step.TranslateC.Options) *Step.Translat
 }
 
 pub fn getInstallStep(b: *Build) *Step {
-    return &b.getPackage().install_tls.step;
+    return &b.package.install_tls.step;
 }
 
 pub fn getUninstallStep(b: *Build) *Step {
-    return &b.getPackage().uninstall_tls.step;
+    return &b.package.uninstall_tls.step;
 }
 
 /// Creates a configuration option to be passed to the build.zig script.
@@ -731,7 +744,7 @@ pub fn getUninstallStep(b: *Build) *Step {
 /// `null` is returned when an option is left to default.
 pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw: []const u8) ?T {
     const graph = b.graph;
-    const p = b.getPackage();
+    const p = b.package;
     const arena = graph.arena;
     const name = graph.dupeString(name_raw);
     const description = graph.dupeString(description_raw);
@@ -933,7 +946,7 @@ pub fn option(b: *Build, comptime T: type, name_raw: []const u8, description_raw
 /// Creates a top-level build step, exposed to the CLI user and advertised in
 /// the "--help" menu.
 pub fn step(b: *Build, name: []const u8, description: []const u8) *Step {
-    const p = b.getPackage();
+    const p = b.package;
     const graph = b.graph;
     const arena = graph.arena;
     const step_info = arena.create(Step.TopLevel) catch @panic("OOM");
@@ -1056,7 +1069,7 @@ pub fn parseTargetQuery(options: std.Target.Query.ParseOptions) error{ParseFaile
 
 /// Exposes standard `zig build` options for choosing a target.
 pub fn standardTargetOptionsQueryOnly(b: *Build, args: StandardTargetOptionsArgs) Target.Query {
-    const p = b.getPackage();
+    const p = b.package;
     const graph = b.graph;
     const arena = graph.arena;
 
@@ -1121,7 +1134,7 @@ pub fn standardTargetOptionsQueryOnly(b: *Build, args: StandardTargetOptionsArgs
 
 /// Build system implementation detail.
 pub fn addUserInputOption(b: *Build, name: []const u8, value_raw: []const u8) error{OutOfMemory}!bool {
-    const p = b.getPackage();
+    const p = b.package;
     const graph = b.graph;
     const arena = graph.arena;
     const value = graph.dupeString(value_raw);
@@ -1158,7 +1171,7 @@ pub fn addUserInputOption(b: *Build, name: []const u8, value_raw: []const u8) er
 
 /// Build system implementation detail.
 pub fn addUserInputFlag(b: *Build, name: []const u8) error{OutOfMemory}!bool {
-    const p = b.getPackage();
+    const p = b.package;
     const graph = b.graph;
     const arena = graph.arena;
     const gop = try p.user_input_options.getOrPut(arena, name);
@@ -1594,7 +1607,7 @@ pub fn run(b: *Build, argv: []const []const u8) []u8 {
 /// it is desirable to use that same information without requiring the user to
 /// provide it again.
 pub fn addSearchPrefix(b: *Build, search_prefix: []const u8) void {
-    const is_root = if (b.package) |p| p.pkg_hash.len == 0 else false;
+    const is_root = b.package.pkg_hash.len == 0;
     if (is_root) {
         const graph = b.graph;
         const wc = &graph.wip_configuration;
@@ -1674,7 +1687,7 @@ inline fn findImportPkgHashOrFatal(b: *Build, comptime asking_build_zig: type, c
     const build_runner = @import("root");
     const deps = build_runner.dependencies;
     const arena = b.graph.arena;
-    const p = b.getPackage();
+    const p = b.package;
 
     const b_pkg_hash, const b_pkg_deps = comptime for (@typeInfo(deps.packages).@"struct".decl_names) |pkg_hash| {
         const pkg = @field(deps.packages, pkg_hash);
@@ -1709,7 +1722,7 @@ pub fn lazyDependency(b: *Build, name: []const u8, args: anytype) ?*Dependency {
 /// * `dependencyLazy`
 /// * `dependencyStep`
 pub fn declareDependency(b: *Build, name: []const u8) void {
-    const p = b.getPackage();
+    const p = b.package;
     const pkg_hash = p.findPkgHashOrFatal(name);
     const entry = Package.map.get(pkg_hash).?;
     if (entry.available) return;
@@ -1725,7 +1738,7 @@ pub fn declareDependency(b: *Build, name: []const u8) void {
 /// * `dependencyStep`
 pub fn declareDependencyStep(b: *Build, s: *Step, name: []const u8) void {
     const graph = b.graph;
-    const p = b.getPackage();
+    const p = b.package;
     const pkg_hash = p.findPkgHashOrFatal(name);
     const entry = Package.map.get(pkg_hash).?;
     if (entry.available) return;
@@ -1754,7 +1767,7 @@ pub fn dependency(b: *Build, name: []const u8, args: anytype) *Dependency {
     return dependencyAdvanced(b, name, @returnAddress(), .{}, args) catch |err| switch (err) {
         error.LazyDependencyNeeded => {
             assert(b.graph.unlazy_deps.count() != 0);
-            b.getPackage().serializeConfigurationExiting();
+            b.package.serializeConfigurationExiting();
         },
     };
 }
@@ -1772,7 +1785,7 @@ pub fn dependencyCanonical(b: *Build, name: []const u8, args: anytype) *Dependen
     }, args) catch |err| switch (err) {
         error.LazyDependencyNeeded => {
             assert(b.graph.unlazy_deps.count() != 0);
-            b.getPackage().serializeConfigurationExiting();
+            b.package.serializeConfigurationExiting();
         },
     };
 }
@@ -1863,7 +1876,7 @@ pub fn dependencyAdvanced(
 ) error{LazyDependencyNeeded}!*Dependency {
     const graph = b.graph;
     const arena = graph.arena;
-    const p = b.getPackage();
+    const p = b.package;
     const pkg_hash = p.findPkgHashOrFatal(name);
     const entry = Package.map.get(pkg_hash).?;
     if (!entry.available) {
@@ -1943,7 +1956,7 @@ pub fn dependencyFromBuildZig(
     args: anytype,
 ) *Dependency {
     const arena = b.graph.arena;
-    const p = b.getPackage();
+    const p = b.package;
 
     find_dep: {
         const pkg_hash = pkgHashFromBuildZig(build_zig) orelse break :find_dep;
@@ -1976,7 +1989,7 @@ fn instantiatePackage(
     const graph = parent_build.graph;
     const io = graph.io;
     const arena = graph.arena;
-    const parent_package = parent_build.getPackage();
+    const parent_package = parent_build.package;
 
     Package.Options.sort(package_options);
 
@@ -1998,9 +2011,9 @@ fn instantiatePackage(
         const package_hash: Package.Hash = .fromSlice(entry.hash);
         const project_id = package_hash.projectIdOptional() orelse break :versioned false;
 
-        var build_it: ?*Build = parent_build;
-        while (build_it) |b| : (build_it = b.parent) {
-            const kv = b.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
+        var namespace_it: ?*Namespace = parent_build.namespace;
+        while (namespace_it) |ns| : (namespace_it = ns.parent) {
+            const kv = ns.deduplicated_dependencies.getEntryAdapted(project_id, @as(ProjectIdAdapter, .{
                 .instances = &graph.package_instances,
             })) orelse continue;
 
@@ -2027,6 +2040,7 @@ fn instantiatePackage(
                     .gt => entry.hash,
                 };
                 log.info("possible resolution: zig fetch --save {s}", .{suggested_winner});
+                log.info("possible resolution: in build.zig, use createNamespace", .{});
                 log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
                 log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
@@ -2045,6 +2059,7 @@ fn instantiatePackage(
                     .gt => entry.hash,
                 };
                 log.info("possible resolution: \"zig fetch --save {s}\" and then in build.zig, use dependencyCanoncial, dependencyStepCanonical, or dependencyLazyCanonical", .{suggested_winner});
+                log.info("possible resolution: in build.zig, use createNamespace", .{});
                 log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
                 log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
@@ -2069,8 +2084,7 @@ fn instantiatePackage(
         .graph = graph,
         .allocator = arena,
         .package = child_package,
-        .parent = parent_build,
-        .deduplicated_dependencies = .empty,
+        .namespace = parent_build.namespace,
     };
     child_package.* = .{
         .root = dep_root,
@@ -2100,6 +2114,8 @@ fn instantiatePackage(
         .named_lazy_paths = .empty,
         .pkg_hash = entry.hash,
         .available_deps = entry.deps,
+        .top_namespace = parent_build.namespace,
+        .bottom_namespace = parent_build.namespace,
     };
     child_package.top_level_steps.put(arena, child_package.install_tls.step.name, &child_package.install_tls) catch @panic("OOM");
     child_package.top_level_steps.put(arena, child_package.uninstall_tls.step.name, &child_package.uninstall_tls) catch @panic("OOM");
@@ -2123,9 +2139,14 @@ fn instantiatePackage(
 
     if (versioned) {
         const key: u32 = @intCast(graph.package_instances.count() - 1);
-        parent_build.deduplicated_dependencies.putContext(arena, key, canonical, .{
+        parent_build.namespace.deduplicated_dependencies.putContext(arena, key, canonical, .{
             .instances = &graph.package_instances,
         }) catch @panic("OOM");
+        if (canonical) {
+            // Canonical options should affect children only, not siblings.
+            const index: u32 = @intCast(parent_build.namespace.deduplicated_dependencies.count() - 1);
+            parent_build.namespace.pushed_canonical_instances.append(arena, index) catch @panic("OOM");
+        }
     }
 
     return dep;
@@ -2138,7 +2159,7 @@ pub inline fn runPackageScript(b: *Build, comptime build_zig: anytype) void {
 
 fn handleResult(b: *Build, result: anyerror!void) void {
     const graph = b.graph;
-    const p = b.getPackage();
+    const p = b.package;
     result catch |err| switch (err) {
         error.LazyDependencyNeeded => assert(graph.unlazy_deps.count() != 0),
         else => {
@@ -2153,6 +2174,17 @@ fn handleResult(b: *Build, result: anyerror!void) void {
             log.info("{d} lazy dependencies detected; fetching and retrying configuration", .{lazy_count});
         },
     };
+
+    // Package instances marked "canonical" lose their canonicalness when they become siblings
+    // rather than parents. Here at the end of build.zig we do this for all sub-namespaces created
+    // in the build.zig logic.
+    var ns_it: ?*Namespace = b.package.bottom_namespace;
+    while (ns_it) |ns| : (ns_it = ns.parent) {
+        for (ns.pushed_canonical_instances.items) |index| {
+            ns.deduplicated_dependencies.values()[index] = false;
+        }
+        if (ns == b.package.top_namespace) break;
+    }
 }
 
 // dirnameAllowEmpty is a variant of fs.path.dirname
@@ -2425,7 +2457,7 @@ pub const LazyPath = union(enum) {
     pub fn hash(lp: LazyPath, hasher: *std.hash.Wyhash) void {
         switch (lp) {
             .src_path => |sp| {
-                hasher.update(sp.owner.getPackage().pkg_hash);
+                hasher.update(sp.owner.package.pkg_hash);
                 hasher.update(sp.sub_path);
             },
             .generated => |gen| {
@@ -2709,21 +2741,13 @@ fn validateConfigureDependency(lazy_path: LazyPath) void {
     }
 }
 
-pub fn getPackage(start: *const Build) *Package {
-    var cur = start;
-    while (true) {
-        if (cur.package) |package| return package;
-        cur = cur.parent.?;
-    }
-}
-
 /// Path to the directory containing build.zig.
 pub fn root(b: *const Build) Cache.Path {
-    return b.getPackage().root;
+    return b.package.root;
 }
 
 pub fn setDefaultStep(b: *Build, new_default_step: *Step) void {
-    b.getPackage().default_step = new_default_step;
+    b.package.default_step = new_default_step;
 }
 
 test {

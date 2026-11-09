@@ -758,7 +758,7 @@ pub fn packageOptions(p: *std.Build.Package, wc: *Configuration.Wip) Allocator.E
 }
 
 fn builderToPackage(s: *Serialize, b: *std.Build) !Configuration.Package.Index {
-    return packageToPackage(s, b.getPackage());
+    return packageToPackage(s, b.package);
 }
 
 fn packageToPackage(s: *Serialize, p: *const std.Build.Package) !Configuration.Package.Index {

@@ -75,14 +75,18 @@ pub fn main(init: process.Init.Minimal) !void {
         },
     };
 
+    const root_namespace = try arena.create(std.Build.Namespace);
     const root_package = try arena.create(std.Build.Package);
     const root_build = try arena.create(std.Build);
+    root_namespace.* = .{
+        .parent = null,
+        .deduplicated_dependencies = .empty,
+    };
     root_build.* = .{
         .graph = &graph,
         .allocator = arena,
         .package = root_package,
-        .parent = null,
-        .deduplicated_dependencies = .empty,
+        .namespace = root_namespace,
     };
     root_package.* = .{
         .root = build_root,
@@ -112,6 +116,8 @@ pub fn main(init: process.Init.Minimal) !void {
         .pkg_hash = "",
         .available_deps = dependencies.root_deps,
         .dep_prefix = "",
+        .top_namespace = root_namespace,
+        .bottom_namespace = root_namespace,
     };
     try root_package.top_level_steps.put(arena, root_package.install_tls.step.name, &root_package.install_tls);
     try root_package.top_level_steps.put(arena, root_package.uninstall_tls.step.name, &root_package.uninstall_tls);

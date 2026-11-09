@@ -35,6 +35,12 @@ named_lazy_paths: std.array_hash_map.String(LazyPath),
 pkg_hash: []const u8,
 /// A mapping from dependency names to package hashes.
 available_deps: AvailableDeps,
+/// This reference exists so that `pushed_canonical_instances` can be iterated over at the end of
+/// build.zig for all sub-namespaces of the package.
+top_namespace: *Build.Namespace,
+/// This reference exists so that `pushed_canonical_instances` can be iterated over at the end of
+/// build.zig for all sub-namespaces of the package.
+bottom_namespace: *Build.Namespace,
 
 pub const Entry = struct {
     hash: []const u8,

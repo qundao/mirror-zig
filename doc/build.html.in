@@ -60,6 +60,9 @@ dt {
 .sgr-0_2 {
   color: #575757;
 }
+.sgr-31_0 {
+  color: #b40000;
+}
 .sgr-31_1 {
   color: #b40000;
   font-weight: bold;
@@ -934,14 +937,14 @@ libvorbis<span class="sgr-0_2"> libvorbis-0.0.0+1.3.7-1wt9j_QPAADVure94TG4ecBMLD
 libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
 nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFgetb0</span>
 ├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
-└─ zlib<span class="sgr-0_2"> zlib-1.3.1-1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span> (selected: zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N)
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span> (selected: zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N)
    └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
 </samp></pre></figure>
     <p>Here we observe that the {#link|Lazy Dependencies#} <code>mbedtls</code> and
     <code>openssl</code> were not yet needed and therefore have not been fetched.</p>
     <p>We also see that there was a {#link|Version Conflict|Version Conflicts#}, which was
     {#link|resolved via selection|Conflict Resolution via Selection#}. <code>nasm</code> requested
-    <code>zlib</code> <code>1.3.1-1</code>, but received <code>2.0.0+1.3.2</code> instead, because
+    <code>zlib</code> <code>1.3.1</code>, but received <code>2.0.0+1.3.2</code> instead, because
     the root package declared a direct dependency on <code>zlib</code>, as you can see in
     <code>build.zig.zon</code> above.</p>
     {#header_close#}
@@ -1012,7 +1015,7 @@ libvorbis<span class="sgr-0_2"> libvorbis-0.0.0+1.3.7-1wt9j_QPAADVure94TG4ecBMLD
 libogg<span class="sgr-0_2"> libogg-0.0.0+1.3.7-0KP-foYNAAAaj0YJOwRQs7kTN-ivzRMYTjtKzr6Apelj</span>
 nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFgetb0</span>
 ├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
-└─ zlib<span class="sgr-0_2"> zlib-1.3.1-1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
    └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
 <span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
 </samp></pre></figure>
@@ -1031,7 +1034,7 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
 (process exited with code 1)
 </samp></pre></figure>
     <p>If the project does match, you get a reminder that you are using a fork:</p>
-<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --configure --fork /home/andy/dev/zlib</kbd>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --fork /home/andy/dev/zlib</kbd>
 <span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
 </samp></pre></figure>
     <p>This functionality is intended to streamline the workflow when encountering a bug, a missing
@@ -1041,15 +1044,125 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     separate, forked directory, take advantage of the source control, test suite, {#link|Incremental Compilation#},
     and other components of the upstream development environment to make changes.</li>
     <li>Work with upstream to get your patches merged.</li>
-    <li>Optional: if upstream is taking a long time to publish your patches, update your
+    <li>Wait for upstream to publish your patches. Optionally, update your
     {#link|Manifest File#} to switch to your fork, and then remove the <code>--fork</code> CLI
     option from your build command.</li>
+    <li>Update your dependency to the new upstream release and celebrate the fact that you no longer
+    have to maintain a fork.</li>
     </ol>
-
-
     {#header_close#}
 
     {#header_open|Version Conflicts#}
+    <p>When adding a new dependency, if it causes the dependency tree to contain multiple different
+    versions of a project (based on the {#link|fingerprint|Package Identity: Fingerprint#}), an
+    error occurs:</p>
+
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --print-tree</kbd>
+nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpSJUAABp8P_x6B1dPmYEcBVlfF06ZpyWcCvl461C</span>
+├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span>
+binutils<span class="sgr-0_2"> binutils-2.45.0-SsZUiNEeAwCBfZdO2AJt-qhm3mc0xA4dmCZn7H5LMK1K</span>
+├─ binutils<span class="sgr-0_2"> N-V-__8AAA6W9hFBAXcaEDszHBBVI0IfEpYUwk8y2YtqoTBr</span>
+├─ zlib<span class="sgr-0_2"> zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0</span>
+└─ zstd<span class="sgr-0_2"> zstd-1.5.7-2-KEItkAMwAADNhCbGaImKrjXjnSA51jcqEbGCA3RasVZ9</span>
+</samp></pre></figure>
+    <p>Here we see an example project that indirectly depends on <code>zlib</code> twice - once through
+    <code>nasm</code> and once through <code>binutils</code>. This causes an error to occur, because
+    the versions of <code>zlib</code> do not match exactly:</p>
+
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build</kbd>
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>package version conflict: zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6 (nasm.zlib)
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>package version conflict: zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0 (binutils.zlib)
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>possible resolution: zig fetch --save zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>possible resolution: in build.zig, use createNamespace
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:1713:26</span>: <span class="sgr-0_2">0x13c1f0c in lazyDependency__func_2123 (std.zig)</span>
+    return dependencyLazy(b, name, args) catch |err| switch (err) {
+                         <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/tmp/pkg-testing/example/zig-pkg/binutils-2.45.0-SsZUiNEeAwCBfZdO2AJt-qhm3mc0xA4dmCZn7H5LMK1K/build.zig:777:32</span>: <span class="sgr-0_2">0x13971bb in build (build.zig)</span>
+    } else if (b.lazyDependency(&quot;zlib&quot;, .{
+                               <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:2158:36</span>: <span class="sgr-0_2">0x138f2e9 in runPackageScript (std.zig)</span>
+    handleResult(b, build_zig.build(b));
+                                   <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:2125:18</span>: <span class="sgr-0_2">0x132895d in instantiatePackage (std.zig)</span>
+        run_build(child_build);
+                 <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:1894:30</span>: <span class="sgr-0_2">0x1326a86 in dependencyAdvanced__func_1796 (std.zig)</span>
+    return instantiatePackage(b, name, entry, &amp;map, options.canonical, return_address);
+                             <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:1768:30</span>: <span class="sgr-0_2">0x1325dd7 in dependency__func_1550 (std.zig)</span>
+    return dependencyAdvanced(b, name, @returnAddress(), .{}, args) catch |err| switch (err) {
+                             <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/tmp/pkg-testing/example/build.zig:25:21</span>: <span class="sgr-0_2">0x12f10ff in build (build.zig)</span>
+    _ = b.dependency(&quot;binutils&quot;, .{});
+                    <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/Build.zig:2158:36</span>: <span class="sgr-0_2">0x1232c3f in runPackageScript (configurer.zig)</span>
+    handleResult(b, build_zig.build(b));
+                                   <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/start.zig:801:88</span>: <span class="sgr-0_2">0x123452a in callMain (std.zig)</span>
+    if (fn_info.param_types[0].? == std.process.Init.Minimal) return wrapMain(root.main(.{
+                                                                                       <span class="sgr-32_0">^</span>
+<span class="sgr-0_1">/home/andy/dev/zig/lib/std/start.zig:254:5</span>: <span class="sgr-0_2">0x1230891 in _start (std.zig)</span>
+    asm volatile (switch (native_arch) {
+    <span class="sgr-32_0">^</span>
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>configure command exited with code 1: .zig-cache/o/19643e854a9ff62de032354a95d97a97/configurer --zig /home/andy/dev/zig/build-release/stage3/bin/zig --build-root /home/andy/tmp/pkg-testing/example
+(process exited with code 1)
+</samp></pre></figure>
+    <p>As hinted, there are two possible resolutions for this problem:</p>
+    <ul>
+      <li>{#link|Conflict Resolution via Selection#}</li>
+      <li>{#link|Conflict Resolution via Namespacing#}</li>
+    </ul>
+    {#header_close#}
+
+    {#header_open|Conflict Resolution via Selection#}
+    <p>A direct dependency on a package is considered to be a <strong>selection</strong>
+    of that package's version across the dependency subtree.</p>
+    <p>Taking the same example from the {#link|Version Conflicts#} section, if we add
+    <code>zlib</code> also to the root project, the error disappears:</p>
+    {#code|conflict-resolution-selection/add-dep.diff#}
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --print-tree</kbd>
+nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpSJUAABp8P_x6B1dPmYEcBVlfF06ZpyWcCvl461C</span>
+├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span> (selected: zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0)
+binutils<span class="sgr-0_2"> binutils-2.45.0-SsZUiNEeAwCBfZdO2AJt-qhm3mc0xA4dmCZn7H5LMK1K</span>
+├─ binutils<span class="sgr-0_2"> N-V-__8AAA6W9hFBAXcaEDszHBBVI0IfEpYUwk8y2YtqoTBr</span>
+├─ zlib<span class="sgr-0_2"> zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0</span>
+└─ zstd<span class="sgr-0_2"> zstd-1.5.7-2-KEItkAMwAADNhCbGaImKrjXjnSA51jcqEbGCA3RasVZ9</span>
+zlib<span class="sgr-0_2"> zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0</span>
+</samp></pre></figure>
+    <p>Here we can see that, while <code>nasm</code> asked for <code>zlib</code> version
+    <code>1.3.1</code>, it received <code>1.3.2</code> instead.
+    The unused <code>1.3.1</code> package is not fetched.</p>
+    <p>However, if the selected version is less than the version needed by a package in the subtree,
+    an error occurs:</p>
+    {#code|conflict-resolution-selection/add-dep-bad.diff#}
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --configure</kbd>
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>zlib: selected package zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6 fails version requirements of zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>hint: use --print-tree to visualize all package versions and hashes
+(process exited with code 1)
+</samp></pre></figure>
+    <p>This problem stands out prominently with <code>--print-tree</code>:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --print-tree</kbd>
+nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpSJUAABp8P_x6B1dPmYEcBVlfF06ZpyWcCvl461C</span>
+├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
+└─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span>
+   └─ zlib<span class="sgr-0_2"> N-V-__8AAB0eQwD-0MdOEBmz7intriBReIsIDNlukNVoNu6o</span>
+binutils<span class="sgr-0_2"> binutils-2.45.0-SsZUiNEeAwCBfZdO2AJt-qhm3mc0xA4dmCZn7H5LMK1K</span>
+├─ binutils<span class="sgr-0_2"> N-V-__8AAA6W9hFBAXcaEDszHBBVI0IfEpYUwk8y2YtqoTBr</span>
+├─ zlib<span class="sgr-0_2"> zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0</span><span class="sgr-31_0"> (selected: zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6)</span>
+|  └─ zlib<span class="sgr-0_2"> N-V-__8AAB0eQwD-0MdOEBmz7intriBReIsIDNlukNVoNu6o</span>
+└─ zstd<span class="sgr-0_2"> zstd-1.5.7-2-KEItkAMwAADNhCbGaImKrjXjnSA51jcqEbGCA3RasVZ9</span>
+   └─ zstd<span class="sgr-0_2"> N-V-__8AAGxifwAAGwXwvsnl_aOXFGLZTeYCu0WBhuEXr96u</span>
+zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span>
+</samp></pre></figure>
+    <p>If this problem cannot be corrected by updating the selected package to a newer version that
+    supports all respective packages in the dependency tree, the other option is
+    {#link|Allowing Multiple Versions to Coexist#}.</p>
+
+    {#header_close#}
+
+    {#header_open|Conflict Resolution via Namespacing#}
     <p>TODO documentation</p>
     {#header_close#}
 
@@ -1057,13 +1170,13 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     <p>TODO documentation</p>
     {#header_close#}
 
-    {#header_open|Conflict Resolution via Selection#}
+    {#header_open|Canonical Package Configuration Options#}
     <p>TODO documentation</p>
     {#header_close#}
 
-    {#header_open|Opting Out of Conflict Resolution#}
+    {#header_open|Allowing Multiple Versions to Coexist#}
     <p>In build.zig.zon, specify a set of package paths in the <code>unversioned</code> field which
-    are exempt from both {link|Version Conflicts#} and {#link|Package Configuration Options Conflicts#}.
+    are exempt from both {#link|Version Conflicts#} and {#link|Package Configuration Options Conflicts#}.
     Specified packages will always be instantiated, even if it creates multiple instances of
     packages with the same fingerprint.</p>
     {#header_close#}

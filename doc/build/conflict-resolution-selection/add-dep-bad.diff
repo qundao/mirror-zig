@@ -1,0 +1,9 @@
+--- a/build.zig.zon
++++ b/build.zig.zon
+@@ -8,6 +8,7 @@
+         .zlib = .{
+-            .url = "git+https://github.com/allyourcodebase/zlib#d3b5519d3b73616a6bfece0712f080029d2a9244",
+-            .hash = "zlib-1.3.2-ZZQ7lc8NAAAHm9MDfplvwoesXvk4tVm6VCsiI8KnIbT0",
++            .url = "git+https://github.com/allyourcodebase/zlib#c5115f4b69ef660f72a835c6638f80508ef284c7",
++            .hash = "zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6",
+         },
