@@ -404,10 +404,6 @@ pub const JobQueue = struct {
                 .{ std.zig.fmtString(name), std.zig.fmtString(h.toSlice()) },
             );
         }
-        try w.writeAll("};\n\npub const unversioned: []const []const u8 = &.{\n");
-        for (jq.unversioned.keys()) |pkg_path| {
-            try w.print("    {q},\n", .{pkg_path});
-        }
         try w.writeAll("};\n");
     }
 
@@ -416,7 +412,6 @@ pub const JobQueue = struct {
             \\pub const Dep = struct { []const u8, []const u8 };
             \\pub const packages = struct {};
             \\pub const root_deps: []const Dep = &.{};
-            \\pub const unversioned: []const []const u8 = &.{};
             \\
         );
     }

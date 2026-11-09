@@ -891,7 +891,7 @@ update-protocol<span class="sgr-32m"> success</span>
     {#header_close#}
 
     {#header_open|Package Identity: Fingerprint#}
-    <p>Over the lifetime of a <strong>project</strong>, are many releases. In the Zig
+    <p>Over the lifetime of a <strong>project</strong>, there are many releases. In the Zig
     Build System, each release of a project is a <strong>package</strong>; a snapshot of a project at one particular
     time. In order to detect when multiple different packages are releases of the same project, Zig uses the
     {#link|fingerprint field|Top Level Field: fingerprint#} of the {#link|Manifest File#}. This field is randomly
@@ -1175,10 +1175,11 @@ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3z
     {#header_close#}
 
     {#header_open|Allowing Multiple Versions to Coexist#}
-    <p>In build.zig.zon, specify a set of package paths in the <code>unversioned</code> field which
-    are exempt from both {#link|Version Conflicts#} and {#link|Package Configuration Options Conflicts#}.
-    Specified packages will always be instantiated, even if it creates multiple instances of
-    packages with the same fingerprint.</p>
+    <p>In the {#link|Manifest File#}, specifying a set of package paths in the {#link|unversioned#}
+    field makes those dependencies exempt from {#link|Version Conflicts#}.
+    Specified packages will always receive exactly the version they asked for, even if it causes
+    there to be multiple different versions of packages with the same
+    {#link|fingerprint|Package Identity: Fingerprint#}.</p>
     {#header_close#}
 
     {#header_open|Recommended Release Workflow#}

@@ -1893,15 +1893,6 @@ pub fn dependencyAdvanced(
     return instantiatePackage(b, name, entry, &map, options.canonical, return_address);
 }
 
-pub const unversioned_map: std.StaticStringMap(void) = map: {
-    const unversioned = @import("root").dependencies.unversioned;
-    var kvs: [unversioned.len]struct { []const u8 } = undefined;
-    @setEvalBranchQuota(unversioned.len + 100);
-    for (&kvs, unversioned) |*kv, pkg_path| kv.* = .{pkg_path};
-    const frozen = kvs;
-    break :map .initComptime(&frozen);
-};
-
 /// In a build.zig file, this function is to `@import` what `lazyDependency` is to `dependency`.
 /// If the dependency is lazy and has not yet been fetched, it instructs the parent process to fetch
 /// that dependency after the build script has finished running, then returns `null`.
@@ -2006,8 +1997,6 @@ fn instantiatePackage(
     }
 
     const versioned: bool = versioned: {
-        if (unversioned_map.has(new_package_path)) break :versioned false;
-
         const package_hash: Package.Hash = .fromSlice(entry.hash);
         const project_id = package_hash.projectIdOptional() orelse break :versioned false;
 
@@ -2041,8 +2030,6 @@ fn instantiatePackage(
                 };
                 log.info("possible resolution: zig fetch --save {s}", .{suggested_winner});
                 log.info("possible resolution: in build.zig, use createNamespace", .{});
-                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
-                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
                 process.exit(1);
             }
@@ -2060,8 +2047,6 @@ fn instantiatePackage(
                 };
                 log.info("possible resolution: \"zig fetch --save {s}\" and then in build.zig, use dependencyCanoncial, dependencyStepCanonical, or dependencyLazyCanonical", .{suggested_winner});
                 log.info("possible resolution: in build.zig, use createNamespace", .{});
-                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{old_package_path});
-                log.info("possible resolution: add {q} to \"unversioned\" in build.zig.zon", .{new_package_path});
                 std.debug.dumpCurrentStackTrace(.{ .first_address = first_return_address });
                 process.exit(1);
             }
