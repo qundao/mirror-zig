@@ -919,7 +919,7 @@ update-protocol<span class="sgr-32m"> success</span>
     <p>Here is a hypothetical {#link|Manifest File#} for FFmpeg:</p>
     {#code|dep-tree-vis/build.zig.zon#}
     <p>To print the tree, we use <code>zig build --print-tree</code>:</p>
-<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --print-tree</kbd>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --print-tree</kbd>
 libz<span class="sgr-0_2"> zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N</span>
 └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
 mbedtls<span class="sgr-0_2"> mbedtls-3.6.4-E4NUR2wWAAAUSvVbho9aaU31-e4D8glu9l1VfxKezBkV</span><span class="sgr-33_0"> (not fetched)
@@ -991,12 +991,13 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
 
     {#header_open|Forking#}
     <p>Sometimes you need to make changes to one or more packages from your
-    {#link|dependency tree|Dependency Tree Visualization#}. This is called <strong>forking</strong>.</p>
+    {#link|dependency tree|Dependency Tree Visualization#}. This is called <strong>forking</strong>.
+    The original project that you are forking from is called <strong>upstream</strong>.</p>
 <pre><code>  --fork=[path], --fork [path] Override one or more projects from dependency tree</code></pre>
     <p>Given a path to a source checkout of a project, all packages with matching
     {#link|Package Identity: Fingerprint#} across the entire dependency tree will
-    be replaced by that path.</p>
-<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --fork /home/andy/dev/zlib --print-tree</kbd>
+    be replaced by that path:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --fork /home/andy/dev/zlib --print-tree</kbd>
 libz<span class="sgr-0_2"> zlib-2.0.0+1.3.2-ZZQ7lTERAAAVMpRUpMKNUAri9uNfXQfv1jq9x1XvxQ-N</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
 └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
 mbedtls<span class="sgr-0_2"> mbedtls-3.6.4-E4NUR2wWAAAUSvVbho9aaU31-e4D8glu9l1VfxKezBkV</span><span class="sgr-33_0"> (not fetched)
@@ -1016,26 +1017,27 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
     <p>Thanks to the fact that package content hashes include {#link|name|Top Level Field: name#}
     and {#link|fingerprint|Top Level Field: fingerprint#}, <strong>this resolves
     before the package is potentially fetched</strong>.</p>
-    <p>This is meant to be a convenient way to temporarily use one or more forks which are in entirely separate
-    directories. You can iterate on your entire dependency tree until everything is working, while
+    <p>This is meant to be a convenient way to temporarily use one or more forks which are in separate
+    directories than your project. You can iterate on your entire dependency tree while
     using the development environment and source control of the dependency projects.</p>
-    <p>The fact that it is a CLI flag makes it appropriately ephemeral. The moment you drop the
-    flags, you're back to using your pristine, fetched dependency tree.</p>
+    <p>The fact that <code>--fork</code> is a command line flag, as opposed to something on the file
+    system, makes it appropriately ephemeral. The moment you drop the flags, you're back to using
+    your pristine, fetched dependency tree.</p>
     <p>If the project does not match, an error occurs:</p>
-<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --fork /home/andy/dev/mime</kbd>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --fork /home/andy/dev/mime</kbd>
 <span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>fork /home/andy/dev/mime matched no mime packages
 (process exited with code 1)
 </samp></pre></figure>
     <p>If the project does match, you get a reminder that you are using a fork:</p>
-<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig-dev build --configure --fork /home/andy/dev/zlib</kbd>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --configure --fork /home/andy/dev/zlib</kbd>
 <span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
 </samp></pre></figure>
-    <p>This functionality is intended to streamline the workflow of dealing with ecosystem breakage.
-    The suggested workflow looks like this:</p>
+    <p>This functionality is intended to streamline the workflow when encountering a bug, a missing
+    enhancement, or API breakage within one's dependency tree. The suggested workflow looks like this:</p>
     <ol>
-    <li>Fail to build from source due to ecosystem breakage.</li>
-    <li>Tinker with <code>--fork</code> until your project works again. During this time you can use the actual
-    upstream source control, test suite, {#link|Incremental Compilation#}, etc.</li>
+    <li>Use <code>--fork</code> to test local modifications to the project. During this time, in the
+    separate, forked directory, take advantage of the source control, test suite, {#link|Incremental Compilation#},
+    and other components of the upstream development environment to make changes.</li>
     <li>Work with upstream to get your patches merged.</li>
     <li>Optional: if upstream is taking a long time to publish your patches, update your
     {#link|Manifest File#} to switch to your fork, and then remove the <code>--fork</code> CLI
