@@ -607,6 +607,17 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .sh, .fsca, whenAll(set.*, .{ .fpu, .sh4 }));
                 derive(set, blocked, .sh, .fsrra, whenAll(set.*, .{ .fpu, .sh4 }));
             },
+            .x86 => {
+                const whenAll = Target.x86.featureSetHasAll;
+                const whenAny = Target.x86.featureSetHasAny;
+
+                // What is LLVM smoking? It's literally a single `cpuid` bit...
+                const apxf = .{ .ccmp, .cf, .egpr, .jmpabs, .ndd, .nf, .ppx, .push2pop2, .zu };
+
+                derive(set, blocked, .x86, .@"287", whenAll(set.*, .{ .@"286", .@"8087" }));
+                derive(set, blocked, .x86, .@"387", whenAll(set.*, .{ .@"486", .@"8087" }));
+                inline for (apxf) |feat| derive(set, blocked, .x86, feat, whenAny(set.*, apxf));
+            },
             else => {},
         }
 
