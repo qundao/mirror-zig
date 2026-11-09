@@ -1166,13 +1166,6 @@
             },
         },
         .{
-            .llvm_name = "skx",
-            .extra_deps = .{
-                "smap",
-                "smep",
-            },
-        },
-        .{
             .llvm_name = "skylake",
             .extra_deps = .{
                 "smap",
