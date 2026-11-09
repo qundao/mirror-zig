@@ -138,19 +138,36 @@
         .{
             .llvm_name = "ci-insts",
             .zig_name = "gfx7",
+            .extra_deps = .{
+                "flat_address_space",
+                "unaligned_buffer_access",
+            },
         },
         .{
             .llvm_name = "gfx8-insts",
             .zig_name = "gfx8",
             .extra_deps = .{
+                "16_bit_insts",
+                "dpp",
                 "gfx7",
+                "int_clamp_insts",
+                "inv_2pi_inline_imm",
             },
         },
         .{
             .llvm_name = "gfx9-insts",
             .zig_name = "gfx9",
             .extra_deps = .{
+                "a16",
+                "add_no_carry_insts",
+                "aperture_regs",
+                "flat_global_insts",
+                "flat_inst_offsets",
+                "flat_scratch_insts",
                 "gfx8",
+                "unaligned_ds_access",
+                "unaligned_scratch_access",
+                "vop3p",
             },
         },
         .{
@@ -178,7 +195,19 @@
             .llvm_name = "gfx10-insts",
             .zig_name = "gfx10",
             .extra_deps = .{
+                "atomic_fmin_fmax_flat_f32",
+                "atomic_fmin_fmax_global_f32",
+                "dpp8",
+                "fma_mix_insts",
+                "g16",
                 "gfx9",
+                "mimg_r128",
+                "movrel",
+                "no_sdst_cmpx",
+                "permlane16_insts",
+                "pk_fmac_f16_inst",
+                "vop3_literal",
+                "vscnt",
             },
         },
         .{
@@ -186,6 +215,8 @@
             .zig_name = "gfx10_3",
             .extra_deps = .{
                 "gfx10",
+                "gfx10_a_encoding",
+                "gfx10_b_encoding",
             },
         },
         .{
@@ -193,6 +224,8 @@
             .zig_name = "gfx11",
             .extra_deps = .{
                 "gfx10_3",
+                "true16",
+                "vopd",
             },
         },
         .{
@@ -206,7 +239,14 @@
             .llvm_name = "gfx12-insts",
             .zig_name = "gfx12",
             .extra_deps = .{
+                "default_component_broadcast",
+                "flat_offset_bits_24",
+                "flat_signed_offset",
                 "gfx11",
+                "ieee_minimum_maximum_insts",
+                "minimum3_maximum3_f16",
+                "minimum3_maximum3_f32",
+                "salu_minimum_maximum_insts",
             },
         },
         .{
@@ -220,7 +260,11 @@
             .llvm_name = "gfx13-insts",
             .zig_name = "gfx13",
             .extra_deps = .{
+                "extended_image_insts",
+                "formatted_mubuf_insts",
                 "gfx12",
+                "image_insts",
+                "mtbuf_insts",
             },
         },
     },
