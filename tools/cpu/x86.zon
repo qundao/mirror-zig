@@ -796,6 +796,12 @@
             },
         },
         .{
+            .llvm_name = "bdver4",
+            .extra_deps = .{
+                "smep",
+            },
+        },
+        .{
             .llvm_name = "broadwell",
             .extra_deps = .{
                 "smap",
@@ -817,6 +823,34 @@
             },
         },
         .{
+            .llvm_name = "c86-4g-m4",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "c86-4g-m6",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "c86-4g-m7",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "c86-4g-m8",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
             .llvm_name = "cannonlake",
             .extra_deps = .{
                 "smap",
@@ -831,9 +865,25 @@
             },
         },
         .{
+            .llvm_name = "clearwaterforest",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "cooperlake",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
             .llvm_name = "diamondrapids",
             .extra_deps = .{
                 "cf",
+                "smap",
+                "smep",
             },
         },
         .{
@@ -863,6 +913,34 @@
         },
         .{
             .llvm_name = "goldmont-plus",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "gracemont",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "grandridge",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "graniterapids",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "graniterapids-d",
             .extra_deps = .{
                 "smap",
                 "smep",
@@ -958,6 +1036,7 @@
                 "avx512er",
                 "avx512pf",
                 "prefetchwt1",
+                "smep",
             },
         },
         .{
@@ -966,12 +1045,20 @@
                 "avx512er",
                 "avx512pf",
                 "prefetchwt1",
+                "smep",
             },
         },
         .{
             .llvm_name = "lakemont",
             .extra_deps = .{
                 "486",
+            },
+        },
+        .{
+            .llvm_name = "lunarlake",
+            .extra_deps = .{
+                "smap",
+                "smep",
             },
         },
         .{
@@ -985,6 +1072,15 @@
             .llvm_name = "novalake",
             .extra_deps = .{
                 "cf",
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "pantherlake",
+            .extra_deps = .{
+                "smap",
+                "smep",
             },
         },
         .{
@@ -1057,6 +1153,13 @@
             },
         },
         .{
+            .llvm_name = "sierraforest",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
             .llvm_name = "silvermont",
             .extra_deps = .{
                 "smep",
@@ -1085,6 +1188,20 @@
         },
         .{
             .llvm_name = "tigerlake",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "tremont",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "wildcatlake",
             .extra_deps = .{
                 "smap",
                 "smep",
@@ -1141,6 +1258,13 @@
         },
         .{
             .llvm_name = "znver5",
+            .extra_deps = .{
+                "smap",
+                "smep",
+            },
+        },
+        .{
+            .llvm_name = "znver6",
             .extra_deps = .{
                 "smap",
                 "smep",
