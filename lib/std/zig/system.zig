@@ -589,6 +589,18 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .hexagon, .hvxv81, whenAll(set.*, .{ .hvx, .v81 }));
                 derive(set, blocked, .hexagon, .hvx_length64b, when(set.*, .hvx) and !when(set.*, .hvx_length128b));
             },
+            .s390x => {
+                const whenAny = Target.s390x.featureSetHasAny;
+
+                // A single `stfle` bit covers multiple features:
+                const b45 = .{ .distops, .fbcrs, .hiword, .iacc, .loc, .popcnt };
+                const b49 = .{ .exhint, .lat, .minste, .ppa };
+                const b53 = .{ .loc2, .lzr };
+
+                inline for (b45) |feat| derive(set, blocked, .s390x, feat, whenAny(set.*, b45));
+                inline for (b49) |feat| derive(set, blocked, .s390x, feat, whenAny(set.*, b49));
+                inline for (b53) |feat| derive(set, blocked, .s390x, feat, whenAny(set.*, b53));
+            },
             .sh => {
                 const whenAll = Target.sh.featureSetHasAll;
 
