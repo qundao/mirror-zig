@@ -628,6 +628,20 @@ fn resolveCpuFeatures(
                 derive(set, blocked, .hexagon, .hvxv81, whenAll(set.*, .{ .hvx, .v81 }));
                 derive(set, blocked, .hexagon, .hvx_length64b, when(set.*, .hvx) and !when(set.*, .hvx_length128b));
             },
+            .mips => {
+                const when = Target.mips.featureSetHas;
+                const whenAll = Target.mips.featureSetHasAll;
+
+                derive(set, blocked, .mips, .fpu_d, whenAll(set.*, .{ .fpu_s, .mips32 }) and !when(set.*, .mips32r6));
+                derive(set, blocked, .mips, .fpu_d, whenAll(set.*, .{ .fpu_s, .msa }));
+                derive(set, blocked, .mips, .abs2008, whenAll(set.*, .{ .fpu_s, .msa }));
+                derive(set, blocked, .mips, .nan2008, whenAll(set.*, .{ .fpu_s, .msa }));
+                derive(set, blocked, .mips, .mips64r2, whenAll(set.*, .{ .mips32r2, .mips64 }));
+                derive(set, blocked, .mips, .mips64r3, whenAll(set.*, .{ .mips32r3, .mips64 }));
+                derive(set, blocked, .mips, .mips64r5, whenAll(set.*, .{ .mips32r5, .mips64 }));
+                derive(set, blocked, .mips, .mips64r6, whenAll(set.*, .{ .mips32r6, .mips64 }));
+                derive(set, blocked, .mips, .dspr3, whenAll(set.*, .{ .dspr2, .mips32r6 }));
+            },
             .s390x => {
                 const whenAny = Target.s390x.featureSetHasAny;
 
