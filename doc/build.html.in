@@ -911,6 +911,16 @@ update-protocol<span class="sgr-32m"> success</span>
       <li>Someone neglected to bump the package version after making changes.</li>
       <li>Someone added a dependency on unreleased changes.</li>
     </ul>
+    <p>The error looks like this:</p>
+<figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build</kbd>
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>contradictory hash for package with fingerprint 0x8c7365210c2ee9ca and version 0.0.0: foo-0.0.0-yukuDJ49AABxLuFyY8mXUH92jpsvmAH5UG-Dcm2PxknU
+<span class="sgr-31_1">error</span><span class="sgr-0_1">: </span>contradictory hash for package with fingerprint 0x8c7365210c2ee9ca and version 0.0.0: foo-0.0.0-yukuDLQ9AADCJvtBa4JSQmW6vBlB1KIRkH4tmmdj__22
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>potential cause: package ownership dispute
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>potential cause: maintainer neglected to bump version after making changes
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>potential cause: dependency on unreleased changes
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>hint: use --print-tree to visualize all package versions and hashes
+(process exited with code 1)
+</samp></pre></figure>
     <p>In this case, Zig cannot offer an automatic resolution. The project maintainer must
     {#link|examine their dependency tree|Dependency Tree Visualization#} and use critical thinking
     to understand why things have gotten into this state, and then eliminate the problematic
@@ -918,6 +928,7 @@ update-protocol<span class="sgr-32m"> success</span>
     <p>In the more common case, there may be {#link|Version Conflicts#} or
     {#link|Package Configuration Options Conflicts#} for which there are available conflict
     resolution strategies.</p>
+    <p>See also {#link|Top Level Field: fingerprint#}.</p>
     {#header_close#}
 
     {#header_open|Dependency Tree Visualization#}
@@ -1313,7 +1324,7 @@ $ tree zig-out
     {#header_close#}
 
     {#header_open|Top Level Field: fingerprint#}
-    <p>Together with <code>name</code>, this represents a globally unique package identifier. This
+    <p>Together with {#link|name|Top Level Field: name#}, this represents a globally unique package identifier. This
     field is auto-initialized by the toolchain when the package is first created,
     and then <em>never changes</em>. This allows Zig to unambiguously detect when one
     package is an updated version of another.</p>
@@ -1326,8 +1337,9 @@ $ tree zig-out
     <p>The id component within the fingerprint has these restrictions:</p>
     <p><code>0x00000000</code> is reserved for legacy packages.</p>
     <p><code>0xffffffff</code> is reserved to represent &quot;naked&quot; packages.</p>
-    <p>The checksum is computed from <code>name</code> and serves to protect Zig users from
-    accidental id collisions.</p>
+    <p>The checksum is computed from {#link|name|Top Level Field: name#} and serves to protect Zig
+    project maintainers from accidental id collisions.</p>
+    <p>See also {#link|Package Identity: Fingerprint#}.</p>
     {#header_close#}
 
     {#header_open|Top Level Field: version#}
