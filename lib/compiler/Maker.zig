@@ -2091,16 +2091,8 @@ const PrintPkgTree = struct {
             return;
         };
 
-        if (child_fetch.have_manifest) selection: {
-            const project_id: Package.ProjectId = .init(child_fetch.manifest.name, child_fetch.manifest.id);
-            if (ppt.fork_set.getKeyPtrAdapted(project_id, @as(Fetch.JobQueue.Fork.Adapter, .{}))) |fork| {
-                try terminal.setColor(.yellow);
-                try w.print(" (fork: {f})", .{fork.path});
-                try terminal.setColor(.reset);
-                break :selection;
-            }
-
-            if (opt_selected_hash) |selected_hash| {
+        if (opt_selected_hash) |selected_hash| {
+            if (child_fetch.have_manifest) {
                 const requested_version = pkg_hash.version();
                 const selected_version = selected_hash.version();
                 switch (requested_version.order(selected_version)) {
@@ -2129,6 +2121,13 @@ const PrintPkgTree = struct {
         if (!child_fetch.have_manifest) {
             try w.writeByte('\n');
             return;
+        }
+
+        const project_id: Package.ProjectId = .init(child_fetch.manifest.name, child_fetch.manifest.id);
+        if (ppt.fork_set.getKeyPtrAdapted(project_id, @as(Fetch.JobQueue.Fork.Adapter, .{}))) |fork| {
+            try terminal.setColor(.yellow);
+            try w.print(" (fork: {f})", .{fork.path});
+            try terminal.setColor(.reset);
         }
 
         try w.writeByte('\n');
