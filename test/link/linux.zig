@@ -29,6 +29,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(obj.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"foo_\"",
             "--relocs",
             "--filter=target_symbol_name ~ \"foo_\"",
@@ -41,6 +42,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(lib.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"foo_\"",
             "--relocs",
             "--filter=target_symbol_name ~ \"foo_\"",
@@ -84,6 +86,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(exe.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"my_favourite_number\"",
             "--relocs",
             "--filter=reloc_section_name == \".rela.dyn\" and target_symbol_name ~ \"my_favourite_number\"",
@@ -132,6 +135,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(exe.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"get_a_number\"",
         }, .{});
 
@@ -162,6 +166,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(bar.getEmittedBin(), &.{
             "-s",
             "--dynamic",
+            "--filter=type == \"TEXTREL\"",
             "--relocs",
             "--filter=target_symbol_name ~ \"my_favourite_number\"",
         }, .{ .abi = true });
@@ -216,6 +221,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(libfoo.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"do_stuff\"",
         }, .{ .sub_name = "lib" });
 
@@ -264,6 +270,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(libfoo.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"do_stuff\"",
             "--symbol-versions",
             "--filter=sym_name ~ \"do_stuff\"",
@@ -286,6 +293,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(call_default.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"do_stuff\"",
             "--symbol-versions",
             "--filter=sym_name ~ \"do_stuff\"",
@@ -314,6 +322,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(call_explicit.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"do_stuff\"",
             "--symbol-versions",
             "--filter=sym_name ~ \"do_stuff\"",
@@ -360,6 +369,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(call_both.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=is_dynsym and name ~ \"do_stuff\"",
             "--symbol-versions",
             "--filter=sym_name ~ \"do_stuff\"",
@@ -419,6 +429,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(combined_obj.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"something\"",
         }, .{ .sub_name = "obj" });
 
@@ -429,6 +440,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(combined_dynlib.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"something\"",
         }, .{ .sub_name = "dynlib" });
     }
@@ -465,6 +477,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(combined_obj.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"something\"",
         }, .{ .sub_name = "obj" });
 
@@ -475,6 +488,7 @@ pub fn addCases(ctx: *LinkContext) void {
         case.verifyObjdump(combined_dynlib.getEmittedBin(), &.{
             "-s",
             "--symbols",
+            "--sort=name",
             "--filter=name ~ \"something\"",
         }, .{ .sub_name = "dynlib" });
     }
