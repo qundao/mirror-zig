@@ -1081,13 +1081,7 @@ fn queueJobsForDeps(f: *Fetch) RunError!void {
                             const pkg_hash: Package.Hash = .fromSlice(h);
                             if (h.len == 0) break :h pkg_hash;
                             const selected_hash = s: {
-                                const project_id = pkg_hash.projectId();
-                                if (project_id.isNaked()) break :s pkg_hash;
-                                // Exempt forked packages from version selection because those will
-                                // be overridden later, in the run function.
-                                if (f.job_queue.fork_set.containsAdapted(project_id, @as(JobQueue.Fork.Adapter, .{}))) {
-                                    break :s pkg_hash;
-                                }
+                                if (pkg_hash.projectId().isNaked()) break :s pkg_hash;
                                 if (selectPackageOptional(f, pkg_hash)) |selected| {
                                     log.debug("package selection: {s} -> {s}", .{ h, selected.toSlice() });
                                     break :s selected;

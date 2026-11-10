@@ -1028,7 +1028,7 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
 ├─ nasm<span class="sgr-0_2"> N-V-__8AAEAMKAFrNesgN6ZM9sxj37fq_i7UJe5nKkLmyRJI</span>
 └─ zlib<span class="sgr-0_2"> zlib-1.3.1-ZZQ7ldENAAA7qJjUXP6E6xnRuV-jDL9dyoJFc_eb3zQ6</span><span class="sgr-33_0"> (fork: /home/andy/dev/zlib)</span>
    └─ zlib<span class="sgr-0_2"> zlib-1.3.2-__8AANXpEADvBXGMSfhczMTZVAA-TkkE4ecoohAR7s3p</span>
-<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 2 zlib packages
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
 </samp></pre></figure>
     <p>Thanks to the fact that package content hashes include {#link|name|Top Level Field: name#}
     and {#link|fingerprint|Top Level Field: fingerprint#}, <strong>this resolves
@@ -1046,7 +1046,7 @@ nasm<span class="sgr-0_2"> nasm-3.0.1-B_NnpQpTAAA25UxvqONakXtmj-a78PGe3xfgyDFget
 </samp></pre></figure>
     <p>If the project does match, you get a reminder that you are using a fork:</p>
 <figure><figcaption class="shell-cap">Shell</figcaption><pre><samp>$ <kbd>zig build --fork /home/andy/dev/zlib</kbd>
-<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 2 zlib packages
+<span class="sgr-32_1">info</span><span class="sgr-0_1">: </span>fork /home/andy/dev/zlib matched 1 zlib packages
 </samp></pre></figure>
     <p>This functionality is intended to streamline the workflow when encountering a bug, a missing
     enhancement, or API breakage within one's dependency tree. The suggested workflow looks like this:</p>
