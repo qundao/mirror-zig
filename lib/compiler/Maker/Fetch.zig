@@ -399,10 +399,7 @@ pub const JobQueue = struct {
 
         for (root_manifest.dependencies.keys(), root_manifest.dependencies.values()) |name, *dep| {
             const h = depDigest(root_fetch.package_root, jq.global_cache, dep) orelse continue;
-            try w.print(
-                "    .{{ \"{f}\", \"{f}\" }},\n",
-                .{ std.zig.fmtString(name), std.zig.fmtString(h.toSlice()) },
-            );
+            try w.print("    .{{ {q}, {q} }},\n", .{ name, h.toSlice() });
         }
         try w.writeAll("};\n");
     }
@@ -669,7 +666,7 @@ pub fn run(f: *Fetch) RunError!void {
     if (remote.hash) |expected_hash| {
         const expected_project_id: Package.ProjectId = expected_hash.projectId();
         if (job_queue.fork_set.getKeyPtrAdapted(expected_project_id, @as(JobQueue.Fork.Adapter, .{}))) |fork| {
-            log.debug("using fork {f} for {s}", .{ fork.path, expected_hash.toSlice() });
+            log.debug("using fork {f} for {s} ({s})", .{ fork.path, f.name, expected_hash.toSlice() });
             fork.uses += 1;
             f.package_root = fork.path;
             f.remote_package_root = f.package_root;
