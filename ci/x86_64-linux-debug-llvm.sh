@@ -50,7 +50,7 @@ stage3-debug/bin/zig build install test docs \
   --maxrss "${ZSF_MAX_RSS:-0}" \
   --prefix stage4-debug \
   --search-prefix "$PREFIX" \
-  --libc-runtimes "$HOME/deps/glibc-2.43-musl-1.2.5" \
+  --libc-runtimes "$HOME/deps/glibc-2.44-musl-1.2.6" \
   --test-timeout 12m \
   -fqemu \
   -fwasmtime \
