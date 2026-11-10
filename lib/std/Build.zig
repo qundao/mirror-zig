@@ -44,9 +44,6 @@ pub const Namespace = struct {
     /// tree that will be deduplicated based on their project id. The key is the index into
     /// `Graph.package_instances`. Value is `canonical`.
     deduplicated_dependencies: DeduplicatedPackageMap,
-    /// Indexes of `Graph.deduplicated_dependencies` that should be downgraded to non-canonical
-    /// after build.zig finishes running.
-    pushed_canonical_instances: std.ArrayList(u32) = .empty,
 };
 
 pub const ConfigureDependency = struct {
@@ -329,7 +326,6 @@ pub fn createNamespace(b: *Build) *Build {
         .package = b.package,
         .namespace = namespace,
     };
-    b.package.bottom_namespace = namespace;
     return child;
 }
 
@@ -2099,8 +2095,6 @@ fn instantiatePackage(
         .named_lazy_paths = .empty,
         .pkg_hash = entry.hash,
         .available_deps = entry.deps,
-        .top_namespace = parent_build.namespace,
-        .bottom_namespace = parent_build.namespace,
     };
     child_package.top_level_steps.put(arena, child_package.install_tls.step.name, &child_package.install_tls) catch @panic("OOM");
     child_package.top_level_steps.put(arena, child_package.uninstall_tls.step.name, &child_package.uninstall_tls) catch @panic("OOM");
@@ -2129,8 +2123,10 @@ fn instantiatePackage(
         }) catch @panic("OOM");
         if (canonical) {
             // Canonical options should affect children only, not siblings.
-            const index: u32 = @intCast(parent_build.namespace.deduplicated_dependencies.count() - 1);
-            parent_build.namespace.pushed_canonical_instances.append(arena, index) catch @panic("OOM");
+            parent_build.package.pushed_canonical_instances.append(arena, .{
+                .index = @intCast(parent_build.namespace.deduplicated_dependencies.count() - 1),
+                .namespace = parent_build.namespace,
+            }) catch @panic("OOM");
         }
     }
 
@@ -2161,14 +2157,9 @@ fn handleResult(b: *Build, result: anyerror!void) void {
     };
 
     // Package instances marked "canonical" lose their canonicalness when they become siblings
-    // rather than parents. Here at the end of build.zig we do this for all sub-namespaces created
-    // in the build.zig logic.
-    var ns_it: ?*Namespace = b.package.bottom_namespace;
-    while (ns_it) |ns| : (ns_it = ns.parent) {
-        for (ns.pushed_canonical_instances.items) |index| {
-            ns.deduplicated_dependencies.values()[index] = false;
-        }
-        if (ns == b.package.top_namespace) break;
+    // rather than parents.
+    for (p.pushed_canonical_instances.items) |*pushed| {
+        pushed.namespace.deduplicated_dependencies.values()[pushed.index] = false;
     }
 }
 
