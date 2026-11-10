@@ -351,8 +351,7 @@ pub fn buildImportLib(comp: *Compilation, lib_name: []const u8, prog_node: std.P
 
             module_def.fixupForImportLibraryGeneration(machine_type);
 
-            const def_members = try implib.getMembers(members.arena.allocator(), module_def, machine_type);
-            try members.list.appendSlice(members.arena.allocator(), def_members.list.items);
+            try implib.appendMembers(&members, gpa, module_def, machine_type);
         }
     }
 
