@@ -344,10 +344,6 @@ fn setThreadPointer(addr: usize) void {
             const rc = @call(.always_inline, linux.syscall1, .{ .set_tls, addr });
             assert(rc == 0);
         },
-        .m68k => {
-            const rc = @call(.always_inline, linux.syscall1, .{ .set_thread_area, addr });
-            assert(rc == 0);
-        },
         .hexagon => {
             asm volatile (
                 \\ ugp = %[addr]
@@ -378,6 +374,7 @@ fn setThreadPointer(addr: usize) void {
             );
         },
         .csky,
+        .m68k,
         .mips,
         .mipsel,
         .mipsf32,
@@ -497,7 +494,7 @@ fn getThreadPointer() usize {
             \\ move %[ret], $tp
             : [ret] "=r" (-> usize),
         ),
-        .m68k => linux.syscall0(.get_thread_area),
+        .m68k => @call(.always_inline, linux.syscall0, .{.get_thread_area}),
         .mips,
         .mipsel,
         .mipsf32,
@@ -851,7 +848,7 @@ fn __tls_get_addr(ti: *const TlsIndex) callconv(.c) *anyopaque {
     return @ptrFromInt(block +% current_dtv_offset +% @as(usize, @intCast(ti.offset)));
 }
 
-fn ___tls_get_addr() callconv(.naked) *anyopaque {
+fn ___tls_get_addr() callconv(.naked) noreturn {
     comptime assert(native_arch == .x86);
 
     // We receive the `TlsIndex` pointer in eax.
