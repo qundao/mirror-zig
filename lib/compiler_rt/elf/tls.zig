@@ -480,10 +480,7 @@ fn getThreadPointer() usize {
             \\ mov %[ret], r25
             : [ret] "=r" (-> usize),
         ),
-        .arm, .armeb, .thumb, .thumbeb => asm (
-            \\ mrc p15, 0, %[ret], c13, c0, 3
-            : [ret] "=r" (-> usize),
-        ),
+        .arm, .armeb, .thumb, .thumbeb => @as(*const fn () callconv(.c) usize, @ptrCast(&@import("../arm.zig").__aeabi_read_tp))(),
         .csky => asm (
             \\ mov %[ret], r31
             : [ret] "=r" (-> usize),
