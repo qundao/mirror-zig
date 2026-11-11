@@ -43,7 +43,7 @@ pub const GetExternalExecutorOptions = struct {
 pub fn getExternalExecutor(io: Io, candidate: *const std.Target, options: GetExternalExecutorOptions) Executor {
     const host_os_tag = options.host_os_tag;
     const host_cpu_arch = options.host_cpu_arch;
-    const os_match = host_os_tag == candidate.os.tag;
+    const os_match = host_os_tag == candidate.os.tag or (host_os_tag == .macos and candidate.os.tag == .maccatalyst);
     const cpu_ok = cpu_ok: {
         if (host_cpu_arch == candidate.cpu.arch)
             break :cpu_ok true;
@@ -80,7 +80,7 @@ pub fn getExternalExecutor(io: Io, candidate: *const std.Target, options: GetExt
 
     // If the OS match and OS is macOS and CPU is arm64, we can use Rosetta 2
     // to emulate the foreign architecture.
-    if (os_match and (host_os_tag == .maccatalyst or host_os_tag == .macos) and host_cpu_arch == .aarch64) {
+    if (os_match and host_cpu_arch == .aarch64) {
         switch (candidate.cpu.arch) {
             .x86_64 => return .rosetta,
             else => return bad_result,
