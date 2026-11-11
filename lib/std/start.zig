@@ -685,22 +685,7 @@ fn posixCallMainAndExit(argc_argv_ptr: [*]usize) callconv(.c) noreturn {
         // while trying to access the global variable (happens on MIPS at least).
         __zig_elf_auxv = auxv;
 
-        if (!builtin.single_threaded) {
-            // ARMv6 targets (and earlier) have no support for TLS in hardware.
-            // FIXME: Elide the check for targets >= ARMv7 when the target feature API
-            // becomes less verbose (and more usable).
-            if (comptime native_arch.isArm()) {
-                if (at_hwcap & std.os.linux.HWCAP.TLS == 0) {
-                    // FIXME: Make __aeabi_read_tp call the kernel helper kuser_get_tls
-                    // For the time being use a simple trap instead of a @panic call to
-                    // keep the binary bloat under control.
-                    @trap();
-                }
-            }
-
-            // Initialize the TLS area.
-            __zig_elf_static_tls_init(phdrs, phnum);
-        }
+        if (!builtin.single_threaded) __zig_elf_static_tls_init(phdrs, phnum);
 
         // The way Linux executables represent stack size is via the PT.GNU_STACK
         // program header. However the kernel does not recognize it; it always gives 8 MiB.
