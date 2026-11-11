@@ -232,10 +232,6 @@ pub const Feature = enum {
     xsaveopt,
     xsaves,
     zu,
-
-    // Needed until the next zig1.wasm update.
-    pub const @"32bit": Feature = .@"386";
-    pub const x87: Feature = .@"387";
 };
 
 pub const featureSet = CpuFeature.FeatureSetFns(Feature).featureSet;
