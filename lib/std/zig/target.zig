@@ -754,6 +754,13 @@ fn supportedCompatArch(host: *const std.Target, arch: std.Target.Cpu.Arch) bool 
     };
 }
 
+fn supportedCompatOs(host: *const std.Target, os: std.Target.Os.Tag) bool {
+    return switch (host.os.tag) {
+        .macos => os == .maccatalyst,
+        else => false,
+    };
+}
+
 /// Intended for test code to determine whether it makes sense to run a test for a particular target
 /// on the host. This is not an objective check; it is best-effort and also makes subjective
 /// judgements for some targets.
@@ -763,7 +770,7 @@ pub fn isNative(query: *const std.Target.Query, target: *const std.Target, host:
     if (target.cpu.arch != host.cpu.arch and !supportedCompatArch(host, target.cpu.arch))
         return false;
 
-    if (target.os.tag != host.os.tag)
+    if (target.os.tag != host.os.tag and !supportedCompatOs(host, target.os.tag))
         return false;
 
     // This check is really only necessary for the case where `host.cpu.arch.isAarch64()` and
