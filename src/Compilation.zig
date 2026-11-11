@@ -6834,10 +6834,6 @@ pub fn addCCArgs(
     // Non-preprocessed assembly files don't support these flags.
     if (ext != .assembly) {
         if (target.abi.float() == .soft) {
-            if (target_util.clangSupportsNoImplicitFloatArg(target)) {
-                try argv.append(arena, "-mno-implicit-float");
-            }
-
             // Ensure that Clang emits the `use-soft-float` function attribute.
             try argv.appendSlice(arena, &.{ "-Xclang", "-msoft-float" });
         }

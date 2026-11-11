@@ -2061,10 +2061,6 @@ pub const Object = struct {
                 .kind = try o.builder.string("use-soft-float"),
                 .value = try o.builder.string("true"),
             } }, &o.builder);
-
-            // This prevents LLVM from using FPU/SIMD code for things like `memcpy`. As for the
-            // above, this should be revisited if `softfp` support is added.
-            try attributes.addFnAttr(.noimplicitfloat, &o.builder);
         }
 
         // The frontend should eventually offer options to control these.
