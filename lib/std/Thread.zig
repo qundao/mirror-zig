@@ -1448,7 +1448,6 @@ const LinuxThreadImpl = struct {
     extern var __zig_elf_static_tls: extern struct {
         size: usize,
         alignment: usize,
-        gdt_entry_number: usize,
     };
 
     /// Provided by compiler-rt.
@@ -1534,7 +1533,7 @@ const LinuxThreadImpl = struct {
         if (target.cpu.arch == .x86) {
             defer tls_ptr = @intFromPtr(&user_desc);
             user_desc = .{
-                .entry_number = __zig_elf_static_tls.gdt_entry_number,
+                .entry_number = asm volatile ("movw %%gs, %[sel]" : [sel] "=r" (-> u16)) >> 3,
                 .base_addr = tls_ptr,
                 .limit = 0xfffff,
                 .flags = .{
