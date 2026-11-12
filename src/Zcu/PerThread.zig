@@ -2386,7 +2386,7 @@ fn updateFileRootStructType(pt: Zcu.PerThread, file_index: Zcu.File.Index) Alloc
 /// Called by AstGen worker threads when an import is seen. If `new_file` is returned, the caller is
 /// then responsible for queueing a new AstGen job for the new file.
 /// Assumes that `comp.mutex` is NOT locked. It will be locked by this function where necessary.
-pub fn discoverImport(
+fn discoverImport(
     pt: Zcu.PerThread,
     importer_path: Compilation.Path,
     import_string: []const u8,
@@ -2465,6 +2465,7 @@ pub fn doImport(
 ) error{
     OutOfMemory,
     ModuleNotFound,
+    NonZigModule,
     IllegalZigImport,
 }!struct {
     file: Zcu.File.Index,
@@ -2488,6 +2489,7 @@ pub fn doImport(
                 .module_root = mod,
             };
         }
+        return error.NonZigModule;
     }
     if (!std.mem.endsWith(u8, import_string, ".zig") and
         !std.mem.endsWith(u8, import_string, ".zon"))
@@ -2689,7 +2691,7 @@ fn computeAliveFiles(pt: Zcu.PerThread) Allocator.Error!bool {
 
             const res = pt.doImport(file, import_path) catch |err| switch (err) {
                 error.OutOfMemory => |e| return e,
-                error.ModuleNotFound => {
+                error.ModuleNotFound, error.NonZigModule => {
                     // It'd be nice if this were a file-level error, but allowing this turns out to
                     // be quite important in practice, e.g. for optional dependencies whose import
                     // is behind a comptime condition. So, the error here happens in `Sema` instead.
