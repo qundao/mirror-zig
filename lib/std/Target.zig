@@ -3740,9 +3740,11 @@ pub fn cTypeBitSize(target: *const Target, c_type: CType) ?u16 {
             .longdouble => switch (target.cpu.arch) {
                 .x86,
                 .x86c16,
+                => if (target.cpu.has(.x86, .@"387")) 80 else null,
+
                 .x86_64,
                 => switch (target.abi) {
-                    .android, .ohos => 64,
+                    .android, .ohos => 128,
                     else => if (target.cpu.has(.x86, .@"387")) 80 else null,
                 },
 
