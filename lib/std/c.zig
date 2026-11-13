@@ -11,7 +11,6 @@ const assert = std.debug.assert;
 const page_size = std.heap.page_size_min;
 const linux = std.os.linux;
 const emscripten = std.os.emscripten;
-const windows = std.os.windows;
 const darwin = @import("c/darwin.zig");
 const freebsd = @import("c/freebsd.zig");
 const illumos = @import("c/illumos.zig");
@@ -31,10 +30,28 @@ const lfs64 = switch (native_os) {
 // These constants are shared among all operating systems even when not linking
 // libc.
 
-pub const iovec = std.posix.iovec;
-pub const iovec_const = std.posix.iovec_const;
-pub const LOCK = std.posix.LOCK;
-pub const winsize = std.posix.winsize;
+pub const iovec = extern struct {
+    base: [*]u8,
+    len: usize,
+};
+pub const iovec_const = extern struct {
+    base: [*]const u8,
+    len: usize,
+};
+
+pub const winsize = extern struct {
+    row: u16,
+    col: u16,
+    xpixel: u16,
+    ypixel: u16,
+};
+
+pub const LOCK = struct {
+    pub const SH = 1;
+    pub const EX = 2;
+    pub const NB = 4;
+    pub const UN = 8;
+};
 
 /// The value of the link editor defined symbol _MH_EXECUTE_SYM is the address
 /// of the mach header in a Mach-O executable file type.  It does not appear in
@@ -247,6 +264,8 @@ pub const fd_t = switch (native_os) {
     .linux => linux.fd_t,
     else => c_int,
 };
+
+pub const socket_t = fd_t;
 
 pub const ARCH = switch (native_os) {
     .linux => linux.ARCH,
@@ -3818,7 +3837,12 @@ pub const IOCPARM_MASK = switch (native_os) {
 };
 pub const TCSA = switch (native_os) {
     .illumos => illumos.TCSA,
-    else => std.posix.TCSA,
+    else => enum(c_uint) {
+        NOW,
+        DRAIN,
+        FLUSH,
+        _,
+    },
 };
 pub const TFD = switch (native_os) {
     .linux => linux.TFD,
@@ -4253,7 +4277,15 @@ pub const linger = switch (native_os) {
 };
 
 pub const msghdr = switch (native_os) {
-    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_msghdr else linux.msghdr,
+    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_msghdr else extern struct {
+        name: ?*sockaddr,
+        namelen: socklen_t,
+        iov: [*]iovec,
+        iovlen: usize,
+        control: ?*anyopaque,
+        controllen: usize,
+        flags: u32,
+    },
     .openbsd,
     .emscripten,
     .dragonfly,
@@ -4316,7 +4348,15 @@ const posix_msghdr = extern struct {
 };
 
 pub const msghdr_const = switch (native_os) {
-    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_msghdr_const else linux.msghdr_const,
+    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_msghdr_const else extern struct {
+        name: ?*const sockaddr,
+        namelen: socklen_t,
+        iov: [*]const iovec_const,
+        iovlen: usize,
+        control: ?*const anyopaque,
+        controllen: usize,
+        flags: u32,
+    },
     .openbsd,
     .emscripten,
     .dragonfly,
@@ -4355,7 +4395,10 @@ pub const mmsghdr = switch (native_os) {
         hdr: msghdr,
         len: isize,
     },
-    .linux => linux.mmsghdr,
+    .linux => extern struct {
+        hdr: msghdr,
+        len: u32,
+    },
     else => extern struct {
         hdr: msghdr,
         len: u32,
@@ -4363,7 +4406,11 @@ pub const mmsghdr = switch (native_os) {
 };
 
 pub const cmsghdr = switch (native_os) {
-    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_cmsghdr else linux.cmsghdr,
+    .linux => if (@bitSizeOf(usize) > @bitSizeOf(i32) and builtin.abi.isMusl()) posix_cmsghdr else extern struct {
+        len: usize,
+        level: i32,
+        type: i32,
+    },
     // https://github.com/emscripten-core/emscripten/blob/96371ed7888fc78c040179f4d4faa82a6a07a116/system/lib/libc/musl/include/sys/socket.h#L44
     .emscripten => linux.cmsghdr,
     // https://github.com/freebsd/freebsd-src/blob/b197d2abcb6895d78bc9df8404e374397aa44748/sys/sys/socket.h#L492
@@ -8481,10 +8528,34 @@ pub const AT = switch (native_os) {
     else => void,
 };
 
+pub const ACCMODE = switch (native_os) {
+    // POSIX has a note about the access mode values:
+    //
+    // In historical implementations the value of O_RDONLY is zero. Because of
+    // that, it is not possible to detect the presence of O_RDONLY and another
+    // option. Future implementations should encode O_RDONLY and O_WRONLY as
+    // bit flags so that: O_RDONLY | O_WRONLY == O_RDWR
+    //
+    // In practice SerenityOS is the only system supported by Zig that
+    // implements this suggestion.
+    // https://github.com/SerenityOS/serenity/blob/4adc51fdf6af7d50679c48b39362e062f5a3b2cb/Kernel/API/POSIX/fcntl.h#L28-L30
+    .serenity => enum(u2) {
+        NONE = 0,
+        RDONLY = 1,
+        WRONLY = 2,
+        RDWR = 3,
+    },
+    else => enum(u2) {
+        RDONLY = 0,
+        WRONLY = 1,
+        RDWR = 2,
+    },
+};
+
 pub const O = switch (native_os) {
     .linux => linux.O,
     .emscripten => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         _2: u4 = 0,
         CREAT: bool = false,
         EXCL: bool = false,
@@ -8507,7 +8578,7 @@ pub const O = switch (native_os) {
         _: u9 = 0,
     },
     .illumos => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NDELAY: bool = false,
         APPEND: bool = false,
         SYNC: bool = false,
@@ -8534,7 +8605,7 @@ pub const O = switch (native_os) {
         _: u6 = 0,
     },
     .netbsd => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NONBLOCK: bool = false,
         APPEND: bool = false,
         SHLOCK: bool = false,
@@ -8562,7 +8633,7 @@ pub const O = switch (native_os) {
         _: u4 = 0,
     },
     .openbsd => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NONBLOCK: bool = false,
         APPEND: bool = false,
         SHLOCK: bool = false,
@@ -8580,7 +8651,7 @@ pub const O = switch (native_os) {
         _: u14 = 0,
     },
     .haiku => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         _2: u4 = 0,
         CLOEXEC: bool = false,
         NONBLOCK: bool = false,
@@ -8600,7 +8671,7 @@ pub const O = switch (native_os) {
         _: u10 = 0,
     },
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NONBLOCK: bool = false,
         APPEND: bool = false,
         SHLOCK: bool = false,
@@ -8628,7 +8699,7 @@ pub const O = switch (native_os) {
         POPUP: bool = false,
     },
     .dragonfly => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NONBLOCK: bool = false,
         APPEND: bool = false,
         SHLOCK: bool = false,
@@ -8654,7 +8725,7 @@ pub const O = switch (native_os) {
         _: u4 = 0,
     },
     .freebsd => bitpack struct(u32) {
-        ACCMODE: std.posix.ACCMODE = .RDONLY,
+        ACCMODE: ACCMODE = .RDONLY,
         NONBLOCK: bool = false,
         APPEND: bool = false,
         SHLOCK: bool = false,
@@ -8683,7 +8754,7 @@ pub const O = switch (native_os) {
     },
     // https://github.com/SerenityOS/serenity/blob/2808b0376406a40e31293bb3bcb9170374e90506/Kernel/API/POSIX/fcntl.h#L28-L43
     .serenity => bitpack struct(c_int) {
-        ACCMODE: std.posix.ACCMODE = .NONE,
+        ACCMODE: ACCMODE = .NONE,
         EXEC: bool = false,
         CREAT: bool = false,
         EXCL: bool = false,
