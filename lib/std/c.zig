@@ -3244,7 +3244,7 @@ const common_linux_Sigaction = extern struct {
 
 /// Renamed from `sigaction` to `Sigaction` to avoid conflict with function name.
 pub const Sigaction = switch (native_os) {
-    .linux => if (builtin.abi.isAndroid() and builtin.target.ptrBitWidth() == 64) extern struct {
+    .linux => if (builtin.abi.isAndroid()) extern struct {
         pub const handler_fn = *align(1) const fn (SIG) callconv(.c) void;
         pub const sigaction_fn = *const fn (SIG, *const siginfo_t, ?*anyopaque) callconv(.c) void;
 
@@ -7187,7 +7187,7 @@ pub const time_t = switch (native_os) {
     .linux => linux.time_t,
     .dragonfly, .illumos, .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => c_long,
     .emscripten => emscripten.time_t,
-    .freebsd, .haiku => if (native_arch == .x86) c_int else c_longlong,
+    .freebsd, .haiku => c_longlong,
     // https://github.com/SerenityOS/serenity/blob/b98f537f117b341788023ab82e0c11ca9ae29a57/Kernel/API/POSIX/sys/types.h#L47
     .netbsd, .openbsd, .serenity => c_longlong,
     else => void,
@@ -7266,7 +7266,7 @@ pub const PR = switch (native_os) {
 };
 pub const _errno = switch (native_os) {
     .linux => switch (native_abi) {
-        .android, .androidsf => private.__errno,
+        .android => private.__errno,
         else => private.__errno_location,
     },
     .emscripten => private.__errno_location,
@@ -8051,15 +8051,13 @@ pub const pthread_mutex_t = switch (native_os) {
                 => 40,
                 else => if (@sizeOf(usize) == 8) 40 else 24,
             },
-            .android, .androidsf => if (@sizeOf(usize) == 8) 40 else 4,
+            .android => if (@sizeOf(usize) == 8) 40 else 4,
             else => @compileError("unsupported ABI"),
         };
     },
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => extern struct {
         sig: c_long = 0x32AAABA7,
-        data: [data_len]u8 = @splat(0),
-
-        const data_len = if (@sizeOf(usize) == 8) 56 else 40;
+        data: [56]u8 = @splat(0),
     },
     .freebsd, .dragonfly, .openbsd => extern struct {
         inner: ?*anyopaque = null,
@@ -8111,8 +8109,7 @@ pub const pthread_cond_t = switch (native_os) {
     },
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => extern struct {
         sig: c_long = 0x3CB0B1BB,
-        data: [data_len]u8 = @splat(0),
-        const data_len = if (@sizeOf(usize) == 8) 40 else 24;
+        data: [40]u8 = @splat(0),
     },
     .freebsd, .dragonfly, .openbsd => extern struct {
         inner: ?*anyopaque = null,
@@ -8151,19 +8148,8 @@ pub const pthread_cond_t = switch (native_os) {
 };
 
 pub const pthread_rwlock_t = switch (native_os) {
-    .linux => switch (native_abi) {
-        .android, .androidsf => switch (@sizeOf(usize)) {
-            4 => extern struct {
-                data: [40]u8 align(@alignOf(usize)) = @splat(0),
-            },
-            8 => extern struct {
-                data: [56]u8 align(@alignOf(usize)) = @splat(0),
-            },
-            else => @compileError("impossible pointer size"),
-        },
-        else => extern struct {
-            data: [56]u8 align(@alignOf(usize)) = @splat(0),
-        },
+    .linux => extern struct {
+        data: [56]u8 align(@alignOf(usize)) = @splat(0),
     },
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => extern struct {
         sig: c_long = 0x2DA8B3B4,
@@ -9807,7 +9793,7 @@ pub const NSIG = switch (native_os) {
 pub const MINSIGSTKSZ = switch (native_os) {
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => 32768,
     .freebsd => switch (builtin.cpu.arch) {
-        .powerpc64, .powerpc64le, .x86, .x86_64 => 2048,
+        .powerpc64, .powerpc64le, .x86_64 => 2048,
         .arm, .aarch64, .riscv64 => 4096,
         else => @compileError("unsupported arch"),
     },
