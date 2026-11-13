@@ -21,6 +21,13 @@ const haiku = @import("c/haiku.zig");
 const openbsd = @import("c/openbsd.zig");
 const serenity = @import("c/serenity.zig");
 
+const inode64 = native_arch == .x86_64 and native_os.isDarwin();
+const lfs64 = switch (native_os) {
+    .linux => native_abi.isGnu() or native_abi.isAndroid(),
+    .hurd => native_abi.isGnu(),
+    else => false,
+};
+
 // These constants are shared among all operating systems even when not linking
 // libc.
 
@@ -7453,16 +7460,6 @@ pub const MAXNAMLEN = switch (native_os) {
     .openbsd => 255,
     else => {},
 };
-pub const dirent64 = switch (native_os) {
-    .linux => extern struct {
-        ino: c_ulong,
-        off: c_ulong,
-        reclen: c_ushort,
-        type: u8,
-        name: [256]u8,
-    },
-    else => void,
-};
 
 pub const AI = if (builtin.abi.isAndroid()) bitpack struct(u32) {
     PASSIVE: bool = false,
@@ -10411,13 +10408,13 @@ pub const MFD = switch (native_os) {
 pub const DIR = opaque {};
 pub const opendir = switch (native_os) {
     .netbsd => private.__opendir30,
-    else => private.opendir,
+    else => if (inode64) private.@"opendir$INODE64" else private.opendir,
 };
-pub extern "c" fn fdopendir(fd: c_int) ?*DIR;
-pub extern "c" fn rewinddir(dp: *DIR) void;
+pub const fdopendir = if (inode64) private.@"fdopendir$INODE64" else private.fdopendir;
+pub const rewinddir = if (inode64) private.@"rewinddir$INODE64" else private.rewinddir;
 pub extern "c" fn closedir(dp: *DIR) c_int;
-pub extern "c" fn telldir(dp: *DIR) c_long;
-pub extern "c" fn seekdir(dp: *DIR, loc: c_long) void;
+pub const telldir = if (inode64) private.@"telldir$INODE64" else private.telldir;
+pub const seekdir = if (inode64) private.@"seekdir$INODE64" else private.seekdir;
 
 pub const sigwait = switch (native_os) {
     .illumos => private.__posix_sigwait,
@@ -10443,22 +10440,14 @@ pub const clock_gettime = switch (native_os) {
 };
 
 pub const fstat = switch (native_os) {
-    .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => switch (native_arch) {
-        .x86_64 => private.@"fstat$INODE64",
-        else => private.fstat,
-    },
     .netbsd => private.__fstat50,
     .linux => {},
-    else => private.fstat,
+    else => if (inode64) private.@"fstat$INODE64" else private.fstat,
 };
 
 pub const fstatat = switch (native_os) {
-    .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => switch (native_arch) {
-        .x86_64 => private.@"fstatat$INODE64",
-        else => private.fstatat,
-    },
     .linux => {},
-    else => private.fstatat,
+    else => if (inode64) private.@"fstatat$INODE64" else private.fstatat,
 };
 
 pub extern "c" fn statx(dirfd: fd_t, path: [*:0]const u8, flags: u32, mask: linux.STATX, buf: *linux.Statx) c_int;
@@ -10565,11 +10554,11 @@ pub extern "c" fn inotify_rm_watch(fd: fd_t, wd: c_int) c_int;
 pub extern "c" fn fallocate64(fd: fd_t, mode: c_int, offset: off_t, len: off_t) c_int;
 pub extern "c" fn fopen64(noalias filename: [*:0]const u8, noalias modes: [*:0]const u8) ?*FILE;
 pub extern "c" fn ftruncate64(fd: c_int, length: off_t) c_int;
-pub extern "c" fn fallocate(fd: fd_t, mode: c_int, offset: off_t, len: off_t) c_int;
+pub const fallocate = if (lfs64) fallocate64 else private.fallocate;
 pub const sendfile = switch (native_os) {
     .freebsd => freebsd.sendfile,
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => darwin.sendfile,
-    .linux => private.sendfile,
+    .linux => if (lfs64) sendfile64 else private.sendfile,
     else => {},
 };
 
@@ -10721,7 +10710,7 @@ pub const copy_file_range = switch (native_os) {
 
 pub extern "c" fn signalfd(fd: fd_t, mask: *const sigset_t, flags: u32) c_int;
 
-pub extern "c" fn prlimit(pid: pid_t, resource: rlimit_resource, new_limit: *const rlimit, old_limit: *rlimit) c_int;
+pub const prlimit = if (lfs64) private.prlimit64 else private.prlimit;
 pub extern "c" fn mincore(
     addr: *align(page_size) anyopaque,
     length: usize,
@@ -10736,12 +10725,12 @@ pub extern "c" fn madvise(
 
 pub const getdirentries = switch (native_os) {
     .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => private.__getdirentries64,
-    else => private.getdirentries,
+    else => if (lfs64 and native_abi.isGnu()) private.getdirentries64 else private.getdirentries,
 };
 
 pub const getdents = switch (native_os) {
     .netbsd => private.__getdents30,
-    else => private.getdents,
+    else => if (lfs64 and native_abi.isGnu()) private.getdents64 else private.getdents,
 };
 
 pub const getrusage = switch (native_os) {
@@ -10790,13 +10779,14 @@ pub const nanosleep = switch (native_os) {
 };
 
 pub const readdir = switch (native_os) {
-    .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => switch (native_arch) {
-        .x86_64 => private.@"readdir$INODE64",
-        else => private.readdir,
-    },
     .netbsd => private.__readdir30,
     .windows => {},
-    else => private.readdir,
+    else => if (inode64)
+        private.@"readdir$INODE64"
+    else if (lfs64)
+        private.readdir64
+    else
+        private.readdir,
 };
 
 pub const realpath = switch (native_os) {
@@ -10887,12 +10877,9 @@ pub const socketpair = switch (native_os) {
 };
 
 pub const stat = switch (native_os) {
-    .driverkit, .ios, .maccatalyst, .macos, .tvos, .visionos, .watchos => switch (native_arch) {
-        .x86_64 => private.@"stat$INODE64",
-        else => private.stat,
-    },
+    .linux => {},
     .netbsd => private.__stat50,
-    else => private.stat,
+    else => if (inode64) private.@"stat$INODE64" else private.stat,
 };
 
 pub const _msize = switch (native_os) {
@@ -10939,7 +10926,7 @@ pub const futex = switch (native_os) {
 
 pub extern "c" var environ: [*:null]?[*:0]u8;
 
-pub extern "c" fn fopen(noalias filename: [*:0]const u8, noalias modes: [*:0]const u8) ?*FILE;
+pub const fopen = if (lfs64) fopen64 else private.fopen;
 pub extern "c" fn fclose(stream: *FILE) c_int;
 pub extern "c" fn fwrite(noalias ptr: [*]const u8, size_of_type: usize, item_count: usize, noalias stream: *FILE) usize;
 pub extern "c" fn fread(noalias ptr: [*]u8, size_of_type: usize, item_count: usize, noalias stream: *FILE) usize;
@@ -10955,27 +10942,30 @@ pub const isatty = switch (native_os) {
 };
 pub const lseek = switch (native_os) {
     .windows => private._lseeki64,
-    else => private.lseek,
+    else => if (lfs64) lseek64 else private.lseek,
 };
-pub extern "c" fn open(path: [*:0]const u8, oflag: O, ...) c_int;
-pub extern "c" fn openat(fd: c_int, path: [*:0]const u8, oflag: O, ...) c_int;
-pub extern "c" fn ftruncate(fd: c_int, length: off_t) c_int;
+pub const open = if (lfs64) open64 else private.open;
+pub const openat = if (lfs64) openat64 else private.openat;
+pub const ftruncate = switch (native_os) {
+    .windows => ftruncate64,
+    else => if (lfs64) ftruncate64 else private.ftruncate,
+};
 pub extern "c" fn raise(sig: SIG) c_int;
 pub const read = switch (native_os) {
     .windows => private._read,
     else => private.read,
 };
 pub extern "c" fn readv(fd: c_int, iov: [*]const iovec, iovcnt: c_uint) isize;
-pub extern "c" fn pread(fd: fd_t, buf: [*]u8, nbyte: usize, offset: off_t) isize;
-pub extern "c" fn preadv(fd: c_int, iov: [*]const iovec, iovcnt: c_uint, offset: off_t) isize;
+pub const pread = if (lfs64) pread64 else private.pread;
+pub const preadv = if (lfs64) preadv64 else private.preadv;
 pub extern "c" fn writev(fd: c_int, iov: [*]const iovec_const, iovcnt: c_uint) isize;
-pub extern "c" fn pwritev(fd: c_int, iov: [*]const iovec_const, iovcnt: c_uint, offset: off_t) isize;
+pub const pwritev = if (lfs64) pwritev64 else private.pwritev;
 pub const write = switch (native_os) {
     .windows => private._write,
     else => private.write,
 };
-pub extern "c" fn pwrite(fd: fd_t, buf: [*]const u8, nbyte: usize, offset: off_t) isize;
-pub extern "c" fn mmap(addr: ?*align(page_size) anyopaque, len: usize, prot: PROT, flags: MAP, fd: fd_t, offset: off_t) *anyopaque;
+pub const pwrite = if (lfs64) pwrite64 else private.pwrite;
+pub const mmap = if (lfs64) mmap64 else private.mmap;
 pub extern "c" fn munmap(addr: *align(page_size) const anyopaque, len: usize) c_int;
 pub const mremap = switch (native_os) {
     .serenity => serenity.mremap,
@@ -11064,7 +11054,7 @@ pub extern "c" fn sysctlbyname(name: [*:0]const u8, oldp: ?*anyopaque, oldlenp: 
 pub extern "c" fn sysctlnametomib(name: [*:0]const u8, mibp: ?*c_int, sizep: ?*usize) c_int;
 pub extern "c" fn tcgetattr(fd: fd_t, termios_p: *termios) c_int;
 pub extern "c" fn tcsetattr(fd: fd_t, optional_action: TCSA, termios_p: *const termios) c_int;
-pub extern "c" fn fcntl(fd: fd_t, cmd: c_int, ...) c_int;
+pub const fcntl = if (lfs64 and native_abi.isGnu()) private.fcntl64 else private.fcntl;
 pub extern "c" fn uname(buf: *utsname) c_int;
 
 pub extern "c" fn gethostname(name: [*]u8, len: usize) c_int;
@@ -11371,8 +11361,8 @@ pub extern "c" fn fdatasync(fd: c_int) c_int;
 
 pub extern "c" fn prctl(option: c_int, ...) c_int;
 
-pub extern "c" fn getrlimit(resource: rlimit_resource, rlim: *rlimit) c_int;
-pub extern "c" fn setrlimit(resource: rlimit_resource, rlim: *const rlimit) c_int;
+pub const getrlimit = if (lfs64) getrlimit64 else private.getrlimit;
+pub const setrlimit = if (lfs64) setrlimit64 else private.setrlimit;
 
 pub extern "c" fn fmemopen(noalias buf: ?*anyopaque, size: usize, noalias mode: [*:0]const u8) ?*FILE;
 
@@ -11962,11 +11952,16 @@ const private = struct {
     extern "c" fn copy_file_range(fd_in: fd_t, off_in: ?*i64, fd_out: fd_t, off_out: ?*i64, len: usize, flags: c_uint) isize;
     extern "c" fn dup(fd: fd_t) c_int;
     extern "c" fn dup2(old_fd: fd_t, new_fd: fd_t) c_int;
+    extern "c" fn fallocate(fd: fd_t, mode: c_int, offset: off_t, len: off_t) c_int;
+    extern "c" fn fcntl(fd: fd_t, cmd: c_int, ...) c_int;
+    extern "c" fn fdopendir(fd: c_int) ?*DIR;
     extern "c" fn fexecve(fd: fd_t, argv: [*:null]const ?[*:0]const u8, envp: [*:null]const ?[*:0]const u8) c_int;
     extern "c" fn flock(fd: fd_t, operation: c_int) c_int;
+    extern "c" fn fopen(noalias filename: [*:0]const u8, noalias modes: [*:0]const u8) ?*FILE;
     extern "c" fn fork() c_int;
     extern "c" fn fstat(fd: fd_t, buf: *Stat) c_int;
     extern "c" fn fstatat(dirfd: fd_t, path: [*:0]const u8, buf: *Stat, flag: u32) c_int;
+    extern "c" fn ftruncate(fd: c_int, length: off_t) c_int;
     extern "c" fn futimes(fd: fd_t, times: ?*[2]timeval) c_int;
     extern "c" fn getdirentries(fd: fd_t, buf_ptr: [*]u8, nbytes: usize, basep: *i64) if (native_os == .dragonfly) c_int else isize;
     extern "c" fn getdents(fd: c_int, buf_ptr: [*]u8, nbytes: usize) switch (native_os) {
@@ -11981,22 +11976,33 @@ const private = struct {
     extern "c" fn getpwuid(uid: uid_t) ?*passwd;
     extern "c" fn getpwuid_r(uid: uid_t, pwd: *passwd, buf: [*]u8, buflen: usize, result: *?*passwd) c_int;
     extern "c" fn getpid() pid_t;
+    extern "c" fn getrlimit(resource: rlimit_resource, rlim: *rlimit) c_int;
     extern "c" fn getrusage(who: c_int, usage: *rusage) c_int;
     extern "c" fn gettimeofday(noalias tv: ?*timeval, noalias tz: ?*timezone) c_int;
     extern "c" fn ioctl(fd: fd_t, request: c_int, ...) c_int;
     extern "c" fn isatty(fd: fd_t) c_int;
     extern "c" fn lseek(fd: fd_t, offset: off_t, whence: whence_t) off_t;
     extern "c" fn mkdir(path: [*:0]const u8, mode: mode_t) c_int;
+    extern "c" fn mmap(addr: ?*align(page_size) anyopaque, len: usize, prot: PROT, flags: MAP, fd: fd_t, offset: off_t) *anyopaque;
     extern "c" fn msync(addr: *align(page_size) const anyopaque, len: usize, flags: c_int) c_int;
     extern "c" fn mremap(addr: ?*align(page_size) const anyopaque, old_len: usize, new_len: usize, flags: MREMAP, ...) *anyopaque;
     extern "c" fn nanosleep(rqtp: *const timespec, rmtp: ?*timespec) c_int;
+    extern "c" fn open(path: [*:0]const u8, oflag: O, ...) c_int;
+    extern "c" fn openat(fd: c_int, path: [*:0]const u8, oflag: O, ...) c_int;
     extern "c" fn opendir(pathname: [*:0]const u8) ?*DIR;
     extern "c" fn pipe2(fds: *[2]fd_t, flags: O) c_int;
+    extern "c" fn pread(fd: fd_t, buf: [*]u8, nbyte: usize, offset: off_t) isize;
+    extern "c" fn preadv(fd: c_int, iov: [*]const iovec, iovcnt: c_uint, offset: off_t) isize;
+    extern "c" fn prlimit(pid: pid_t, resource: rlimit_resource, new_limit: *const rlimit, old_limit: *rlimit) c_int;
+    extern "c" fn pwrite(fd: fd_t, buf: [*]const u8, nbyte: usize, offset: off_t) isize;
+    extern "c" fn pwritev(fd: c_int, iov: [*]const iovec_const, iovcnt: c_uint, offset: off_t) isize;
     extern "c" fn read(fd: fd_t, buf: [*]u8, nbyte: usize) isize;
     extern "c" fn readdir(dir: *DIR) ?*dirent;
     extern "c" fn realpath(noalias file_name: [*:0]const u8, noalias resolved_name: [*]u8) ?[*:0]u8;
     extern "c" fn recvmsg(sockfd: fd_t, msg: *msghdr, flags: u32) isize;
+    extern "c" fn rewinddir(dp: *DIR) void;
     extern "c" fn sched_yield() c_int;
+    extern "c" fn seekdir(dp: *DIR, loc: c_long) void;
     extern "c" fn getnameinfo(
         noalias addr: *const sockaddr,
         addrlen: socklen_t,
@@ -12010,6 +12016,7 @@ const private = struct {
     extern "c" fn sendmmsg(sockfd: fd_t, msgvec: [*]mmsghdr, n: c_uint, flags: u32) c_int;
     extern "c" fn sendmsg(sockfd: fd_t, msg: *const msghdr_const, flags: u32) isize;
     extern "c" fn setlocale(category: LC, locale: ?[*:0]const u8) ?[*:0]const u8;
+    extern "c" fn setrlimit(resource: rlimit_resource, rlim: *const rlimit) c_int;
     extern "c" fn sigaction(sig: SIG, noalias act: ?*const Sigaction, noalias oact: ?*Sigaction) c_int;
     extern "c" fn sigdelset(set: ?*sigset_t, signo: SIG) c_int;
     extern "c" fn sigaddset(set: ?*sigset_t, signo: SIG) c_int;
@@ -12023,6 +12030,7 @@ const private = struct {
     extern "c" fn sigaltstack(ss: ?*const stack_t, old_ss: ?*stack_t) c_int;
     extern "c" fn sysconf(sc: c_int) c_long;
     extern "c" fn shm_open(name: [*:0]const u8, flag: c_int, mode: mode_t) c_int;
+    extern "c" fn telldir(dp: *DIR) c_long;
     extern "c" fn umask(mode: mode_t) mode_t;
     extern "c" fn utimes(path: [*:0]const u8, times: ?*[2]timeval) c_int;
     extern "c" fn wait4(pid: pid_t, status: ?*c_int, options: c_int, ru: ?*rusage) pid_t;
@@ -12060,13 +12068,25 @@ const private = struct {
     // linux and https://github.com/SerenityOS/serenity/blob/502caef9a40bccc7459f9835f2174a601106299a/Userland/Libraries/LibC/sys/ptrace.cpp
     extern "c" fn ptrace(request: c_int, pid: pid_t, addr: ?*anyopaque, data: ?*anyopaque) c_long;
 
+    // LFS64
+    extern "c" fn fcntl64(fd: fd_t, cmd: c_int, ...) c_int;
+    extern "c" fn getdents64(fd: c_int, buf_ptr: [*]u8, nbytes: usize) isize;
+    extern "c" fn getdirentries64(fd: fd_t, buf_ptr: [*]u8, nbytes: usize, basep: *i64) isize;
+    extern "c" fn prlimit64(pid: pid_t, resource: rlimit_resource, new_limit: *const rlimit, old_limit: *rlimit) c_int;
+    extern "c" fn readdir64(dir: *DIR) ?*dirent;
+
     /// macos modernized symbols.
     /// x86_64 links to $INODE64 suffix for 64-bit support.
     /// Note these are not necessary on aarch64.
+    extern "c" fn @"fdopendir$INODE64"(fd: c_int) ?*DIR;
     extern "c" fn @"fstat$INODE64"(fd: fd_t, buf: *Stat) c_int;
     extern "c" fn @"fstatat$INODE64"(dirfd: fd_t, path: [*:0]const u8, buf: *Stat, flag: u32) c_int;
+    extern "c" fn @"opendir$INODE64"(pathname: [*:0]const u8) ?*DIR;
     extern "c" fn @"readdir$INODE64"(dir: *DIR) ?*dirent;
+    extern "c" fn @"rewinddir$INODE64"(dp: *DIR) void;
+    extern "c" fn @"seekdir$INODE64"(dp: *DIR, loc: c_long) void;
     extern "c" fn @"stat$INODE64"(noalias path: [*:0]const u8, noalias buf: *Stat) c_int;
+    extern "c" fn @"telldir$INODE64"(dp: *DIR) c_long;
     extern "c" fn stat(noalias path: [*:0]const u8, noalias buf: *Stat) c_int;
 
     /// macos modernized symbols.
