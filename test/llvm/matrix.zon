@@ -400,6 +400,8 @@
 
     .{ .cpu = .{ .powerpcle = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .powerpcle = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .sf = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
+    .{ .cpu = .{ .powerpcle = .{} }, .os = .{ .linux = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
+    .{ .cpu = .{ .powerpcle = .{} }, .os = .{ .linux = .{} }, .abi = .{ .sf = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
 
     .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .freebsd = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
     .{ .cpu = .{ .powerpc64 = .{} }, .os = .{ .freestanding = .{} }, .abi = .{ .none = .{} }, .cache_mode = .whole, .backend = .llvm, .linker = .lld },
